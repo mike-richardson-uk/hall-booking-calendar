@@ -118,8 +118,8 @@
                 }
             }
 
-            // Disable submit button
-            submitBtn.prop('disabled', true).text('Submitting...');
+            // Disable submit button and show loading state
+            submitBtn.prop('disabled', true).text('Submitting Booking...').addClass('loading');
             messageDiv.hide().removeClass('success error');
 
             // Prepare form data
@@ -168,25 +168,27 @@
                 processData: false,
                 contentType: false,
                 success: function(response) {
+                    console.log('Booking response:', response);
                     if (response.success) {
                         showMessage('success', response.data.message);
                         form[0].reset();
 
-                        // Redirect back to calendar after 2 seconds
+                        // Redirect back to calendar after 4 seconds
                         setTimeout(function() {
                             // Remove action and date parameters to return to calendar
                             var url = window.location.href.split('?')[0];
                             window.location.href = url;
-                        }, 2000);
+                        }, 4000);
                     } else {
                         showMessage('error', response.data.message);
                     }
                 },
-                error: function() {
-                    showMessage('error', 'An error occurred. Please try again.');
+                error: function(xhr, status, error) {
+                    console.error('AJAX error:', error, xhr.responseText);
+                    showMessage('error', 'An error occurred. Please try again. Check console for details.');
                 },
                 complete: function() {
-                    submitBtn.prop('disabled', false).text('Submit Booking');
+                    submitBtn.prop('disabled', false).text('Submit Booking').removeClass('loading');
                 }
             });
         });

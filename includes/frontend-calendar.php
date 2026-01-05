@@ -278,6 +278,11 @@ function hbc_render_booking_form($selected_date = '') {
         $date_value = '';
     }
     ?>
+    <div class="hbc-form-notice">
+        <p><strong>📅 Book a Hall Room</strong></p>
+        <p>Please fill out the form below to submit your booking request. All fields marked with <span class="required">*</span> are required. You will see a confirmation message after submitting.</p>
+    </div>
+
     <form id="hbc-booking-form" method="post" enctype="multipart/form-data">
 
         <div class="hbc-form-message"></div>
