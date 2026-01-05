@@ -1,0 +1,339 @@
+/* Frontend Styles for Hall Booking Calendar */
+
+.hbc-calendar-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+}
+
+.hbc-calendar-header {
+    margin-bottom: 30px;
+}
+
+.hbc-calendar-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.hbc-calendar-nav h2 {
+    margin: 0;
+    font-size: 28px;
+    color: #333;
+}
+
+.hbc-nav-btn {
+    background: #2271b1;
+    color: #fff;
+    padding: 10px 20px;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background 0.3s;
+}
+
+.hbc-nav-btn:hover {
+    background: #135e96;
+    color: #fff;
+}
+
+.hbc-rooms-legend {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.hbc-rooms-legend h3 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.hbc-rooms-legend ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.hbc-rooms-legend li {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+}
+
+.hbc-room-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    margin-right: 8px;
+}
+
+.hbc-room-1 {
+    background: #3498db;
+}
+
+.hbc-room-2 {
+    background: #e74c3c;
+}
+
+.hbc-room-3 {
+    background: #2ecc71;
+}
+
+.hbc-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    background: #e0e0e0;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.hbc-calendar-day-header {
+    background: #2271b1;
+    color: #fff;
+    padding: 12px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.hbc-calendar-day {
+    background: #fff;
+    min-height: 120px;
+    padding: 8px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.hbc-calendar-day.hbc-empty {
+    background: #f5f5f5;
+}
+
+.hbc-calendar-day.hbc-today {
+    background: #fffbea;
+    border: 2px solid #ffc107;
+}
+
+.hbc-calendar-day.hbc-past {
+    background: #f9f9f9;
+    color: #999;
+}
+
+.hbc-day-number {
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+.hbc-day-bookings {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-grow: 1;
+}
+
+.hbc-booking-indicator {
+    height: 8px;
+    border-radius: 2px;
+}
+
+.hbc-booking-indicator.hbc-available {
+    background: #e0e0e0;
+}
+
+.hbc-book-btn {
+    background: #2271b1;
+    color: #fff;
+    padding: 6px 12px;
+    text-align: center;
+    text-decoration: none;
+    border-radius: 3px;
+    font-size: 12px;
+    margin-top: auto;
+    transition: background 0.3s;
+}
+
+.hbc-book-btn:hover {
+    background: #135e96;
+    color: #fff;
+}
+
+/* Booking Form Modal */
+.hbc-booking-form-modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.hbc-modal-content {
+    background-color: #fff;
+    margin: 5% auto;
+    padding: 30px;
+    border-radius: 8px;
+    max-width: 600px;
+    position: relative;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.hbc-modal-close {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    color: #aaa;
+    cursor: pointer;
+}
+
+.hbc-modal-close:hover {
+    color: #000;
+}
+
+/* Booking Form */
+.hbc-booking-form-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.hbc-booking-form-container h2 {
+    margin-top: 0;
+}
+
+#hbc-booking-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.hbc-form-row {
+    display: flex;
+    flex-direction: column;
+}
+
+.hbc-form-row label {
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.hbc-form-row .required {
+    color: #e74c3c;
+}
+
+.hbc-form-row input[type="text"],
+.hbc-form-row input[type="email"],
+.hbc-form-row input[type="date"],
+.hbc-form-row input[type="time"],
+.hbc-form-row select,
+.hbc-form-row textarea {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.hbc-form-row textarea {
+    resize: vertical;
+}
+
+.hbc-form-row-half {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.hbc-form-row-half > div {
+    display: flex;
+    flex-direction: column;
+}
+
+.hbc-submit-btn {
+    background: #2271b1;
+    color: #fff;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.hbc-submit-btn:hover {
+    background: #135e96;
+}
+
+.hbc-submit-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.hbc-form-message {
+    padding: 12px;
+    border-radius: 4px;
+    margin: 10px 0;
+    display: none;
+}
+
+.hbc-form-message.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+    display: block;
+}
+
+.hbc-form-message.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    display: block;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .hbc-calendar-grid {
+        font-size: 12px;
+    }
+
+    .hbc-calendar-day {
+        min-height: 80px;
+        padding: 5px;
+    }
+
+    .hbc-day-number {
+        font-size: 14px;
+    }
+
+    .hbc-calendar-day-header {
+        font-size: 12px;
+        padding: 8px;
+    }
+
+    .hbc-rooms-legend ul {
+        flex-direction: column;
+    }
+
+    .hbc-form-row-half {
+        grid-template-columns: 1fr;
+    }
+
+    .hbc-modal-content {
+        margin: 10% 20px;
+        padding: 20px;
+    }
+}

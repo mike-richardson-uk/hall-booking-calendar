@@ -1,0 +1,103 @@
+/* Admin Styles for Hall Booking Calendar */
+
+.hbc-dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.hbc-stat-box {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.hbc-stat-box h3 {
+    font-size: 36px;
+    margin: 0 0 10px 0;
+    color: #2271b1;
+}
+
+.hbc-stat-box p {
+    margin: 0;
+    color: #646970;
+    font-size: 14px;
+}
+
+.hbc-recent-bookings {
+    margin-top: 30px;
+}
+
+.hbc-recent-bookings h2 {
+    margin-bottom: 15px;
+}
+
+.hbc-status {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.hbc-status-active,
+.hbc-status-confirmed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.hbc-status-inactive,
+.hbc-status-cancelled {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.hbc-status-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.hbc-filter-bar {
+    margin: 15px 0;
+}
+
+.hbc-filter-bar select {
+    padding: 5px 10px;
+    font-size: 14px;
+}
+
+.hbc-booking-details {
+    background: #fff;
+    padding: 20px;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    margin-top: 20px;
+}
+
+.hbc-booking-details h2,
+.hbc-booking-details h3 {
+    margin-top: 0;
+}
+
+.hbc-booking-details .form-table {
+    margin-top: 15px;
+}
+
+.hbc-booking-details .form-table th {
+    width: 200px;
+    font-weight: 600;
+}
+
+.hbc-booking-details form {
+    margin-top: 15px;
+}
+
+.hbc-booking-details form select {
+    padding: 5px 10px;
+    margin-right: 10px;
+}
