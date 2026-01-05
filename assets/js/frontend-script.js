@@ -7,6 +7,35 @@
 
     $(document).ready(function() {
 
+        // Toggle recurring options
+        $('#hbc_is_recurring').on('change', function() {
+            if ($(this).is(':checked')) {
+                $('#hbc-recurring-options').slideDown();
+                $('#hbc_add_multiple_dates').prop('checked', false);
+                $('#hbc-multiple-dates-section').slideUp();
+            } else {
+                $('#hbc-recurring-options').slideUp();
+            }
+        });
+
+        // Toggle multiple dates section
+        $('#hbc_add_multiple_dates').on('change', function() {
+            if ($(this).is(':checked')) {
+                $('#hbc-multiple-dates-section').slideDown();
+                $('#hbc_is_recurring').prop('checked', false);
+                $('#hbc-recurring-options').slideUp();
+            } else {
+                $('#hbc-multiple-dates-section').slideUp();
+            }
+        });
+
+        // Add additional date field
+        $('#hbc-add-date-btn').on('click', function() {
+            var today = new Date().toISOString().split('T')[0];
+            var newDateField = $('<input type="date" class="hbc-additional-date" name="additional_dates[]" min="' + today + '">');
+            $('#hbc-additional-dates-container').append(newDateField);
+        });
+
         // Open booking modal
         $('.hbc-book-btn').on('click', function(e) {
             e.preventDefault();
@@ -89,8 +118,23 @@
                 booking_date: $('#hbc_booking_date').val(),
                 start_time: startTime,
                 end_time: endTime,
-                purpose: $('#hbc_purpose').val()
+                purpose: $('#hbc_purpose').val(),
+                is_recurring: $('#hbc_is_recurring').is(':checked') ? '1' : '0',
+                recurrence_pattern: $('#hbc_recurrence_pattern').val(),
+                recurrence_end: $('#hbc_recurrence_end').val()
             };
+
+            // Collect additional dates if multiple dates option is checked
+            if ($('#hbc_add_multiple_dates').is(':checked')) {
+                var additionalDates = [];
+                $('.hbc-additional-date').each(function() {
+                    var dateVal = $(this).val();
+                    if (dateVal) {
+                        additionalDates.push(dateVal);
+                    }
+                });
+                formData.additional_dates = additionalDates;
+            }
 
             // Submit via AJAX
             $.ajax({

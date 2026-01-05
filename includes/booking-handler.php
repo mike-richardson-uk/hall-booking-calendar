@@ -33,6 +33,14 @@ function hbc_handle_booking_submission() {
     $end_time = sanitize_text_field($_POST['end_time']);
     $purpose = sanitize_textarea_field($_POST['purpose']);
 
+    // Recurring booking options
+    $is_recurring = isset($_POST['is_recurring']) && $_POST['is_recurring'] == '1';
+    $recurrence_pattern = isset($_POST['recurrence_pattern']) ? sanitize_text_field($_POST['recurrence_pattern']) : '';
+    $recurrence_end = isset($_POST['recurrence_end']) ? sanitize_text_field($_POST['recurrence_end']) : '';
+
+    // Multi-date booking options
+    $additional_dates = isset($_POST['additional_dates']) && is_array($_POST['additional_dates']) ? array_map('sanitize_text_field', $_POST['additional_dates']) : array();
+
     // Validate required fields
     if (empty($room_id) || empty($user_name) || empty($user_email) || empty($booking_date) || empty($start_time) || empty($end_time)) {
         wp_send_json_error(array('message' => __('Please fill in all required fields.', 'hall-booking-calendar')));
@@ -73,44 +81,64 @@ function hbc_handle_booking_submission() {
         return;
     }
 
-    // Check for booking conflicts
-    $conflict = hbc_check_booking_conflict($room_id, $booking_date, $start_time, $end_time);
-    if ($conflict) {
-        wp_send_json_error(array('message' => __('This room is already booked for the selected time. Please choose a different time or room.', 'hall-booking-calendar')));
-        return;
-    }
-
     // Get current user ID if logged in
     $user_id = is_user_logged_in() ? get_current_user_id() : null;
 
-    // Insert booking
-    $result = $wpdb->insert(
-        $bookings_table,
-        array(
-            'room_id' => $room_id,
-            'group_id' => $group_id,
-            'user_id' => $user_id,
-            'user_name' => $user_name,
-            'user_email' => $user_email,
-            'booking_date' => $booking_date,
-            'start_time' => $start_time,
-            'end_time' => $end_time,
-            'purpose' => $purpose,
-            'status' => 'pending'
-        ),
-        array('%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+    // Prepare booking data
+    $booking_data = array(
+        'room_id' => $room_id,
+        'group_id' => $group_id,
+        'user_id' => $user_id,
+        'user_name' => $user_name,
+        'user_email' => $user_email,
+        'booking_date' => $booking_date,
+        'start_time' => $start_time,
+        'end_time' => $end_time,
+        'purpose' => $purpose,
+        'status' => 'pending'
     );
 
-    if ($result) {
-        // Send notification email (optional)
-        hbc_send_booking_notification($wpdb->insert_id);
+    // Handle recurring or multi-date bookings
+    if ($is_recurring || !empty($additional_dates)) {
+        $result = hbc_create_recurring_bookings($booking_data, $recurrence_pattern, $recurrence_end, $additional_dates);
 
-        wp_send_json_success(array(
-            'message' => __('Your booking has been submitted successfully! You will receive a confirmation email once it is approved.', 'hall-booking-calendar'),
-            'booking_id' => $wpdb->insert_id
-        ));
+        if ($result['success']) {
+            // Send notification email for parent booking
+            hbc_send_booking_notification($result['parent_id']);
+
+            wp_send_json_success(array(
+                'message' => $result['message'],
+                'booking_ids' => $result['booking_ids']
+            ));
+        } else {
+            wp_send_json_error(array('message' => $result['message']));
+        }
     } else {
-        wp_send_json_error(array('message' => __('Failed to submit booking. Please try again.', 'hall-booking-calendar')));
+        // Single booking - check for conflicts
+        $conflict = hbc_check_booking_conflict($room_id, $booking_date, $start_time, $end_time);
+        if ($conflict) {
+            wp_send_json_error(array('message' => __('This room is already booked for the selected time. Please choose a different time or room.', 'hall-booking-calendar')));
+            return;
+        }
+
+        // Insert single booking
+        $result = $wpdb->insert(
+            $bookings_table,
+            $booking_data,
+            array('%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+        );
+
+        if ($result) {
+            // Send notification email
+            hbc_send_booking_notification($wpdb->insert_id);
+
+            wp_send_json_success(array(
+                'message' => __('Your booking has been submitted successfully! You will receive a confirmation email once it is approved.', 'hall-booking-calendar'),
+                'booking_id' => $wpdb->insert_id
+            ));
+        } else {
+            wp_send_json_error(array('message' => __('Failed to submit booking. Please try again.', 'hall-booking-calendar')));
+        }
     }
 }
 add_action('wp_ajax_hbc_submit_booking', 'hbc_handle_booking_submission');

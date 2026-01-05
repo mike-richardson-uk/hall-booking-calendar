@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Hall Booking Calendar
  * Plugin URI: https://github.com/slashzero/hall-calendar
- * Description: A WordPress plugin to manage a hall calendar with 3 rooms and allow users to book available rooms with group organization.
- * Version: 1.1.0
+ * Description: A WordPress plugin to manage a hall calendar with 3 rooms, recurring bookings, and calendar subscriptions.
+ * Version: 1.2.0
  * Author: Hall Calendar Team
  * Author URI: https://github.com/slashzero
  * License: GPL-2.0+
@@ -18,7 +18,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('HBC_VERSION', '1.1.0');
+define('HBC_VERSION', '1.2.0');
 define('HBC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HBC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('HBC_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -68,17 +68,41 @@ function hbc_activate() {
         end_time time NOT NULL,
         purpose text,
         status enum('pending','confirmed','cancelled') DEFAULT 'pending',
+        series_id varchar(50),
+        is_recurring tinyint(1) DEFAULT 0,
+        recurrence_pattern varchar(50),
+        recurrence_end_date date,
+        parent_booking_id mediumint(9),
         created_at datetime DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY  (id),
         KEY room_id (room_id),
         KEY group_id (group_id),
-        KEY booking_date (booking_date)
+        KEY booking_date (booking_date),
+        KEY series_id (series_id),
+        KEY parent_booking_id (parent_booking_id)
+    ) $charset_collate;";
+
+    // Create calendar subscriptions table
+    $subscriptions_table = $wpdb->prefix . 'hbc_subscriptions';
+    $sql_subscriptions = "CREATE TABLE IF NOT EXISTS $subscriptions_table (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) UNSIGNED,
+        token varchar(100) NOT NULL UNIQUE,
+        group_id mediumint(9),
+        room_id mediumint(9),
+        status enum('active','inactive') DEFAULT 'active',
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        last_accessed datetime,
+        PRIMARY KEY  (id),
+        KEY token (token),
+        KEY user_id (user_id)
     ) $charset_collate;";
 
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql_rooms);
     dbDelta($sql_groups);
     dbDelta($sql_bookings);
+    dbDelta($sql_subscriptions);
 
     // Insert default 3 rooms if none exist
     $existing_rooms = $wpdb->get_var("SELECT COUNT(*) FROM $rooms_table");
@@ -149,6 +173,8 @@ require_once HBC_PLUGIN_DIR . 'includes/admin-menu.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-rooms.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-groups.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-bookings.php';
+require_once HBC_PLUGIN_DIR . 'includes/recurring-bookings.php';
+require_once HBC_PLUGIN_DIR . 'includes/calendar-subscription.php';
 require_once HBC_PLUGIN_DIR . 'includes/frontend-calendar.php';
 require_once HBC_PLUGIN_DIR . 'includes/booking-handler.php';
 

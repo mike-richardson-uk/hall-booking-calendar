@@ -6,11 +6,14 @@ A comprehensive WordPress plugin for managing hall bookings with multiple rooms.
 
 - **Multi-Room Management**: Manage up to 3 rooms (expandable) with custom details
 - **Group Organization**: Organize bookings by groups (departments, teams, event types, etc.)
+- **Recurring Bookings**: Schedule repeating bookings (daily, weekly, biweekly, monthly, or every Nth weekday)
+- **Multi-Date Bookings**: Book multiple specific dates in a single reservation
+- **Calendar Subscriptions**: Subscribe to booking calendars via iCal/ICS feeds for Google Calendar, Outlook, Apple Calendar, etc.
 - **Interactive Calendar**: Visual calendar showing room availability
 - **Group Filtering**: Filter calendar and bookings by specific groups
 - **User-Friendly Booking**: Simple booking form with validation and group selection
 - **Admin Dashboard**: Complete admin interface for managing rooms, groups, and bookings
-- **Conflict Prevention**: Automatic checking for booking conflicts
+- **Conflict Prevention**: Automatic checking for booking conflicts across all dates
 - **Email Notifications**: Automated emails for booking confirmations
 - **Status Management**: Pending, confirmed, and cancelled booking statuses
 - **Responsive Design**: Works on desktop, tablet, and mobile devices
@@ -31,6 +34,7 @@ After activation, you'll find a new "Hall Booking" menu item in your WordPress a
 - **Rooms**: Add, edit, or delete rooms
 - **Groups**: Add, edit, or delete groups for organizing bookings
 - **Bookings**: View and manage all bookings, update status
+- **Subscriptions**: Create and manage calendar subscriptions (iCal feeds)
 
 ### Frontend Display
 
@@ -100,17 +104,40 @@ Groups help organize bookings by category, department, team, or event type. User
    - Select a group (optional)
    - Enter name and email
    - Choose date and time
+   - **For Recurring Bookings**: Check "Repeat this booking", select pattern (daily, weekly, biweekly, monthly), and set end date
+   - **For Multi-Date Bookings**: Check "Book multiple specific dates" and add additional dates
    - Add purpose (optional)
 4. Submit the booking
 5. Receive confirmation email
 
+**Recurring Booking Patterns:**
+- **Daily**: Every day until end date
+- **Weekly**: Same day each week
+- **Every 2 Weeks**: Biweekly on the same day
+- **Monthly (Same Date)**: Same date each month (e.g., 15th of each month)
+- **Monthly (Same Weekday)**: Same weekday position each month (e.g., third Wednesday)
+
+### Calendar Subscriptions
+
+1. Go to **Hall Booking → Subscriptions**
+2. Optionally filter by group or room
+3. Click "Create Subscription" to generate an iCal feed URL
+4. Copy the subscription URL
+5. Add to your calendar application:
+   - **Google Calendar**: Settings → Add calendar → From URL
+   - **Apple Calendar**: File → New Calendar Subscription
+   - **Outlook**: Calendar → Add calendar → Subscribe from web
+
+Your calendar app will automatically sync and display all bookings from the hall calendar.
+
 ## Database Tables
 
-The plugin creates three tables:
+The plugin creates four tables:
 
 - `wp_hbc_rooms`: Stores room information (name, description, capacity)
 - `wp_hbc_groups`: Stores group information for organizing bookings
-- `wp_hbc_bookings`: Stores booking details with room and group associations
+- `wp_hbc_bookings`: Stores booking details with room/group associations and recurring patterns
+- `wp_hbc_subscriptions`: Stores calendar subscription tokens and filters
 
 ## Email Notifications
 
@@ -150,6 +177,17 @@ https://github.com/slashzero/hall-calendar
 GPL-2.0+
 
 ## Changelog
+
+### 1.2.0
+- **Recurring Bookings**: Create repeating bookings with multiple patterns (daily, weekly, biweekly, monthly, monthly weekday)
+- **Multi-Date Bookings**: Book multiple specific dates in a single reservation
+- **Calendar Subscriptions**: iCal/ICS feed generation for syncing with external calendars
+- Added subscription management interface with token-based access
+- Support for filtering subscriptions by group or room
+- Enhanced database schema with recurring patterns and series tracking
+- Conflict detection across all dates in recurring/multi-date bookings
+- Frontend UI for recurring and multi-date booking options
+- Booking series management (future ability to edit/delete series)
 
 ### 1.1.0
 - Added group management system for organizing bookings

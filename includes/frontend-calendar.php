@@ -258,6 +258,52 @@ function hbc_render_booking_form() {
             </div>
         </div>
 
+        <!-- Recurring/Multi-date Booking Options -->
+        <div class="hbc-form-row hbc-recurring-section">
+            <label>
+                <input type="checkbox" id="hbc_is_recurring" name="is_recurring" value="1">
+                <?php _e('Repeat this booking', 'hall-booking-calendar'); ?>
+            </label>
+        </div>
+
+        <div id="hbc-recurring-options" class="hbc-recurring-options" style="display: none;">
+            <div class="hbc-form-row">
+                <label for="hbc_recurrence_pattern"><?php _e('Repeat:', 'hall-booking-calendar'); ?></label>
+                <select id="hbc_recurrence_pattern" name="recurrence_pattern">
+                    <option value=""><?php _e('Select Pattern', 'hall-booking-calendar'); ?></option>
+                    <option value="daily"><?php _e('Daily', 'hall-booking-calendar'); ?></option>
+                    <option value="weekly"><?php _e('Weekly', 'hall-booking-calendar'); ?></option>
+                    <option value="biweekly"><?php _e('Every 2 Weeks', 'hall-booking-calendar'); ?></option>
+                    <option value="monthly"><?php _e('Monthly (Same Date)', 'hall-booking-calendar'); ?></option>
+                    <option value="monthly_weekday"><?php _e('Monthly (Same Weekday)', 'hall-booking-calendar'); ?></option>
+                </select>
+                <p class="description"><?php _e('Example: "Monthly (Same Weekday)" means every third Wednesday', 'hall-booking-calendar'); ?></p>
+            </div>
+
+            <div class="hbc-form-row">
+                <label for="hbc_recurrence_end"><?php _e('Repeat Until:', 'hall-booking-calendar'); ?></label>
+                <input type="date" id="hbc_recurrence_end" name="recurrence_end" min="<?php echo date('Y-m-d'); ?>">
+            </div>
+        </div>
+
+        <div class="hbc-form-row">
+            <label>
+                <input type="checkbox" id="hbc_add_multiple_dates" value="1">
+                <?php _e('Book multiple specific dates', 'hall-booking-calendar'); ?>
+            </label>
+        </div>
+
+        <div id="hbc-multiple-dates-section" class="hbc-multiple-dates" style="display: none;">
+            <div class="hbc-form-row">
+                <label><?php _e('Additional Dates:', 'hall-booking-calendar'); ?></label>
+                <div id="hbc-additional-dates-container">
+                    <input type="date" class="hbc-additional-date" name="additional_dates[]" min="<?php echo date('Y-m-d'); ?>">
+                </div>
+                <button type="button" id="hbc-add-date-btn" class="button"><?php _e('+ Add Another Date', 'hall-booking-calendar'); ?></button>
+                <p class="description"><?php _e('Same time will be used for all selected dates', 'hall-booking-calendar'); ?></p>
+            </div>
+        </div>
+
         <div class="hbc-form-row">
             <label for="hbc_purpose"><?php _e('Purpose of Booking:', 'hall-booking-calendar'); ?></label>
             <textarea id="hbc_purpose" name="purpose" rows="4"></textarea>

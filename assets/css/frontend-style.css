@@ -336,6 +336,49 @@
     display: block;
 }
 
+/* Recurring and Multi-date Booking Styles */
+.hbc-recurring-section,
+.hbc-recurring-options,
+.hbc-multiple-dates {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.hbc-recurring-options .description,
+.hbc-multiple-dates .description {
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+}
+
+#hbc-additional-dates-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+#hbc-additional-dates-container input {
+    width: 100%;
+}
+
+#hbc-add-date-btn {
+    background: #2271b1;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+#hbc-add-date-btn:hover {
+    background: #135e96;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .hbc-calendar-grid {
