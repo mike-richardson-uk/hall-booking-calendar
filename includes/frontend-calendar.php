@@ -38,6 +38,12 @@ function hbc_display_calendar($group_filter = 'all') {
     $groups_table = $wpdb->prefix . 'hbc_groups';
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
 
+    // Check if tables exist
+    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$rooms_table'");
+    if (!$table_exists) {
+        return '<div class="hbc-error"><p>' . __('Hall Booking Calendar plugin is not properly activated. Please activate the plugin first.', 'hall-booking-calendar') . '</p></div>';
+    }
+
     // Get current month and year
     $current_month = isset($_GET['month']) ? intval($_GET['month']) : date('n');
     $current_year = isset($_GET['year']) ? intval($_GET['year']) : date('Y');
@@ -206,6 +212,14 @@ function hbc_render_booking_form() {
     global $wpdb;
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
     $groups_table = $wpdb->prefix . 'hbc_groups';
+
+    // Check if tables exist
+    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$rooms_table'");
+    if (!$table_exists) {
+        echo '<div class="hbc-error"><p>' . __('Hall Booking Calendar plugin is not properly activated. Please activate the plugin first.', 'hall-booking-calendar') . '</p></div>';
+        return;
+    }
+
     $rooms = $wpdb->get_results("SELECT * FROM $rooms_table WHERE status = 'active' ORDER BY id ASC");
     $groups = $wpdb->get_results("SELECT * FROM $groups_table WHERE status = 'active' ORDER BY name ASC");
 

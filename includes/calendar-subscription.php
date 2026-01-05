@@ -47,6 +47,12 @@ function hbc_handle_ical_feed() {
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
     $groups_table = $wpdb->prefix . 'hbc_groups';
 
+    // Check if tables exist
+    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$subscriptions_table'");
+    if (!$table_exists) {
+        wp_die(__('Hall Booking Calendar is not properly activated. Please activate the plugin.', 'hall-booking-calendar'));
+    }
+
     $token = sanitize_text_field($_GET['token']);
 
     // Verify token
