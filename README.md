@@ -10,11 +10,16 @@ A comprehensive WordPress plugin for managing hall bookings with multiple rooms.
 - **Multi-Date Bookings**: Book multiple specific dates in a single reservation
 - **Calendar Subscriptions**: Subscribe to booking calendars via iCal/ICS feeds for Google Calendar, Outlook, Apple Calendar, etc.
 - **Interactive Calendar**: Visual calendar showing room availability
+- **Agenda View**: Paginated list view of upcoming bookings with group filtering
+- **Single Booking Pages**: Dedicated page for each booking with full details
 - **Group Filtering**: Filter calendar and bookings by specific groups
-- **User-Friendly Booking**: Simple booking form with validation and group selection
+- **Password Protection**: Optional password requirement for booking submissions
+- **File Attachments**: Upload PDF files (up to 5MB) with bookings
+- **Description Field**: Add detailed descriptions to bookings
+- **Simple Booking Form**: Clean single-page booking form with all fields visible
+- **Email Notifications**: Automated emails to both user and webmaster for confirmations
 - **Admin Dashboard**: Complete admin interface for managing rooms, groups, and bookings
 - **Conflict Prevention**: Automatic checking for booking conflicts across all dates
-- **Email Notifications**: Automated emails for booking confirmations
 - **Status Management**: Pending, confirmed, and cancelled booking statuses
 - **Responsive Design**: Works on desktop, tablet, and mobile devices
 
@@ -33,8 +38,9 @@ After activation, you'll find a new "Hall Booking" menu item in your WordPress a
 - **Dashboard**: View booking statistics and recent bookings
 - **Rooms**: Add, edit, or delete rooms
 - **Groups**: Add, edit, or delete groups for organizing bookings
-- **Bookings**: View and manage all bookings, update status
+- **Bookings**: View and manage all bookings, update status, view attached files
 - **Subscriptions**: Create and manage calendar subscriptions (iCal feeds)
+- **Settings**: Configure booking password protection and webmaster email
 
 ### Frontend Display
 
@@ -49,20 +55,52 @@ This will display:
 - Visual indicators showing room availability
 - Group filter dropdown (when showing all bookings)
 - Booking buttons for available dates
-- A booking form modal
+- Clickable booking indicators linking to booking details
 
 #### Shortcode Parameters
 
-**Display all bookings (default):**
+**Calendar View (default):**
 ```
 [hall_booking_calendar]
 ```
 
+**Agenda View (paginated list):**
+```
+[hall_booking_calendar view="agenda"]
+```
+
 **Display bookings for a specific group:**
 ```
-[hall_booking_calendar group="3"]
+[hall_booking_calendar view="calendar" group="3"]
+[hall_booking_calendar view="agenda" group="3"]
 ```
-Replace `3` with the group ID. When filtering by a specific group, only bookings for that group will be shown on the calendar.
+Replace `3` with the group ID. When filtering by a specific group, only bookings for that group will be shown.
+
+#### Agenda View Features
+
+The agenda view displays upcoming bookings in a list format with:
+- **Pagination**: 10 bookings per page with page navigation
+- **Group Filter**: Dropdown to filter bookings by group
+- **Date Headers**: Bookings organized by date (e.g., "Monday, January 6, 2026")
+- **Time Display**: Clear start and end times for each booking
+- **Booking Details**: Room name, purpose, booked by, group, and status
+- **View Details Links**: Click to see full booking information on dedicated page
+- **Upcoming Only**: Shows only future bookings (automatically excludes past dates)
+
+#### Single Booking Pages
+
+Each booking has a dedicated detail page accessible by clicking:
+- Booking indicators on the calendar
+- "View Details" button in the agenda view
+- "View" link in date listings
+
+The single booking page displays:
+- Complete booking information (date, time, room, purpose, description)
+- User contact details
+- Attached PDF file (if uploaded) with download link
+- Recurring series information (if part of a series)
+- Links to other bookings in the series
+- Back button to return to calendar/agenda
 
 ### Room Management
 
@@ -87,6 +125,17 @@ Replace `3` with the group ID. When filtering by a specific group, only bookings
 
 Groups help organize bookings by category, department, team, or event type. Users can optionally select a group when making a booking.
 
+### Settings Configuration
+
+1. Go to **Hall Booking → Settings**
+2. Configure:
+   - **Booking Password**: Set an optional password to protect booking submissions
+   - **Require Password**: Toggle to enable/disable password requirement
+   - **Webmaster Email**: Set email address for admin notifications (defaults to WordPress admin email)
+3. Click "Save Settings"
+
+When password protection is enabled, users must enter the correct password to submit bookings.
+
 ### Managing Bookings
 
 1. Go to **Hall Booking → Bookings**
@@ -98,17 +147,32 @@ Groups help organize bookings by category, department, team, or event type. User
 ### User Booking Process
 
 1. Users visit the page with the calendar shortcode
-2. Click on a date to open the booking form
-3. Fill in:
+2. Click "Book" on a date to open the full-page booking form
+3. Fill in all required fields on the simple single-page form:
+
+   **Authentication** (if password protection is enabled):
+   - Enter the booking password
+
+   **Room & Time**:
    - Select a room
-   - Select a group (optional)
+   - Choose booking date (pre-filled if clicked from calendar)
+   - Set start and end times
+
+   **Your Information**:
    - Enter name and email
-   - Choose date and time
+   - Select a group (optional)
+
+   **Additional Details** (all optional):
+   - Purpose of booking
+   - Detailed description
+   - Upload PDF file (max 5MB)
    - **For Recurring Bookings**: Check "Repeat this booking", select pattern (daily, weekly, biweekly, monthly), and set end date
    - **For Multi-Date Bookings**: Check "Book multiple specific dates" and add additional dates
-   - Add purpose (optional)
-4. Submit the booking
-5. Receive confirmation email
+
+4. Click "Submit Booking"
+5. See success confirmation message on screen
+6. Automatically redirected to calendar after 4 seconds
+7. Both user and webmaster receive confirmation emails
 
 **Recurring Booking Patterns:**
 - **Daily**: Every day until end date
@@ -136,14 +200,16 @@ The plugin creates four tables:
 
 - `wp_hbc_rooms`: Stores room information (name, description, capacity)
 - `wp_hbc_groups`: Stores group information for organizing bookings
-- `wp_hbc_bookings`: Stores booking details with room/group associations and recurring patterns
+- `wp_hbc_bookings`: Stores booking details with room/group associations, recurring patterns, descriptions, and file attachments
 - `wp_hbc_subscriptions`: Stores calendar subscription tokens and filters
 
 ## Email Notifications
 
-The plugin sends emails for:
-- User booking confirmation (pending approval)
-- Admin notification of new bookings
+The plugin sends automated emails to both users and administrators:
+- **User Email**: Booking confirmation with all details (pending approval)
+- **Webmaster Email**: Admin notification of new bookings with complete information
+- **Combined Series Emails**: For recurring/multi-date bookings, one email includes all dates
+- Email content includes: room, date/time, purpose, description, and PDF attachment link (if uploaded)
 
 ## Requirements
 
@@ -177,6 +243,24 @@ https://github.com/slashzero/hall-calendar
 GPL-2.0+
 
 ## Changelog
+
+### 1.3.0
+- **Agenda View**: Paginated list view of upcoming bookings with group filtering (10 per page)
+- **Single Booking Pages**: Dedicated detail page for each booking with full information
+- **Password Protection**: Optional password requirement for booking submissions (configurable in Settings)
+- **File Attachments**: Upload PDF files (up to 5MB) with bookings, stored in wp-content/uploads/hall-bookings
+- **Description Field**: Add detailed descriptions to bookings
+- **Settings Page**: Admin interface to configure booking password and webmaster email
+- **Simple Booking Form**: Replaced multi-step wizard with clean single-page form
+- **Full-Page Booking**: Booking form now opens on dedicated page instead of modal
+- **Enhanced Email Notifications**: Emails sent to both user and webmaster with complete booking details
+- **Combined Series Emails**: Recurring/multi-date bookings combined in single email
+- **Improved Feedback**: Enhanced success/error messages with animations and loading states
+- **Database Migration**: Automatic schema updates for existing installations
+- **Clickable Calendar**: Booking indicators link directly to booking detail pages
+- **Pantheon.io Compatibility**: File uploads use WordPress upload directory structure
+- File download links in admin bookings list and single booking pages
+- Better mobile responsiveness for all new features
 
 ### 1.2.0
 - **Recurring Bookings**: Create repeating bookings with multiple patterns (daily, weekly, biweekly, monthly, monthly weekday)
