@@ -253,26 +253,6 @@
             }
         });
 
-        // Open booking modal
-        $('.hbc-book-btn').on('click', function(e) {
-            e.preventDefault();
-            var date = $(this).data('date');
-            $('#hbc_booking_date').val(date);
-            $('#hbc-booking-modal').fadeIn();
-        });
-
-        // Close modal
-        $('.hbc-modal-close').on('click', function() {
-            $('#hbc-booking-modal').fadeOut();
-        });
-
-        // Close modal on outside click
-        $(window).on('click', function(e) {
-            if ($(e.target).is('#hbc-booking-modal')) {
-                $('#hbc-booking-modal').fadeOut();
-            }
-        });
-
         // Get available slots when room and date are selected
         $('#hbc_room_id, #hbc_booking_date').on('change', function() {
             var roomId = $('#hbc_room_id').val();
@@ -369,12 +349,11 @@
                         currentStep = 0;
                         updateWizard();
 
-                        // Close modal after 2 seconds
+                        // Redirect back to calendar after 2 seconds
                         setTimeout(function() {
-                            $('#hbc-booking-modal').fadeOut();
-                            messageDiv.hide();
-                            // Reload page to show updated calendar
-                            location.reload();
+                            // Remove action and date parameters to return to calendar
+                            var url = window.location.href.split('?')[0];
+                            window.location.href = url;
                         }, 2000);
                     } else {
                         showMessage('error', response.data.message);

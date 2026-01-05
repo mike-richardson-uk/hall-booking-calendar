@@ -22,11 +22,21 @@ function hbc_calendar_shortcode($atts) {
     // Check if viewing single booking
     if (isset($_GET['booking_id']) && is_numeric($_GET['booking_id'])) {
         echo hbc_display_single_booking(intval($_GET['booking_id']));
-    } elseif ($atts['view'] == 'agenda') {
+    }
+    // Check if showing booking form
+    elseif (isset($_GET['action']) && $_GET['action'] === 'book') {
+        echo hbc_display_booking_page();
+    }
+    // Agenda view
+    elseif ($atts['view'] == 'agenda') {
         echo hbc_display_agenda($atts['group']);
-    } elseif ($atts['view'] == 'calendar') {
+    }
+    // Calendar view (default)
+    elseif ($atts['view'] == 'calendar') {
         hbc_display_calendar($atts['group']);
-    } else {
+    }
+    // Standalone booking form
+    else {
         hbc_display_booking_form();
     }
 
@@ -191,27 +201,45 @@ function hbc_display_calendar($group_filter = 'all') {
                 }
 
                 if (!$past_class) {
-                    echo '<a href="#" class="hbc-book-btn" data-date="' . esc_attr($date) . '">' . __('Book', 'hall-booking-calendar') . '</a>';
+                    $book_url = add_query_arg(array('action' => 'book', 'date' => $date));
+                    echo '<a href="' . esc_url($book_url) . '" class="hbc-book-btn">' . __('Book', 'hall-booking-calendar') . '</a>';
                 }
 
                 echo '</div>';
             }
             ?>
         </div>
-
-        <div class="hbc-booking-form-modal" id="hbc-booking-modal" style="display: none;">
-            <div class="hbc-modal-content">
-                <span class="hbc-modal-close">&times;</span>
-                <h2><?php _e('Book a Room', 'hall-booking-calendar'); ?></h2>
-                <?php hbc_render_booking_form(); ?>
-            </div>
-        </div>
     </div>
     <?php
 }
 
 /**
- * Display booking form
+ * Display booking page (full page version)
+ */
+function hbc_display_booking_page() {
+    // Get pre-selected date if provided
+    $selected_date = isset($_GET['date']) ? sanitize_text_field($_GET['date']) : '';
+
+    ob_start();
+    ?>
+    <div class="hbc-booking-page">
+        <div class="hbc-booking-page-header">
+            <h2><?php _e('Book a Room', 'hall-booking-calendar'); ?></h2>
+            <a href="<?php echo esc_url(remove_query_arg(array('action', 'date'))); ?>" class="hbc-back-to-calendar">
+                &larr; <?php _e('Back to Calendar', 'hall-booking-calendar'); ?>
+            </a>
+        </div>
+
+        <div class="hbc-booking-page-content">
+            <?php hbc_render_booking_form($selected_date); ?>
+        </div>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+
+/**
+ * Display booking form (legacy - for shortcode use)
  */
 function hbc_display_booking_form() {
     ?>
@@ -225,7 +253,7 @@ function hbc_display_booking_form() {
 /**
  * Render booking form
  */
-function hbc_render_booking_form() {
+function hbc_render_booking_form($selected_date = '') {
     global $wpdb;
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
     $groups_table = $wpdb->prefix . 'hbc_groups';
@@ -242,6 +270,13 @@ function hbc_render_booking_form() {
 
     $current_user = wp_get_current_user();
     $require_password = get_option('hbc_require_password', '0');
+
+    // Validate and sanitize the selected date
+    if (!empty($selected_date) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $selected_date)) {
+        $date_value = $selected_date;
+    } else {
+        $date_value = '';
+    }
     ?>
     <form id="hbc-booking-form" method="post" enctype="multipart/form-data">
 
@@ -303,7 +338,7 @@ function hbc_render_booking_form() {
 
             <div class="hbc-form-row">
                 <label for="hbc_booking_date"><?php _e('Booking Date:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
-                <input type="date" id="hbc_booking_date" name="booking_date" min="<?php echo date('Y-m-d'); ?>" required>
+                <input type="date" id="hbc_booking_date" name="booking_date" min="<?php echo date('Y-m-d'); ?>" value="<?php echo esc_attr($date_value); ?>" required>
             </div>
 
             <div class="hbc-form-row hbc-form-row-half">

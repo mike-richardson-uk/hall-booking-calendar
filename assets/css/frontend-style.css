@@ -659,6 +659,77 @@
 }
 
 /* ===================================================
+   BOOKING PAGE STYLES - Full Page Booking Form
+   =================================================== */
+
+.hbc-booking-page {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.hbc-booking-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 3px solid #2271b1;
+}
+
+.hbc-booking-page-header h2 {
+    margin: 0;
+    font-size: 32px;
+    color: #333;
+}
+
+.hbc-back-to-calendar {
+    display: inline-block;
+    padding: 10px 20px;
+    background: #f0f0f0;
+    color: #333;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: background 0.3s;
+}
+
+.hbc-back-to-calendar:hover {
+    background: #e0e0e0;
+    color: #333;
+}
+
+.hbc-booking-page-content {
+    background: #fff;
+    padding: 30px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Full-page form adjustments */
+.hbc-booking-page .hbc-booking-form-container {
+    max-width: 100%;
+    padding: 0;
+}
+
+@media (max-width: 768px) {
+    .hbc-booking-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .hbc-booking-page-header h2 {
+        font-size: 24px;
+    }
+
+    .hbc-booking-page-content {
+        padding: 20px;
+    }
+}
+
+/* ===================================================
    AGENDA VIEW STYLES
    =================================================== */
 
