@@ -19,7 +19,12 @@ function hbc_calendar_shortcode($atts) {
 
     ob_start();
 
-    if ($atts['view'] == 'calendar') {
+    // Check if viewing single booking
+    if (isset($_GET['booking_id']) && is_numeric($_GET['booking_id'])) {
+        echo hbc_display_single_booking(intval($_GET['booking_id']));
+    } elseif ($atts['view'] == 'agenda') {
+        echo hbc_display_agenda($atts['group']);
+    } elseif ($atts['view'] == 'calendar') {
         hbc_display_calendar($atts['group']);
     } else {
         hbc_display_booking_form();
@@ -159,12 +164,24 @@ function hbc_display_calendar($group_filter = 'all') {
                     foreach ($rooms as $room) {
                         if (isset($bookings_by_date[$date][$room->id])) {
                             $count = count($bookings_by_date[$date][$room->id]);
-                            echo '<div class="hbc-booking-indicator hbc-room-' . esc_attr($room->id) . '" title="' . esc_attr($room->name . ': ' . $count . ' booking(s)') . '"></div>';
+                            $first_booking = $bookings_by_date[$date][$room->id][0];
+                            $booking_url = add_query_arg('booking_id', $first_booking->id);
+                            echo '<a href="' . esc_url($booking_url) . '" class="hbc-booking-indicator hbc-room-' . esc_attr($room->id) . '" title="' . esc_attr($room->name . ': ' . $count . ' booking(s) - Click to view') . '"></a>';
                         } else {
                             echo '<div class="hbc-booking-indicator hbc-available" title="' . esc_attr($room->name . ': Available') . '"></div>';
                         }
                     }
                     echo '</div>';
+
+                    // Add view bookings link for days with bookings
+                    $day_bookings_count = 0;
+                    foreach ($bookings_by_date[$date] as $room_bookings) {
+                        $day_bookings_count += count($room_bookings);
+                    }
+                    if ($day_bookings_count > 0) {
+                        $first_booking_id = $bookings_by_date[$date][array_key_first($bookings_by_date[$date])][0]->id;
+                        echo '<a href="' . esc_url(add_query_arg('booking_id', $first_booking_id)) . '" class="hbc-view-bookings-link" title="' . sprintf(__('%d booking(s) on this day', 'hall-booking-calendar'), $day_bookings_count) . '">' . __('View', 'hall-booking-calendar') . '</a>';
+                    }
                 } else {
                     echo '<div class="hbc-day-bookings">';
                     foreach ($rooms as $room) {
@@ -447,4 +464,358 @@ function hbc_render_booking_form() {
 
     </form>
     <?php
+}
+
+/**
+ * Display agenda view of upcoming bookings
+ */
+function hbc_display_agenda($group_filter = 'all') {
+    global $wpdb;
+    $bookings_table = $wpdb->prefix . 'hbc_bookings';
+    $rooms_table = $wpdb->prefix . 'hbc_rooms';
+    $groups_table = $wpdb->prefix . 'hbc_groups';
+
+    // Check if tables exist
+    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$bookings_table'");
+    if (!$table_exists) {
+        return '<div class="hbc-error"><p>' . __('Hall Booking Calendar plugin is not properly activated. Please activate the plugin first.', 'hall-booking-calendar') . '</p></div>';
+    }
+
+    // Get current page
+    $paged = isset($_GET['booking_page']) ? max(1, intval($_GET['booking_page'])) : 1;
+    $per_page = 10;
+    $offset = ($paged - 1) * $per_page;
+
+    // Get group filter from URL if not set
+    if ($group_filter === 'all' && isset($_GET['group_filter'])) {
+        $group_filter = sanitize_text_field($_GET['group_filter']);
+    }
+
+    // Get all active groups for the filter dropdown
+    $groups = $wpdb->get_results("SELECT * FROM $groups_table WHERE status = 'active' ORDER BY name ASC");
+
+    // Build query for upcoming bookings
+    $today = date('Y-m-d');
+    $where = "WHERE b.booking_date >= %s AND b.status != 'cancelled'";
+    $params = array($today);
+
+    if ($group_filter !== 'all' && is_numeric($group_filter)) {
+        $where .= " AND b.group_id = %d";
+        $params[] = intval($group_filter);
+    }
+
+    // Get total count for pagination
+    $count_sql = "SELECT COUNT(*) FROM $bookings_table b $where";
+    $total_bookings = $wpdb->get_var($wpdb->prepare($count_sql, $params));
+    $total_pages = ceil($total_bookings / $per_page);
+
+    // Get bookings for current page
+    $sql = "SELECT b.*, r.name as room_name, r.capacity, g.name as group_name
+            FROM $bookings_table b
+            LEFT JOIN $rooms_table r ON b.room_id = r.id
+            LEFT JOIN $groups_table g ON b.group_id = g.id
+            $where
+            ORDER BY b.booking_date ASC, b.start_time ASC
+            LIMIT %d OFFSET %d";
+    
+    $params[] = $per_page;
+    $params[] = $offset;
+    
+    $bookings = $wpdb->get_results($wpdb->prepare($sql, $params));
+
+    ob_start();
+    ?>
+    <div class="hbc-agenda-container">
+        <div class="hbc-agenda-header">
+            <h2><?php _e('Upcoming Bookings', 'hall-booking-calendar'); ?></h2>
+            
+            <div class="hbc-agenda-filter">
+                <label for="hbc-agenda-group-filter"><?php _e('Filter by Group:', 'hall-booking-calendar'); ?></label>
+                <select id="hbc-agenda-group-filter" onchange="if(this.value) window.location.href=this.value;">
+                    <option value="<?php echo esc_url(remove_query_arg('group_filter')); ?>"><?php _e('All Groups', 'hall-booking-calendar'); ?></option>
+                    <?php foreach ($groups as $group) : ?>
+                        <option value="<?php echo esc_url(add_query_arg('group_filter', $group->id)); ?>" <?php selected($group_filter, $group->id); ?>>
+                            <?php echo esc_html($group->name); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+
+        <?php if ($bookings) : ?>
+            <div class="hbc-agenda-list">
+                <?php 
+                $current_date = '';
+                foreach ($bookings as $booking) : 
+                    $booking_date = date('Y-m-d', strtotime($booking->booking_date));
+                    
+                    // Show date header when date changes
+                    if ($booking_date !== $current_date) :
+                        $current_date = $booking_date;
+                        ?>
+                        <div class="hbc-agenda-date-header">
+                            <h3><?php echo date('l, F j, Y', strtotime($booking->booking_date)); ?></h3>
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="hbc-agenda-item" data-booking-id="<?php echo esc_attr($booking->id); ?>">
+                        <div class="hbc-agenda-time">
+                            <span class="hbc-time-start"><?php echo date('g:i A', strtotime($booking->start_time)); ?></span>
+                            <span class="hbc-time-separator">-</span>
+                            <span class="hbc-time-end"><?php echo date('g:i A', strtotime($booking->end_time)); ?></span>
+                        </div>
+                        
+                        <div class="hbc-agenda-details">
+                            <h4 class="hbc-agenda-room"><?php echo esc_html($booking->room_name); ?></h4>
+                            <?php if ($booking->purpose) : ?>
+                                <p class="hbc-agenda-purpose"><?php echo esc_html($booking->purpose); ?></p>
+                            <?php endif; ?>
+                            <div class="hbc-agenda-meta">
+                                <span class="hbc-agenda-user">
+                                    <strong><?php _e('Booked by:', 'hall-booking-calendar'); ?></strong> 
+                                    <?php echo esc_html($booking->user_name); ?>
+                                </span>
+                                <?php if ($booking->group_name) : ?>
+                                    <span class="hbc-agenda-group">
+                                        <strong><?php _e('Group:', 'hall-booking-calendar'); ?></strong> 
+                                        <?php echo esc_html($booking->group_name); ?>
+                                    </span>
+                                <?php endif; ?>
+                                <span class="hbc-agenda-status hbc-status-<?php echo esc_attr($booking->status); ?>">
+                                    <?php echo esc_html(ucfirst($booking->status)); ?>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="hbc-agenda-actions">
+                            <a href="<?php echo esc_url(add_query_arg('booking_id', $booking->id)); ?>" class="hbc-view-booking-btn">
+                                <?php _e('View Details', 'hall-booking-calendar'); ?>
+                            </a>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+            <?php if ($total_pages > 1) : ?>
+                <div class="hbc-agenda-pagination">
+                    <?php if ($paged > 1) : ?>
+                        <a href="<?php echo esc_url(add_query_arg('booking_page', $paged - 1)); ?>" class="hbc-page-btn hbc-prev">
+                            &laquo; <?php _e('Previous', 'hall-booking-calendar'); ?>
+                        </a>
+                    <?php endif; ?>
+
+                    <span class="hbc-page-numbers">
+                        <?php 
+                        for ($i = 1; $i <= $total_pages; $i++) :
+                            if ($i == $paged) :
+                                echo '<span class="hbc-page-number current">' . $i . '</span>';
+                            else :
+                                echo '<a href="' . esc_url(add_query_arg('booking_page', $i)) . '" class="hbc-page-number">' . $i . '</a>';
+                            endif;
+                        endfor;
+                        ?>
+                    </span>
+
+                    <?php if ($paged < $total_pages) : ?>
+                        <a href="<?php echo esc_url(add_query_arg('booking_page', $paged + 1)); ?>" class="hbc-page-btn hbc-next">
+                            <?php _e('Next', 'hall-booking-calendar'); ?> &raquo;
+                        </a>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
+        <?php else : ?>
+            <div class="hbc-agenda-empty">
+                <p><?php _e('No upcoming bookings found.', 'hall-booking-calendar'); ?></p>
+            </div>
+        <?php endif; ?>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+
+/**
+ * Display single booking detail page
+ */
+function hbc_display_single_booking($booking_id) {
+    global $wpdb;
+    $bookings_table = $wpdb->prefix . 'hbc_bookings';
+    $rooms_table = $wpdb->prefix . 'hbc_rooms';
+    $groups_table = $wpdb->prefix . 'hbc_groups';
+
+    // Check if tables exist
+    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$bookings_table'");
+    if (!$table_exists) {
+        return '<div class="hbc-error"><p>' . __('Hall Booking Calendar plugin is not properly activated. Please activate the plugin first.', 'hall-booking-calendar') . '</p></div>';
+    }
+
+    $booking = $wpdb->get_row($wpdb->prepare(
+        "SELECT b.*, r.name as room_name, r.capacity, r.description as room_description, g.name as group_name
+        FROM $bookings_table b
+        LEFT JOIN $rooms_table r ON b.room_id = r.id
+        LEFT JOIN $groups_table g ON b.group_id = g.id
+        WHERE b.id = %d",
+        $booking_id
+    ));
+
+    if (!$booking) {
+        return '<div class="hbc-error"><p>' . __('Booking not found.', 'hall-booking-calendar') . '</p></div>';
+    }
+
+    // Get other bookings in the same series if applicable
+    $series_bookings = array();
+    if (!empty($booking->series_id)) {
+        $series_bookings = $wpdb->get_results($wpdb->prepare(
+            "SELECT b.*, r.name as room_name
+            FROM $bookings_table b
+            LEFT JOIN $rooms_table r ON b.room_id = r.id
+            WHERE b.series_id = %s AND b.id != %d
+            ORDER BY b.booking_date ASC, b.start_time ASC",
+            $booking->series_id,
+            $booking_id
+        ));
+    }
+
+    ob_start();
+    ?>
+    <div class="hbc-single-booking">
+        <div class="hbc-single-header">
+            <h2><?php echo esc_html($booking->room_name); ?></h2>
+            <span class="hbc-single-status hbc-status-<?php echo esc_attr($booking->status); ?>">
+                <?php echo esc_html(ucfirst($booking->status)); ?>
+            </span>
+        </div>
+
+        <div class="hbc-single-content">
+            <div class="hbc-single-section hbc-date-time">
+                <h3><?php _e('Date & Time', 'hall-booking-calendar'); ?></h3>
+                <div class="hbc-single-info">
+                    <div class="hbc-info-row">
+                        <span class="hbc-info-label"><?php _e('Date:', 'hall-booking-calendar'); ?></span>
+                        <span class="hbc-info-value"><?php echo date('l, F j, Y', strtotime($booking->booking_date)); ?></span>
+                    </div>
+                    <div class="hbc-info-row">
+                        <span class="hbc-info-label"><?php _e('Time:', 'hall-booking-calendar'); ?></span>
+                        <span class="hbc-info-value">
+                            <?php echo date('g:i A', strtotime($booking->start_time)); ?> - 
+                            <?php echo date('g:i A', strtotime($booking->end_time)); ?>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hbc-single-section hbc-room-details">
+                <h3><?php _e('Room Details', 'hall-booking-calendar'); ?></h3>
+                <div class="hbc-single-info">
+                    <div class="hbc-info-row">
+                        <span class="hbc-info-label"><?php _e('Room:', 'hall-booking-calendar'); ?></span>
+                        <span class="hbc-info-value"><?php echo esc_html($booking->room_name); ?></span>
+                    </div>
+                    <div class="hbc-info-row">
+                        <span class="hbc-info-label"><?php _e('Capacity:', 'hall-booking-calendar'); ?></span>
+                        <span class="hbc-info-value"><?php echo esc_html($booking->capacity); ?> <?php _e('people', 'hall-booking-calendar'); ?></span>
+                    </div>
+                    <?php if ($booking->group_name) : ?>
+                    <div class="hbc-info-row">
+                        <span class="hbc-info-label"><?php _e('Group:', 'hall-booking-calendar'); ?></span>
+                        <span class="hbc-info-value"><?php echo esc_html($booking->group_name); ?></span>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="hbc-single-section hbc-booking-info">
+                <h3><?php _e('Booking Information', 'hall-booking-calendar'); ?></h3>
+                <div class="hbc-single-info">
+                    <div class="hbc-info-row">
+                        <span class="hbc-info-label"><?php _e('Booked by:', 'hall-booking-calendar'); ?></span>
+                        <span class="hbc-info-value"><?php echo esc_html($booking->user_name); ?></span>
+                    </div>
+                    <div class="hbc-info-row">
+                        <span class="hbc-info-label"><?php _e('Email:', 'hall-booking-calendar'); ?></span>
+                        <span class="hbc-info-value">
+                            <a href="mailto:<?php echo esc_attr($booking->user_email); ?>">
+                                <?php echo esc_html($booking->user_email); ?>
+                            </a>
+                        </span>
+                    </div>
+                    <?php if ($booking->purpose) : ?>
+                    <div class="hbc-info-row">
+                        <span class="hbc-info-label"><?php _e('Purpose:', 'hall-booking-calendar'); ?></span>
+                        <span class="hbc-info-value"><?php echo esc_html($booking->purpose); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if ($booking->description) : ?>
+                    <div class="hbc-info-row hbc-full-width">
+                        <span class="hbc-info-label"><?php _e('Description:', 'hall-booking-calendar'); ?></span>
+                        <span class="hbc-info-value"><?php echo nl2br(esc_html($booking->description)); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <?php if ($booking->file_path) : ?>
+                    <div class="hbc-info-row">
+                        <span class="hbc-info-label"><?php _e('Attached File:', 'hall-booking-calendar'); ?></span>
+                        <span class="hbc-info-value">
+                            <?php
+                            $upload_dir = wp_upload_dir();
+                            $file_url = $upload_dir['baseurl'] . '/' . $booking->file_path;
+                            $file_name = basename($booking->file_path);
+                            ?>
+                            <a href="<?php echo esc_url($file_url); ?>" target="_blank" class="hbc-file-link">
+                                📄 <?php echo esc_html($file_name); ?>
+                            </a>
+                        </span>
+                    </div>
+                    <?php endif; ?>
+                    <div class="hbc-info-row">
+                        <span class="hbc-info-label"><?php _e('Booking ID:', 'hall-booking-calendar'); ?></span>
+                        <span class="hbc-info-value">#<?php echo esc_html($booking->id); ?></span>
+                    </div>
+                    <div class="hbc-info-row">
+                        <span class="hbc-info-label"><?php _e('Created:', 'hall-booking-calendar'); ?></span>
+                        <span class="hbc-info-value"><?php echo date('F j, Y g:i A', strtotime($booking->created_at)); ?></span>
+                    </div>
+                </div>
+            </div>
+
+            <?php if (!empty($series_bookings)) : ?>
+            <div class="hbc-single-section hbc-series-info">
+                <h3><?php _e('Part of Recurring Series', 'hall-booking-calendar'); ?></h3>
+                <p class="hbc-series-description">
+                    <?php 
+                    printf(
+                        __('This booking is part of a recurring series with %d other booking(s).', 'hall-booking-calendar'),
+                        count($series_bookings)
+                    ); 
+                    ?>
+                </p>
+                <div class="hbc-series-list">
+                    <?php foreach (array_slice($series_bookings, 0, 5) as $series_booking) : ?>
+                        <div class="hbc-series-item">
+                            <span class="hbc-series-date"><?php echo date('M j, Y', strtotime($series_booking->booking_date)); ?></span>
+                            <span class="hbc-series-time">
+                                <?php echo date('g:i A', strtotime($series_booking->start_time)); ?>
+                            </span>
+                            <a href="<?php echo esc_url(add_query_arg('booking_id', $series_booking->id)); ?>" class="hbc-series-link">
+                                <?php _e('View', 'hall-booking-calendar'); ?>
+                            </a>
+                        </div>
+                    <?php endforeach; ?>
+                    <?php if (count($series_bookings) > 5) : ?>
+                        <p class="hbc-series-more">
+                            <?php printf(__('... and %d more', 'hall-booking-calendar'), count($series_bookings) - 5); ?>
+                        </p>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+        </div>
+
+        <div class="hbc-single-actions">
+            <a href="<?php echo esc_url(remove_query_arg('booking_id')); ?>" class="hbc-back-btn button">
+                &larr; <?php _e('Back to Calendar', 'hall-booking-calendar'); ?>
+            </a>
+        </div>
+    </div>
+    <?php
+    return ob_get_clean();
 }

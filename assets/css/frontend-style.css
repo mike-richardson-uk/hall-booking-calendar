@@ -657,3 +657,490 @@
         font-size: 11px;
     }
 }
+
+/* ===================================================
+   AGENDA VIEW STYLES
+   =================================================== */
+
+.hbc-agenda-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.hbc-agenda-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #2271b1;
+}
+
+.hbc-agenda-header h2 {
+    margin: 0;
+    font-size: 28px;
+    color: #333;
+}
+
+.hbc-agenda-filter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.hbc-agenda-filter label {
+    font-weight: 600;
+    color: #555;
+}
+
+.hbc-agenda-filter select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    min-width: 200px;
+}
+
+.hbc-agenda-list {
+    margin-bottom: 30px;
+}
+
+.hbc-agenda-date-header {
+    background: #f0f6fc;
+    padding: 12px 15px;
+    margin: 25px 0 15px 0;
+    border-left: 4px solid #2271b1;
+}
+
+.hbc-agenda-date-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #2271b1;
+    font-weight: 600;
+}
+
+.hbc-agenda-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 20px;
+    margin-bottom: 15px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    transition: all 0.3s;
+}
+
+.hbc-agenda-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-color: #2271b1;
+}
+
+.hbc-agenda-time {
+    flex-shrink: 0;
+    padding: 10px;
+    background: #f9f9f9;
+    border-radius: 4px;
+    text-align: center;
+    min-width: 100px;
+}
+
+.hbc-time-start,
+.hbc-time-end {
+    display: block;
+    font-weight: 600;
+    color: #2271b1;
+    font-size: 14px;
+}
+
+.hbc-time-separator {
+    display: block;
+    margin: 5px 0;
+    color: #999;
+}
+
+.hbc-agenda-details {
+    flex: 1;
+}
+
+.hbc-agenda-room {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    color: #333;
+}
+
+.hbc-agenda-purpose {
+    margin: 0 0 10px 0;
+    color: #666;
+    font-size: 15px;
+}
+
+.hbc-agenda-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    font-size: 13px;
+    color: #777;
+}
+
+.hbc-agenda-meta strong {
+    color: #555;
+}
+
+.hbc-agenda-status {
+    padding: 3px 10px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.hbc-agenda-actions {
+    flex-shrink: 0;
+}
+
+.hbc-view-booking-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background: #2271b1;
+    color: #fff !important;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: background 0.3s;
+}
+
+.hbc-view-booking-btn:hover {
+    background: #135e96;
+}
+
+.hbc-agenda-empty {
+    text-align: center;
+    padding: 60px 20px;
+    background: #f9f9f9;
+    border-radius: 6px;
+}
+
+.hbc-agenda-empty p {
+    font-size: 18px;
+    color: #999;
+}
+
+/* Agenda Pagination */
+.hbc-agenda-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 30px;
+    padding: 20px;
+}
+
+.hbc-page-btn {
+    padding: 8px 16px;
+    background: #f0f0f0;
+    color: #333;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background 0.3s;
+}
+
+.hbc-page-btn:hover {
+    background: #e0e0e0;
+    color: #333;
+}
+
+.hbc-page-numbers {
+    display: flex;
+    gap: 5px;
+}
+
+.hbc-page-number {
+    display: inline-block;
+    padding: 8px 12px;
+    background: #fff;
+    border: 1px solid #ddd;
+    color: #333;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: all 0.3s;
+}
+
+.hbc-page-number:hover {
+    background: #f0f6fc;
+    border-color: #2271b1;
+    color: #2271b1;
+}
+
+.hbc-page-number.current {
+    background: #2271b1;
+    border-color: #2271b1;
+    color: #fff;
+    font-weight: 600;
+}
+
+/* ===================================================
+   SINGLE BOOKING STYLES
+   =================================================== */
+
+.hbc-single-booking {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.hbc-single-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 3px solid #2271b1;
+}
+
+.hbc-single-header h2 {
+    margin: 0;
+    font-size: 32px;
+    color: #333;
+}
+
+.hbc-single-status {
+    padding: 8px 20px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.hbc-single-content {
+    margin-bottom: 30px;
+}
+
+.hbc-single-section {
+    margin-bottom: 30px;
+    padding: 25px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+.hbc-single-section h3 {
+    margin: 0 0 20px 0;
+    font-size: 20px;
+    color: #2271b1;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f0f6fc;
+}
+
+.hbc-single-info {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.hbc-info-row {
+    display: flex;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.hbc-info-row:last-child {
+    border-bottom: none;
+}
+
+.hbc-info-row.hbc-full-width {
+    flex-direction: column;
+}
+
+.hbc-info-label {
+    flex: 0 0 150px;
+    font-weight: 600;
+    color: #555;
+}
+
+.hbc-info-value {
+    flex: 1;
+    color: #333;
+}
+
+.hbc-info-value a {
+    color: #2271b1;
+    text-decoration: none;
+}
+
+.hbc-info-value a:hover {
+    text-decoration: underline;
+}
+
+.hbc-file-link {
+    display: inline-block;
+    padding: 8px 15px;
+    background: #f0f6fc;
+    border: 1px solid #2271b1;
+    border-radius: 4px;
+    color: #2271b1;
+    text-decoration: none;
+    transition: all 0.3s;
+}
+
+.hbc-file-link:hover {
+    background: #2271b1;
+    color: #fff;
+}
+
+.hbc-series-info {
+    background: #fffbf0;
+    border-color: #f0b429;
+}
+
+.hbc-series-description {
+    margin: 0 0 15px 0;
+    color: #666;
+}
+
+.hbc-series-list {
+    background: #fff;
+    padding: 15px;
+    border-radius: 4px;
+    border: 1px solid #f0b429;
+}
+
+.hbc-series-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    margin-bottom: 8px;
+    background: #f9f9f9;
+    border-radius: 3px;
+}
+
+.hbc-series-item:last-child {
+    margin-bottom: 0;
+}
+
+.hbc-series-date {
+    font-weight: 600;
+    color: #333;
+}
+
+.hbc-series-time {
+    color: #666;
+    font-size: 14px;
+}
+
+.hbc-series-link {
+    padding: 6px 12px;
+    background: #2271b1;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 3px;
+    font-size: 13px;
+}
+
+.hbc-series-link:hover {
+    background: #135e96;
+    color: #fff;
+}
+
+.hbc-series-more {
+    margin-top: 10px;
+    margin-bottom: 0;
+    text-align: center;
+    color: #999;
+    font-style: italic;
+}
+
+.hbc-single-actions {
+    text-align: center;
+    padding: 20px;
+}
+
+.hbc-back-btn {
+    display: inline-block;
+    padding: 12px 30px;
+    background: #f0f0f0;
+    color: #333;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background 0.3s;
+}
+
+.hbc-back-btn:hover {
+    background: #e0e0e0;
+    color: #333;
+}
+
+/* Calendar View Link Styling */
+.hbc-view-bookings-link {
+    display: block;
+    text-align: center;
+    padding: 4px;
+    margin-top: 4px;
+    font-size: 11px;
+    color: #2271b1;
+    text-decoration: none;
+    background: #f0f6fc;
+    border-radius: 3px;
+}
+
+.hbc-view-bookings-link:hover {
+    background: #2271b1;
+    color: #fff;
+}
+
+.hbc-booking-indicator {
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.hbc-booking-indicator:hover {
+    opacity: 0.8;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+    .hbc-agenda-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .hbc-agenda-filter {
+        width: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .hbc-agenda-filter select {
+        width: 100%;
+    }
+
+    .hbc-agenda-item {
+        flex-direction: column;
+    }
+
+    .hbc-agenda-time {
+        width: 100%;
+    }
+
+    .hbc-agenda-meta {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .hbc-single-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .hbc-info-row {
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .hbc-info-label {
+        flex: none;
+    }
+}
