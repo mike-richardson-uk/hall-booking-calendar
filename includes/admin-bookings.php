@@ -71,13 +71,15 @@ function hbc_display_bookings_list() {
     global $wpdb;
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
+    $groups_table = $wpdb->prefix . 'hbc_groups';
 
     // Filter by status
     $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
 
-    $sql = "SELECT b.*, r.name as room_name
+    $sql = "SELECT b.*, r.name as room_name, g.name as group_name
             FROM $bookings_table b
-            LEFT JOIN $rooms_table r ON b.room_id = r.id";
+            LEFT JOIN $rooms_table r ON b.room_id = r.id
+            LEFT JOIN $groups_table g ON b.group_id = g.id";
 
     if ($status_filter) {
         $sql .= $wpdb->prepare(" WHERE b.status = %s", $status_filter);
@@ -105,6 +107,7 @@ function hbc_display_bookings_list() {
             <tr>
                 <th><?php _e('ID', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Room', 'hall-booking-calendar'); ?></th>
+                <th><?php _e('Group', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('User', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Email', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Date', 'hall-booking-calendar'); ?></th>
@@ -119,6 +122,7 @@ function hbc_display_bookings_list() {
                 <tr>
                     <td><?php echo esc_html($booking->id); ?></td>
                     <td><strong><?php echo esc_html($booking->room_name); ?></strong></td>
+                    <td><?php echo $booking->group_name ? esc_html($booking->group_name) : '<em>' . __('None', 'hall-booking-calendar') . '</em>'; ?></td>
                     <td><?php echo esc_html($booking->user_name); ?></td>
                     <td><?php echo esc_html($booking->user_email); ?></td>
                     <td><?php echo esc_html(date('F j, Y', strtotime($booking->booking_date))); ?></td>
@@ -132,7 +136,7 @@ function hbc_display_bookings_list() {
                 <?php endforeach; ?>
             <?php else : ?>
                 <tr>
-                    <td colspan="8"><?php _e('No bookings found.', 'hall-booking-calendar'); ?></td>
+                    <td colspan="9"><?php _e('No bookings found.', 'hall-booking-calendar'); ?></td>
                 </tr>
             <?php endif; ?>
         </tbody>
@@ -147,11 +151,13 @@ function hbc_display_booking_details($booking_id) {
     global $wpdb;
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
+    $groups_table = $wpdb->prefix . 'hbc_groups';
 
     $booking = $wpdb->get_row($wpdb->prepare(
-        "SELECT b.*, r.name as room_name, r.capacity
+        "SELECT b.*, r.name as room_name, r.capacity, g.name as group_name
         FROM $bookings_table b
         LEFT JOIN $rooms_table r ON b.room_id = r.id
+        LEFT JOIN $groups_table g ON b.group_id = g.id
         WHERE b.id = %d",
         $booking_id
     ));
@@ -173,6 +179,10 @@ function hbc_display_booking_details($booking_id) {
             <tr>
                 <th><?php _e('Room:', 'hall-booking-calendar'); ?></th>
                 <td><?php echo esc_html($booking->room_name); ?> (<?php _e('Capacity:', 'hall-booking-calendar'); ?> <?php echo esc_html($booking->capacity); ?>)</td>
+            </tr>
+            <tr>
+                <th><?php _e('Group:', 'hall-booking-calendar'); ?></th>
+                <td><?php echo $booking->group_name ? esc_html($booking->group_name) : '<em>' . __('None', 'hall-booking-calendar') . '</em>'; ?></td>
             </tr>
             <tr>
                 <th><?php _e('User Name:', 'hall-booking-calendar'); ?></th>

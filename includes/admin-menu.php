@@ -42,6 +42,15 @@ function hbc_add_admin_menu() {
 
     add_submenu_page(
         'hall-booking-calendar',
+        __('Groups', 'hall-booking-calendar'),
+        __('Groups', 'hall-booking-calendar'),
+        'manage_options',
+        'hall-booking-groups',
+        'hbc_admin_groups_page'
+    );
+
+    add_submenu_page(
+        'hall-booking-calendar',
         __('Bookings', 'hall-booking-calendar'),
         __('Bookings', 'hall-booking-calendar'),
         'manage_options',
@@ -58,9 +67,11 @@ function hbc_admin_dashboard_page() {
     global $wpdb;
 
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
+    $groups_table = $wpdb->prefix . 'hbc_groups';
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
 
     $total_rooms = $wpdb->get_var("SELECT COUNT(*) FROM $rooms_table WHERE status = 'active'");
+    $total_groups = $wpdb->get_var("SELECT COUNT(*) FROM $groups_table WHERE status = 'active'");
     $total_bookings = $wpdb->get_var("SELECT COUNT(*) FROM $bookings_table");
     $pending_bookings = $wpdb->get_var("SELECT COUNT(*) FROM $bookings_table WHERE status = 'pending'");
     $today_bookings = $wpdb->get_var($wpdb->prepare(
@@ -76,6 +87,10 @@ function hbc_admin_dashboard_page() {
             <div class="hbc-stat-box">
                 <h3><?php echo esc_html($total_rooms); ?></h3>
                 <p><?php _e('Active Rooms', 'hall-booking-calendar'); ?></p>
+            </div>
+            <div class="hbc-stat-box">
+                <h3><?php echo esc_html($total_groups); ?></h3>
+                <p><?php _e('Active Groups', 'hall-booking-calendar'); ?></p>
             </div>
             <div class="hbc-stat-box">
                 <h3><?php echo esc_html($total_bookings); ?></h3>

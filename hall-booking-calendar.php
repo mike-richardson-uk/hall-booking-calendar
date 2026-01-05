@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Hall Booking Calendar
  * Plugin URI: https://github.com/slashzero/hall-calendar
- * Description: A WordPress plugin to manage a hall calendar with 3 rooms and allow users to book available rooms.
- * Version: 1.0.0
+ * Description: A WordPress plugin to manage a hall calendar with 3 rooms and allow users to book available rooms with group organization.
+ * Version: 1.1.0
  * Author: Hall Calendar Team
  * Author URI: https://github.com/slashzero
  * License: GPL-2.0+
@@ -18,7 +18,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('HBC_VERSION', '1.0.0');
+define('HBC_VERSION', '1.1.0');
 define('HBC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HBC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('HBC_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -43,11 +43,23 @@ function hbc_activate() {
         PRIMARY KEY  (id)
     ) $charset_collate;";
 
+    // Create groups table
+    $groups_table = $wpdb->prefix . 'hbc_groups';
+    $sql_groups = "CREATE TABLE IF NOT EXISTS $groups_table (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        name varchar(100) NOT NULL,
+        description text,
+        status enum('active','inactive') DEFAULT 'active',
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY  (id)
+    ) $charset_collate;";
+
     // Create bookings table
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
     $sql_bookings = "CREATE TABLE IF NOT EXISTS $bookings_table (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
         room_id mediumint(9) NOT NULL,
+        group_id mediumint(9),
         user_id bigint(20) UNSIGNED,
         user_name varchar(100) NOT NULL,
         user_email varchar(100) NOT NULL,
@@ -59,11 +71,13 @@ function hbc_activate() {
         created_at datetime DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY  (id),
         KEY room_id (room_id),
+        KEY group_id (group_id),
         KEY booking_date (booking_date)
     ) $charset_collate;";
 
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql_rooms);
+    dbDelta($sql_groups);
     dbDelta($sql_bookings);
 
     // Insert default 3 rooms if none exist
@@ -85,6 +99,26 @@ function hbc_activate() {
             'name' => 'Conference Room C',
             'description' => 'Small meeting room for team discussions',
             'capacity' => 6,
+            'status' => 'active'
+        ));
+    }
+
+    // Insert default groups if none exist
+    $existing_groups = $wpdb->get_var("SELECT COUNT(*) FROM $groups_table");
+    if ($existing_groups == 0) {
+        $wpdb->insert($groups_table, array(
+            'name' => 'Department Meetings',
+            'description' => 'Regular departmental meetings and discussions',
+            'status' => 'active'
+        ));
+        $wpdb->insert($groups_table, array(
+            'name' => 'Training Sessions',
+            'description' => 'Employee training and workshops',
+            'status' => 'active'
+        ));
+        $wpdb->insert($groups_table, array(
+            'name' => 'Client Meetings',
+            'description' => 'External client meetings and presentations',
             'status' => 'active'
         ));
     }
@@ -113,6 +147,7 @@ add_action('plugins_loaded', 'hbc_load_textdomain');
 // Include admin functions
 require_once HBC_PLUGIN_DIR . 'includes/admin-menu.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-rooms.php';
+require_once HBC_PLUGIN_DIR . 'includes/admin-groups.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-bookings.php';
 require_once HBC_PLUGIN_DIR . 'includes/frontend-calendar.php';
 require_once HBC_PLUGIN_DIR . 'includes/booking-handler.php';

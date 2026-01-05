@@ -21,9 +21,11 @@ function hbc_handle_booking_submission() {
     global $wpdb;
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
+    $groups_table = $wpdb->prefix . 'hbc_groups';
 
     // Sanitize input
     $room_id = intval($_POST['room_id']);
+    $group_id = isset($_POST['group_id']) && !empty($_POST['group_id']) ? intval($_POST['group_id']) : null;
     $user_name = sanitize_text_field($_POST['user_name']);
     $user_email = sanitize_email($_POST['user_email']);
     $booking_date = sanitize_text_field($_POST['booking_date']);
@@ -48,6 +50,15 @@ function hbc_handle_booking_submission() {
     if (!$room) {
         wp_send_json_error(array('message' => __('Invalid room selected.', 'hall-booking-calendar')));
         return;
+    }
+
+    // Validate group if provided
+    if ($group_id) {
+        $group = $wpdb->get_row($wpdb->prepare("SELECT * FROM $groups_table WHERE id = %d AND status = 'active'", $group_id));
+        if (!$group) {
+            wp_send_json_error(array('message' => __('Invalid group selected.', 'hall-booking-calendar')));
+            return;
+        }
     }
 
     // Validate date is not in the past
@@ -77,6 +88,7 @@ function hbc_handle_booking_submission() {
         $bookings_table,
         array(
             'room_id' => $room_id,
+            'group_id' => $group_id,
             'user_id' => $user_id,
             'user_name' => $user_name,
             'user_email' => $user_email,
@@ -86,7 +98,7 @@ function hbc_handle_booking_submission() {
             'purpose' => $purpose,
             'status' => 'pending'
         ),
-        array('%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+        array('%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
     );
 
     if ($result) {

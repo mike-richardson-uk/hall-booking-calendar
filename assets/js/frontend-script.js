@@ -83,6 +83,7 @@
                 action: 'hbc_submit_booking',
                 nonce: hbc_ajax.nonce,
                 room_id: $('#hbc_room_id').val(),
+                group_id: $('#hbc_group_id').val(),
                 user_name: $('#hbc_user_name').val(),
                 user_email: $('#hbc_user_email').val(),
                 booking_date: $('#hbc_booking_date').val(),

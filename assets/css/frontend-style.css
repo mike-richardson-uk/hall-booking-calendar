@@ -38,6 +38,38 @@
     color: #fff;
 }
 
+.hbc-group-filter {
+    background: #f0f6fc;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    border: 1px solid #d0e3f1;
+}
+
+.hbc-group-filter label {
+    font-weight: 600;
+    margin-right: 10px;
+    color: #333;
+}
+
+.hbc-group-filter select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 200px;
+}
+
+.hbc-group-label {
+    margin: 0;
+    color: #135e96;
+    font-size: 15px;
+}
+
+.hbc-group-label strong {
+    color: #2271b1;
+}
+
 .hbc-rooms-legend {
     background: #f8f9fa;
     padding: 15px;
