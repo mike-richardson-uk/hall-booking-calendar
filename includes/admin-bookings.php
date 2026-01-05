@@ -107,11 +107,11 @@ function hbc_display_bookings_list() {
             <tr>
                 <th><?php _e('ID', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Room', 'hall-booking-calendar'); ?></th>
-                <th><?php _e('Group', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('User', 'hall-booking-calendar'); ?></th>
-                <th><?php _e('Email', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Date', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Time', 'hall-booking-calendar'); ?></th>
+                <th><?php _e('Purpose', 'hall-booking-calendar'); ?></th>
+                <th><?php _e('File', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Status', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Actions', 'hall-booking-calendar'); ?></th>
             </tr>
@@ -121,12 +121,26 @@ function hbc_display_bookings_list() {
                 <?php foreach ($bookings as $booking) : ?>
                 <tr>
                     <td><?php echo esc_html($booking->id); ?></td>
-                    <td><strong><?php echo esc_html($booking->room_name); ?></strong></td>
-                    <td><?php echo $booking->group_name ? esc_html($booking->group_name) : '<em>' . __('None', 'hall-booking-calendar') . '</em>'; ?></td>
-                    <td><?php echo esc_html($booking->user_name); ?></td>
-                    <td><?php echo esc_html($booking->user_email); ?></td>
-                    <td><?php echo esc_html(date('F j, Y', strtotime($booking->booking_date))); ?></td>
+                    <td><strong><?php echo esc_html($booking->room_name); ?></strong><br>
+                        <small><?php echo $booking->group_name ? esc_html($booking->group_name) : '<em>' . __('No group', 'hall-booking-calendar') . '</em>'; ?></small>
+                    </td>
+                    <td><?php echo esc_html($booking->user_name); ?><br>
+                        <small><?php echo esc_html($booking->user_email); ?></small>
+                    </td>
+                    <td><?php echo esc_html(date('M j, Y', strtotime($booking->booking_date))); ?></td>
                     <td><?php echo esc_html(date('g:i A', strtotime($booking->start_time)) . ' - ' . date('g:i A', strtotime($booking->end_time))); ?></td>
+                    <td><?php echo $booking->purpose ? esc_html(wp_trim_words($booking->purpose, 10)) : '<em>' . __('None', 'hall-booking-calendar') . '</em>'; ?></td>
+                    <td>
+                        <?php if (!empty($booking->file_path)) : ?>
+                            <?php
+                            $upload_dir = wp_upload_dir();
+                            $file_url = $upload_dir['baseurl'] . '/' . $booking->file_path;
+                            ?>
+                            <a href="<?php echo esc_url($file_url); ?>" target="_blank" class="button button-small">📄 <?php _e('View PDF', 'hall-booking-calendar'); ?></a>
+                        <?php else : ?>
+                            <em><?php _e('None', 'hall-booking-calendar'); ?></em>
+                        <?php endif; ?>
+                    </td>
                     <td><span class="hbc-status hbc-status-<?php echo esc_attr($booking->status); ?>"><?php echo esc_html(ucfirst($booking->status)); ?></span></td>
                     <td>
                         <a href="<?php echo admin_url('admin.php?page=hall-booking-bookings&action=view&booking_id=' . $booking->id); ?>" class="button button-small"><?php _e('View', 'hall-booking-calendar'); ?></a>
@@ -203,6 +217,25 @@ function hbc_display_booking_details($booking_id) {
             <tr>
                 <th><?php _e('Purpose:', 'hall-booking-calendar'); ?></th>
                 <td><?php echo esc_html($booking->purpose); ?></td>
+            </tr>
+            <tr>
+                <th><?php _e('Description:', 'hall-booking-calendar'); ?></th>
+                <td><?php echo $booking->description ? nl2br(esc_html($booking->description)) : '<em>' . __('None', 'hall-booking-calendar') . '</em>'; ?></td>
+            </tr>
+            <tr>
+                <th><?php _e('Attached File:', 'hall-booking-calendar'); ?></th>
+                <td>
+                    <?php if (!empty($booking->file_path)) : ?>
+                        <?php
+                        $upload_dir = wp_upload_dir();
+                        $file_url = $upload_dir['baseurl'] . '/' . $booking->file_path;
+                        $file_name = basename($booking->file_path);
+                        ?>
+                        <a href="<?php echo esc_url($file_url); ?>" target="_blank" class="button button-secondary">📄 <?php echo esc_html($file_name); ?></a>
+                    <?php else : ?>
+                        <em><?php _e('No file attached', 'hall-booking-calendar'); ?></em>
+                    <?php endif; ?>
+                </td>
             </tr>
             <tr>
                 <th><?php _e('Status:', 'hall-booking-calendar'); ?></th>

@@ -3,7 +3,7 @@
  * Plugin Name: Hall Booking Calendar
  * Plugin URI: https://github.com/slashzero/hall-calendar
  * Description: A WordPress plugin to manage a hall calendar with 3 rooms, recurring bookings, and calendar subscriptions.
- * Version: 1.2.0
+ * Version: 1.3.0
  * Author: Hall Calendar Team
  * Author URI: https://github.com/slashzero
  * License: GPL-2.0+
@@ -18,7 +18,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('HBC_VERSION', '1.2.0');
+define('HBC_VERSION', '1.3.0');
 define('HBC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HBC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('HBC_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -67,6 +67,8 @@ function hbc_activate() {
         start_time time NOT NULL,
         end_time time NOT NULL,
         purpose text,
+        description text,
+        file_path varchar(255),
         status enum('pending','confirmed','cancelled') DEFAULT 'pending',
         series_id varchar(50),
         is_recurring tinyint(1) DEFAULT 0,
@@ -149,6 +151,20 @@ function hbc_activate() {
 
     // Add plugin version option
     add_option('hbc_version', HBC_VERSION);
+
+    // Add default settings
+    add_option('hbc_booking_password', '');
+    add_option('hbc_webmaster_email', get_option('admin_email'));
+
+    // Create uploads directory for booking files
+    $upload_dir = wp_upload_dir();
+    $hbc_upload_dir = $upload_dir['basedir'] . '/hall-bookings';
+    if (!file_exists($hbc_upload_dir)) {
+        wp_mkdir_p($hbc_upload_dir);
+        // Create .htaccess to protect uploaded files
+        $htaccess_content = "Options -Indexes\n<Files *.pdf>\n    Order Allow,Deny\n    Allow from all\n</Files>";
+        file_put_contents($hbc_upload_dir . '/.htaccess', $htaccess_content);
+    }
 }
 register_activation_hook(__FILE__, 'hbc_activate');
 
@@ -170,6 +186,7 @@ add_action('plugins_loaded', 'hbc_load_textdomain');
 
 // Include admin functions
 require_once HBC_PLUGIN_DIR . 'includes/admin-menu.php';
+require_once HBC_PLUGIN_DIR . 'includes/admin-settings.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-rooms.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-groups.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-bookings.php';

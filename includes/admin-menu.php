@@ -66,6 +66,15 @@ function hbc_add_admin_menu() {
         'hall-booking-subscriptions',
         'hbc_admin_subscriptions_page'
     );
+
+    add_submenu_page(
+        'hall-booking-calendar',
+        __('Settings', 'hall-booking-calendar'),
+        __('Settings', 'hall-booking-calendar'),
+        'manage_options',
+        'hall-booking-settings',
+        'hbc_admin_settings_page'
+    );
 }
 add_action('admin_menu', 'hbc_add_admin_menu');
 

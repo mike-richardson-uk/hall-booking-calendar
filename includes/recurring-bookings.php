@@ -179,7 +179,7 @@ function hbc_create_recurring_bookings($booking_data, $pattern = '', $recurrence
         'parent_booking_id' => null
     ));
 
-    $format = array('%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%d');
+    $format = array('%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%d');
 
     $result = $wpdb->insert($bookings_table, $parent_data, $format);
 

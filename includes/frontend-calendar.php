@@ -224,110 +224,227 @@ function hbc_render_booking_form() {
     $groups = $wpdb->get_results("SELECT * FROM $groups_table WHERE status = 'active' ORDER BY name ASC");
 
     $current_user = wp_get_current_user();
+    $require_password = get_option('hbc_require_password', '0');
     ?>
-    <form id="hbc-booking-form" method="post">
-        <div class="hbc-form-row">
-            <label for="hbc_room_id"><?php _e('Select Room:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
-            <select id="hbc_room_id" name="room_id" required>
-                <option value=""><?php _e('-- Select a Room --', 'hall-booking-calendar'); ?></option>
-                <?php foreach ($rooms as $room) : ?>
-                    <option value="<?php echo esc_attr($room->id); ?>"><?php echo esc_html($room->name . ' (Capacity: ' . $room->capacity . ')'); ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
+    <form id="hbc-booking-form" method="post" enctype="multipart/form-data">
 
-        <div class="hbc-form-row">
-            <label for="hbc_group_id"><?php _e('Select Group:', 'hall-booking-calendar'); ?></label>
-            <select id="hbc_group_id" name="group_id">
-                <option value=""><?php _e('-- Select a Group (Optional) --', 'hall-booking-calendar'); ?></option>
-                <?php foreach ($groups as $group) : ?>
-                    <option value="<?php echo esc_attr($group->id); ?>"><?php echo esc_html($group->name); ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-
-        <div class="hbc-form-row">
-            <label for="hbc_user_name"><?php _e('Your Name:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
-            <input type="text" id="hbc_user_name" name="user_name" value="<?php echo esc_attr($current_user->display_name); ?>" required>
-        </div>
-
-        <div class="hbc-form-row">
-            <label for="hbc_user_email"><?php _e('Your Email:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
-            <input type="email" id="hbc_user_email" name="user_email" value="<?php echo esc_attr($current_user->user_email); ?>" required>
-        </div>
-
-        <div class="hbc-form-row">
-            <label for="hbc_booking_date"><?php _e('Booking Date:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
-            <input type="date" id="hbc_booking_date" name="booking_date" min="<?php echo date('Y-m-d'); ?>" required>
-        </div>
-
-        <div class="hbc-form-row hbc-form-row-half">
-            <div>
-                <label for="hbc_start_time"><?php _e('Start Time:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
-                <input type="time" id="hbc_start_time" name="start_time" required>
+        <!-- Progress Indicator -->
+        <div class="hbc-wizard-progress">
+            <?php if ($require_password == '1') : ?>
+            <div class="hbc-progress-step active" data-step="0">
+                <span class="step-number">1</span>
+                <span class="step-label"><?php _e('Password', 'hall-booking-calendar'); ?></span>
             </div>
-            <div>
-                <label for="hbc_end_time"><?php _e('End Time:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
-                <input type="time" id="hbc_end_time" name="end_time" required>
+            <?php endif; ?>
+            <div class="hbc-progress-step <?php echo $require_password == '1' ? '' : 'active'; ?>" data-step="1">
+                <span class="step-number"><?php echo $require_password == '1' ? '2' : '1'; ?></span>
+                <span class="step-label"><?php _e('Room & Time', 'hall-booking-calendar'); ?></span>
+            </div>
+            <div class="hbc-progress-step" data-step="2">
+                <span class="step-number"><?php echo $require_password == '1' ? '3' : '2'; ?></span>
+                <span class="step-label"><?php _e('Your Details', 'hall-booking-calendar'); ?></span>
+            </div>
+            <div class="hbc-progress-step" data-step="3">
+                <span class="step-number"><?php echo $require_password == '1' ? '4' : '3'; ?></span>
+                <span class="step-label"><?php _e('Additional Info', 'hall-booking-calendar'); ?></span>
+            </div>
+            <div class="hbc-progress-step" data-step="4">
+                <span class="step-number"><?php echo $require_password == '1' ? '5' : '4'; ?></span>
+                <span class="step-label"><?php _e('Review', 'hall-booking-calendar'); ?></span>
             </div>
         </div>
 
-        <!-- Recurring/Multi-date Booking Options -->
-        <div class="hbc-form-row hbc-recurring-section">
-            <label>
-                <input type="checkbox" id="hbc_is_recurring" name="is_recurring" value="1">
-                <?php _e('Repeat this booking', 'hall-booking-calendar'); ?>
-            </label>
-        </div>
-
-        <div id="hbc-recurring-options" class="hbc-recurring-options" style="display: none;">
+        <!-- Step 0: Password Verification (if enabled) -->
+        <?php if ($require_password == '1') : ?>
+        <div class="hbc-wizard-step active" data-step="0">
+            <h3><?php _e('Enter Booking Password', 'hall-booking-calendar'); ?></h3>
             <div class="hbc-form-row">
-                <label for="hbc_recurrence_pattern"><?php _e('Repeat:', 'hall-booking-calendar'); ?></label>
-                <select id="hbc_recurrence_pattern" name="recurrence_pattern">
-                    <option value=""><?php _e('Select Pattern', 'hall-booking-calendar'); ?></option>
-                    <option value="daily"><?php _e('Daily', 'hall-booking-calendar'); ?></option>
-                    <option value="weekly"><?php _e('Weekly', 'hall-booking-calendar'); ?></option>
-                    <option value="biweekly"><?php _e('Every 2 Weeks', 'hall-booking-calendar'); ?></option>
-                    <option value="monthly"><?php _e('Monthly (Same Date)', 'hall-booking-calendar'); ?></option>
-                    <option value="monthly_weekday"><?php _e('Monthly (Same Weekday)', 'hall-booking-calendar'); ?></option>
+                <label for="hbc_booking_password_input"><?php _e('Password:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                <input type="password" id="hbc_booking_password_input" name="booking_password_input" required>
+                <p class="description"><?php _e('Please enter the booking password to continue.', 'hall-booking-calendar'); ?></p>
+                <div class="hbc-password-error" style="display: none; color: red;"></div>
+            </div>
+            <div class="hbc-wizard-buttons">
+                <button type="button" class="hbc-next-btn button button-primary"><?php _e('Next', 'hall-booking-calendar'); ?></button>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- Step 1: Room, Date, and Time -->
+        <div class="hbc-wizard-step <?php echo $require_password == '1' ? '' : 'active'; ?>" data-step="1">
+            <h3><?php _e('Select Room, Date & Time', 'hall-booking-calendar'); ?></h3>
+
+            <div class="hbc-form-row">
+                <label for="hbc_room_id"><?php _e('Select Room:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                <select id="hbc_room_id" name="room_id" required>
+                    <option value=""><?php _e('-- Select a Room --', 'hall-booking-calendar'); ?></option>
+                    <?php foreach ($rooms as $room) : ?>
+                        <option value="<?php echo esc_attr($room->id); ?>"><?php echo esc_html($room->name . ' (Capacity: ' . $room->capacity . ')'); ?></option>
+                    <?php endforeach; ?>
                 </select>
-                <p class="description"><?php _e('Example: "Monthly (Same Weekday)" means every third Wednesday', 'hall-booking-calendar'); ?></p>
             </div>
 
             <div class="hbc-form-row">
-                <label for="hbc_recurrence_end"><?php _e('Repeat Until:', 'hall-booking-calendar'); ?></label>
-                <input type="date" id="hbc_recurrence_end" name="recurrence_end" min="<?php echo date('Y-m-d'); ?>">
+                <label for="hbc_booking_date"><?php _e('Booking Date:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                <input type="date" id="hbc_booking_date" name="booking_date" min="<?php echo date('Y-m-d'); ?>" required>
             </div>
-        </div>
 
-        <div class="hbc-form-row">
-            <label>
-                <input type="checkbox" id="hbc_add_multiple_dates" value="1">
-                <?php _e('Book multiple specific dates', 'hall-booking-calendar'); ?>
-            </label>
-        </div>
-
-        <div id="hbc-multiple-dates-section" class="hbc-multiple-dates" style="display: none;">
-            <div class="hbc-form-row">
-                <label><?php _e('Additional Dates:', 'hall-booking-calendar'); ?></label>
-                <div id="hbc-additional-dates-container">
-                    <input type="date" class="hbc-additional-date" name="additional_dates[]" min="<?php echo date('Y-m-d'); ?>">
+            <div class="hbc-form-row hbc-form-row-half">
+                <div>
+                    <label for="hbc_start_time"><?php _e('Start Time:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                    <input type="time" id="hbc_start_time" name="start_time" required>
                 </div>
-                <button type="button" id="hbc-add-date-btn" class="button"><?php _e('+ Add Another Date', 'hall-booking-calendar'); ?></button>
-                <p class="description"><?php _e('Same time will be used for all selected dates', 'hall-booking-calendar'); ?></p>
+                <div>
+                    <label for="hbc_end_time"><?php _e('End Time:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                    <input type="time" id="hbc_end_time" name="end_time" required>
+                </div>
+            </div>
+
+            <div class="hbc-wizard-buttons">
+                <button type="button" class="hbc-prev-btn button"><?php _e('Previous', 'hall-booking-calendar'); ?></button>
+                <button type="button" class="hbc-next-btn button button-primary"><?php _e('Next', 'hall-booking-calendar'); ?></button>
             </div>
         </div>
 
-        <div class="hbc-form-row">
-            <label for="hbc_purpose"><?php _e('Purpose of Booking:', 'hall-booking-calendar'); ?></label>
-            <textarea id="hbc_purpose" name="purpose" rows="4"></textarea>
+        <!-- Step 2: User Details and Group -->
+        <div class="hbc-wizard-step" data-step="2">
+            <h3><?php _e('Your Contact Information', 'hall-booking-calendar'); ?></h3>
+
+            <div class="hbc-form-row">
+                <label for="hbc_user_name"><?php _e('Your Name:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                <input type="text" id="hbc_user_name" name="user_name" value="<?php echo esc_attr($current_user->display_name); ?>" required>
+            </div>
+
+            <div class="hbc-form-row">
+                <label for="hbc_user_email"><?php _e('Your Email:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                <input type="email" id="hbc_user_email" name="user_email" value="<?php echo esc_attr($current_user->user_email); ?>" required>
+            </div>
+
+            <div class="hbc-form-row">
+                <label for="hbc_group_id"><?php _e('Select Group:', 'hall-booking-calendar'); ?></label>
+                <select id="hbc_group_id" name="group_id">
+                    <option value=""><?php _e('-- Select a Group (Optional) --', 'hall-booking-calendar'); ?></option>
+                    <?php foreach ($groups as $group) : ?>
+                        <option value="<?php echo esc_attr($group->id); ?>"><?php echo esc_html($group->name); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="hbc-wizard-buttons">
+                <button type="button" class="hbc-prev-btn button"><?php _e('Previous', 'hall-booking-calendar'); ?></button>
+                <button type="button" class="hbc-next-btn button button-primary"><?php _e('Next', 'hall-booking-calendar'); ?></button>
+            </div>
         </div>
 
-        <div class="hbc-form-message"></div>
+        <!-- Step 3: Description, File Upload, and Additional Options -->
+        <div class="hbc-wizard-step" data-step="3">
+            <h3><?php _e('Additional Information', 'hall-booking-calendar'); ?></h3>
 
-        <div class="hbc-form-row">
-            <button type="submit" class="hbc-submit-btn"><?php _e('Submit Booking', 'hall-booking-calendar'); ?></button>
+            <div class="hbc-form-row">
+                <label for="hbc_purpose"><?php _e('Purpose of Booking:', 'hall-booking-calendar'); ?></label>
+                <textarea id="hbc_purpose" name="purpose" rows="3"></textarea>
+            </div>
+
+            <div class="hbc-form-row">
+                <label for="hbc_description"><?php _e('Description:', 'hall-booking-calendar'); ?></label>
+                <textarea id="hbc_description" name="description" rows="4" placeholder="<?php _e('Add any additional details about your booking...', 'hall-booking-calendar'); ?>"></textarea>
+            </div>
+
+            <div class="hbc-form-row">
+                <label for="hbc_file_upload"><?php _e('Attach File (PDF only):', 'hall-booking-calendar'); ?></label>
+                <input type="file" id="hbc_file_upload" name="booking_file" accept=".pdf,application/pdf">
+                <p class="description"><?php _e('Maximum file size: 5MB. PDF files only.', 'hall-booking-calendar'); ?></p>
+                <div class="hbc-file-error" style="display: none; color: red;"></div>
+            </div>
+
+            <!-- Recurring/Multi-date Booking Options -->
+            <div class="hbc-form-row hbc-recurring-section">
+                <label>
+                    <input type="checkbox" id="hbc_is_recurring" name="is_recurring" value="1">
+                    <?php _e('Repeat this booking', 'hall-booking-calendar'); ?>
+                </label>
+            </div>
+
+            <div id="hbc-recurring-options" class="hbc-recurring-options" style="display: none;">
+                <div class="hbc-form-row">
+                    <label for="hbc_recurrence_pattern"><?php _e('Repeat:', 'hall-booking-calendar'); ?></label>
+                    <select id="hbc_recurrence_pattern" name="recurrence_pattern">
+                        <option value=""><?php _e('Select Pattern', 'hall-booking-calendar'); ?></option>
+                        <option value="daily"><?php _e('Daily', 'hall-booking-calendar'); ?></option>
+                        <option value="weekly"><?php _e('Weekly', 'hall-booking-calendar'); ?></option>
+                        <option value="biweekly"><?php _e('Every 2 Weeks', 'hall-booking-calendar'); ?></option>
+                        <option value="monthly"><?php _e('Monthly (Same Date)', 'hall-booking-calendar'); ?></option>
+                        <option value="monthly_weekday"><?php _e('Monthly (Same Weekday)', 'hall-booking-calendar'); ?></option>
+                    </select>
+                    <p class="description"><?php _e('Example: "Monthly (Same Weekday)" means every third Wednesday', 'hall-booking-calendar'); ?></p>
+                </div>
+
+                <div class="hbc-form-row">
+                    <label for="hbc_recurrence_end"><?php _e('Repeat Until:', 'hall-booking-calendar'); ?></label>
+                    <input type="date" id="hbc_recurrence_end" name="recurrence_end" min="<?php echo date('Y-m-d'); ?>">
+                </div>
+            </div>
+
+            <div class="hbc-form-row">
+                <label>
+                    <input type="checkbox" id="hbc_add_multiple_dates" value="1">
+                    <?php _e('Book multiple specific dates', 'hall-booking-calendar'); ?>
+                </label>
+            </div>
+
+            <div id="hbc-multiple-dates-section" class="hbc-multiple-dates" style="display: none;">
+                <div class="hbc-form-row">
+                    <label><?php _e('Additional Dates:', 'hall-booking-calendar'); ?></label>
+                    <div id="hbc-additional-dates-container">
+                        <input type="date" class="hbc-additional-date" name="additional_dates[]" min="<?php echo date('Y-m-d'); ?>">
+                    </div>
+                    <button type="button" id="hbc-add-date-btn" class="button"><?php _e('+ Add Another Date', 'hall-booking-calendar'); ?></button>
+                    <p class="description"><?php _e('Same time will be used for all selected dates', 'hall-booking-calendar'); ?></p>
+                </div>
+            </div>
+
+            <div class="hbc-wizard-buttons">
+                <button type="button" class="hbc-prev-btn button"><?php _e('Previous', 'hall-booking-calendar'); ?></button>
+                <button type="button" class="hbc-next-btn button button-primary"><?php _e('Next', 'hall-booking-calendar'); ?></button>
+            </div>
         </div>
+
+        <!-- Step 4: Review and Submit -->
+        <div class="hbc-wizard-step" data-step="4">
+            <h3><?php _e('Review Your Booking', 'hall-booking-calendar'); ?></h3>
+
+            <div class="hbc-booking-review">
+                <div class="hbc-review-section">
+                    <h4><?php _e('Room & Time', 'hall-booking-calendar'); ?></h4>
+                    <p><strong><?php _e('Room:', 'hall-booking-calendar'); ?></strong> <span id="review-room"></span></p>
+                    <p><strong><?php _e('Date:', 'hall-booking-calendar'); ?></strong> <span id="review-date"></span></p>
+                    <p><strong><?php _e('Time:', 'hall-booking-calendar'); ?></strong> <span id="review-time"></span></p>
+                </div>
+
+                <div class="hbc-review-section">
+                    <h4><?php _e('Contact Information', 'hall-booking-calendar'); ?></h4>
+                    <p><strong><?php _e('Name:', 'hall-booking-calendar'); ?></strong> <span id="review-name"></span></p>
+                    <p><strong><?php _e('Email:', 'hall-booking-calendar'); ?></strong> <span id="review-email"></span></p>
+                    <p><strong><?php _e('Group:', 'hall-booking-calendar'); ?></strong> <span id="review-group"></span></p>
+                </div>
+
+                <div class="hbc-review-section">
+                    <h4><?php _e('Additional Information', 'hall-booking-calendar'); ?></h4>
+                    <p><strong><?php _e('Purpose:', 'hall-booking-calendar'); ?></strong> <span id="review-purpose"></span></p>
+                    <p><strong><?php _e('Description:', 'hall-booking-calendar'); ?></strong> <span id="review-description"></span></p>
+                    <p><strong><?php _e('File:', 'hall-booking-calendar'); ?></strong> <span id="review-file"></span></p>
+                    <p><strong><?php _e('Recurring:', 'hall-booking-calendar'); ?></strong> <span id="review-recurring"></span></p>
+                </div>
+            </div>
+
+            <div class="hbc-form-message"></div>
+
+            <div class="hbc-wizard-buttons">
+                <button type="button" class="hbc-prev-btn button"><?php _e('Previous', 'hall-booking-calendar'); ?></button>
+                <button type="submit" class="hbc-submit-btn button button-primary"><?php _e('Submit Booking', 'hall-booking-calendar'); ?></button>
+            </div>
+        </div>
+
     </form>
     <?php
 }

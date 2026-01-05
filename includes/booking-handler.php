@@ -18,6 +18,18 @@ function hbc_handle_booking_submission() {
         return;
     }
 
+    // Verify password if required
+    $require_password = get_option('hbc_require_password', '0');
+    if ($require_password == '1') {
+        $booking_password = get_option('hbc_booking_password', '');
+        $submitted_password = isset($_POST['booking_password_input']) ? $_POST['booking_password_input'] : '';
+
+        if ($submitted_password !== $booking_password) {
+            wp_send_json_error(array('message' => __('Incorrect password. Please try again.', 'hall-booking-calendar')));
+            return;
+        }
+    }
+
     global $wpdb;
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
@@ -32,6 +44,7 @@ function hbc_handle_booking_submission() {
     $start_time = sanitize_text_field($_POST['start_time']);
     $end_time = sanitize_text_field($_POST['end_time']);
     $purpose = sanitize_textarea_field($_POST['purpose']);
+    $description = isset($_POST['description']) ? sanitize_textarea_field($_POST['description']) : '';
 
     // Recurring booking options
     $is_recurring = isset($_POST['is_recurring']) && $_POST['is_recurring'] == '1';
@@ -40,6 +53,18 @@ function hbc_handle_booking_submission() {
 
     // Multi-date booking options
     $additional_dates = isset($_POST['additional_dates']) && is_array($_POST['additional_dates']) ? array_map('sanitize_text_field', $_POST['additional_dates']) : array();
+
+    // Handle file upload
+    $file_path = '';
+    if (isset($_FILES['booking_file']) && $_FILES['booking_file']['error'] === UPLOAD_ERR_OK) {
+        $upload_result = hbc_handle_file_upload($_FILES['booking_file']);
+        if ($upload_result['success']) {
+            $file_path = $upload_result['file_path'];
+        } else {
+            wp_send_json_error(array('message' => $upload_result['message']));
+            return;
+        }
+    }
 
     // Validate required fields
     if (empty($room_id) || empty($user_name) || empty($user_email) || empty($booking_date) || empty($start_time) || empty($end_time)) {
@@ -95,6 +120,8 @@ function hbc_handle_booking_submission() {
         'start_time' => $start_time,
         'end_time' => $end_time,
         'purpose' => $purpose,
+        'description' => $description,
+        'file_path' => $file_path,
         'status' => 'pending'
     );
 
@@ -125,7 +152,7 @@ function hbc_handle_booking_submission() {
         $result = $wpdb->insert(
             $bookings_table,
             $booking_data,
-            array('%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+            array('%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
         );
 
         if ($result) {
@@ -217,17 +244,72 @@ add_action('wp_ajax_hbc_get_available_slots', 'hbc_get_available_slots');
 add_action('wp_ajax_nopriv_hbc_get_available_slots', 'hbc_get_available_slots');
 
 /**
+ * Handle file upload for booking
+ */
+function hbc_handle_file_upload($file) {
+    // Validate file type
+    $allowed_type = 'application/pdf';
+    $file_type = $file['type'];
+    $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+
+    if ($file_type !== $allowed_type && $file_ext !== 'pdf') {
+        return array(
+            'success' => false,
+            'message' => __('Only PDF files are allowed.', 'hall-booking-calendar')
+        );
+    }
+
+    // Validate file size (5MB max)
+    $max_size = 5 * 1024 * 1024; // 5MB in bytes
+    if ($file['size'] > $max_size) {
+        return array(
+            'success' => false,
+            'message' => __('File size must be less than 5MB.', 'hall-booking-calendar')
+        );
+    }
+
+    // Set up upload directory
+    $upload_dir = wp_upload_dir();
+    $hbc_upload_dir = $upload_dir['basedir'] . '/hall-bookings';
+
+    // Ensure directory exists
+    if (!file_exists($hbc_upload_dir)) {
+        wp_mkdir_p($hbc_upload_dir);
+    }
+
+    // Generate unique filename
+    $filename = time() . '_' . sanitize_file_name($file['name']);
+    $file_path = $hbc_upload_dir . '/' . $filename;
+
+    // Move uploaded file
+    if (move_uploaded_file($file['tmp_name'], $file_path)) {
+        // Return relative path from uploads directory
+        return array(
+            'success' => true,
+            'file_path' => 'hall-bookings/' . $filename
+        );
+    } else {
+        return array(
+            'success' => false,
+            'message' => __('Failed to upload file. Please try again.', 'hall-booking-calendar')
+        );
+    }
+}
+
+/**
  * Send booking notification email
  */
 function hbc_send_booking_notification($booking_id) {
     global $wpdb;
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
+    $groups_table = $wpdb->prefix . 'hbc_groups';
 
     $booking = $wpdb->get_row($wpdb->prepare(
-        "SELECT b.*, r.name as room_name
+        "SELECT b.*, r.name as room_name, g.name as group_name
         FROM $bookings_table b
         LEFT JOIN $rooms_table r ON b.room_id = r.id
+        LEFT JOIN $groups_table g ON b.group_id = g.id
         WHERE b.id = %d",
         $booking_id
     ));
@@ -236,34 +318,81 @@ function hbc_send_booking_notification($booking_id) {
         return;
     }
 
+    // Check if this is part of a recurring series
+    $bookings = array($booking);
+    if (!empty($booking->series_id)) {
+        // Get all bookings in the series for a combined email
+        $bookings = $wpdb->get_results($wpdb->prepare(
+            "SELECT b.*, r.name as room_name, g.name as group_name
+            FROM $bookings_table b
+            LEFT JOIN $rooms_table r ON b.room_id = r.id
+            LEFT JOIN $groups_table g ON b.group_id = g.id
+            WHERE b.series_id = %s
+            ORDER BY b.booking_date ASC, b.start_time ASC",
+            $booking->series_id
+        ));
+    }
+
+    // Build booking details
+    $booking_details = '';
+    $booking_count = count($bookings);
+
+    if ($booking_count > 1) {
+        $booking_details .= sprintf(__("Total Bookings in Series: %d\n\n", 'hall-booking-calendar'), $booking_count);
+    }
+
+    foreach ($bookings as $idx => $bk) {
+        if ($booking_count > 1) {
+            $booking_details .= sprintf(__("Booking #%d:\n", 'hall-booking-calendar'), $idx + 1);
+        }
+        $booking_details .= sprintf(__("- Room: %s\n", 'hall-booking-calendar'), $bk->room_name);
+        $booking_details .= sprintf(__("- Date: %s\n", 'hall-booking-calendar'), date('F j, Y', strtotime($bk->booking_date)));
+        $booking_details .= sprintf(__("- Time: %s - %s\n", 'hall-booking-calendar'), date('g:i A', strtotime($bk->start_time)), date('g:i A', strtotime($bk->end_time)));
+        if (!empty($bk->group_name)) {
+            $booking_details .= sprintf(__("- Group: %s\n", 'hall-booking-calendar'), $bk->group_name);
+        }
+        if (!empty($bk->purpose)) {
+            $booking_details .= sprintf(__("- Purpose: %s\n", 'hall-booking-calendar'), $bk->purpose);
+        }
+        if (!empty($bk->description)) {
+            $booking_details .= sprintf(__("- Description: %s\n", 'hall-booking-calendar'), $bk->description);
+        }
+        if (!empty($bk->file_path)) {
+            $upload_dir = wp_upload_dir();
+            $file_url = $upload_dir['baseurl'] . '/' . $bk->file_path;
+            $booking_details .= sprintf(__("- Attached File: %s\n", 'hall-booking-calendar'), $file_url);
+        }
+        $booking_details .= "\n";
+    }
+
     // Email to user
     $to = $booking->user_email;
-    $subject = __('Booking Confirmation - Hall Booking Calendar', 'hall-booking-calendar');
+    $subject = $booking_count > 1
+        ? __('Booking Confirmation - Multiple Bookings - Hall Booking Calendar', 'hall-booking-calendar')
+        : __('Booking Confirmation - Hall Booking Calendar', 'hall-booking-calendar');
+
     $message = sprintf(
-        __("Dear %s,\n\nThank you for your booking request.\n\nBooking Details:\n- Room: %s\n- Date: %s\n- Time: %s - %s\n- Purpose: %s\n\nYour booking is currently pending approval. You will receive another email once it is confirmed.\n\nThank you!", 'hall-booking-calendar'),
+        __("Dear %s,\n\nThank you for your booking request.\n\n%s\nYour booking%s currently pending approval. You will receive another email once it is confirmed.\n\nThank you!", 'hall-booking-calendar'),
         $booking->user_name,
-        $booking->room_name,
-        date('F j, Y', strtotime($booking->booking_date)),
-        date('g:i A', strtotime($booking->start_time)),
-        date('g:i A', strtotime($booking->end_time)),
-        $booking->purpose
+        $booking_details,
+        $booking_count > 1 ? 's are' : ' is'
     );
 
     wp_mail($to, $subject, $message);
 
-    // Email to admin
-    $admin_email = get_option('admin_email');
-    $admin_subject = __('New Booking Request - Hall Booking Calendar', 'hall-booking-calendar');
-    $admin_message = sprintf(
-        __("A new booking request has been submitted:\n\nBooking Details:\n- Room: %s\n- User: %s (%s)\n- Date: %s\n- Time: %s - %s\n- Purpose: %s\n\nPlease review and approve the booking in the admin panel.", 'hall-booking-calendar'),
-        $booking->room_name,
+    // Email to webmaster (from settings)
+    $webmaster_email = get_option('hbc_webmaster_email', get_option('admin_email'));
+    $webmaster_subject = $booking_count > 1
+        ? __('New Booking Request - Multiple Bookings - Hall Booking Calendar', 'hall-booking-calendar')
+        : __('New Booking Request - Hall Booking Calendar', 'hall-booking-calendar');
+
+    $webmaster_message = sprintf(
+        __("A new booking request has been submitted:\n\nUser: %s (%s)\n\n%s\nPlease review and approve the booking%s in the admin panel.", 'hall-booking-calendar'),
         $booking->user_name,
         $booking->user_email,
-        date('F j, Y', strtotime($booking->booking_date)),
-        date('g:i A', strtotime($booking->start_time)),
-        date('g:i A', strtotime($booking->end_time)),
-        $booking->purpose
+        $booking_details,
+        $booking_count > 1 ? 's' : ''
     );
 
-    wp_mail($admin_email, $admin_subject, $admin_message);
+    wp_mail($webmaster_email, $webmaster_subject, $webmaster_message);
 }
