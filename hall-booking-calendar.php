@@ -169,6 +169,34 @@ function hbc_activate() {
 register_activation_hook(__FILE__, 'hbc_activate');
 
 /**
+ * Check and upgrade database schema if needed
+ */
+function hbc_check_database_upgrade() {
+    global $wpdb;
+    $bookings_table = $wpdb->prefix . 'hbc_bookings';
+
+    // Check if table exists
+    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$bookings_table'") === $bookings_table;
+    if (!$table_exists) {
+        return; // Table doesn't exist yet, activation will handle it
+    }
+
+    // Get current columns
+    $columns = $wpdb->get_col("DESCRIBE $bookings_table", 0);
+
+    // Check if description column exists
+    if (!in_array('description', $columns)) {
+        $wpdb->query("ALTER TABLE $bookings_table ADD COLUMN description text AFTER purpose");
+    }
+
+    // Check if file_path column exists
+    if (!in_array('file_path', $columns)) {
+        $wpdb->query("ALTER TABLE $bookings_table ADD COLUMN file_path varchar(255) AFTER description");
+    }
+}
+add_action('plugins_loaded', 'hbc_check_database_upgrade');
+
+/**
  * Deactivation hook
  */
 function hbc_deactivate() {
