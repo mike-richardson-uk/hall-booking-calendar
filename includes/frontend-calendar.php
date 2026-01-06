@@ -10,6 +10,27 @@ if (!defined('WPINC')) {
 
 /**
  * Register shortcode for calendar display
+ *
+ * Main shortcode handler that routes to different views based on parameters and URL args.
+ *
+ * Shortcode: [hall_booking_calendar view="calendar|agenda" group="all|{group_id}"]
+ *
+ * Views:
+ * - calendar: Monthly calendar grid showing room availability (default)
+ * - agenda: Paginated list of upcoming bookings
+ *
+ * URL parameters handled:
+ * - ?booking_id=X: Shows single booking detail page
+ * - ?action=book: Shows full-page booking form
+ * - ?month=X&year=Y: Navigate to specific month in calendar view
+ * - ?group_filter=X: Filter bookings by group
+ *
+ * @since 1.0.0
+ * @param array $atts Shortcode attributes {
+ *     @type string $view  View type: 'calendar' or 'agenda'. Default 'calendar'.
+ *     @type string $group Group filter: 'all' or group ID. Default 'all'.
+ * }
+ * @return string HTML output for the requested view
  */
 function hbc_calendar_shortcode($atts) {
     $atts = shortcode_atts(array(
@@ -19,23 +40,23 @@ function hbc_calendar_shortcode($atts) {
 
     ob_start();
 
-    // Check if viewing single booking
+    // Check if viewing single booking detail page
     if (isset($_GET['booking_id']) && is_numeric($_GET['booking_id'])) {
         echo hbc_display_single_booking(intval($_GET['booking_id']));
     }
-    // Check if showing booking form
+    // Check if showing full-page booking form
     elseif (isset($_GET['action']) && $_GET['action'] === 'book') {
         echo hbc_display_booking_page();
     }
-    // Agenda view
+    // Agenda view - list of upcoming bookings
     elseif ($atts['view'] == 'agenda') {
         echo hbc_display_agenda($atts['group']);
     }
-    // Calendar view (default)
+    // Calendar view (default) - monthly grid
     elseif ($atts['view'] == 'calendar') {
         hbc_display_calendar($atts['group']);
     }
-    // Standalone booking form
+    // Standalone booking form (fallback, rarely used)
     else {
         hbc_display_booking_form();
     }
@@ -46,6 +67,24 @@ add_shortcode('hall_booking_calendar', 'hbc_calendar_shortcode');
 
 /**
  * Display calendar view
+ *
+ * Renders a monthly calendar grid showing room availability and bookings.
+ * Each day shows color-coded indicators for each room (booked or available).
+ * Users can navigate between months and filter by group.
+ *
+ * Features:
+ * - Month navigation (prev/next)
+ * - Room legend with capacity
+ * - Group filter dropdown
+ * - Visual availability indicators per room
+ * - Clickable bookings to view details
+ * - Highlights today's date
+ * - Grays out past dates
+ * - "Book" buttons for available dates
+ *
+ * @since 1.0.0
+ * @param string $group_filter Group ID to filter by, or 'all' for no filter. Default 'all'.
+ * @return void Outputs HTML directly
  */
 function hbc_display_calendar($group_filter = 'all') {
     global $wpdb;
@@ -53,13 +92,13 @@ function hbc_display_calendar($group_filter = 'all') {
     $groups_table = $wpdb->prefix . 'hbc_groups';
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
 
-    // Check if tables exist
+    // Check if tables exist - safety check for activation issues
     $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$rooms_table'");
     if (!$table_exists) {
         return '<div class="hbc-error"><p>' . __('Hall Booking Calendar plugin is not properly activated. Please activate the plugin first.', 'hall-booking-calendar') . '</p></div>';
     }
 
-    // Get current month and year
+    // Get current month and year from URL or use current date
     $current_month = isset($_GET['month']) ? intval($_GET['month']) : date('n');
     $current_year = isset($_GET['year']) ? intval($_GET['year']) : date('Y');
 

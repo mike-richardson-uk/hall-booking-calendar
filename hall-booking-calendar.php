@@ -3,7 +3,7 @@
  * Plugin Name: Hall Booking Calendar
  * Plugin URI: https://github.com/slashzero/hall-calendar
  * Description: A WordPress plugin to manage a hall calendar with 3 rooms, recurring bookings, and calendar subscriptions.
- * Version: 1.3.0
+ * Version: 1.3.1
  * Author: Hall Calendar Team
  * Author URI: https://github.com/slashzero
  * License: GPL-2.0+
@@ -18,13 +18,20 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('HBC_VERSION', '1.3.0');
+define('HBC_VERSION', '1.3.1');
 define('HBC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HBC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('HBC_PLUGIN_BASENAME', plugin_basename(__FILE__));
 
 /**
- * Activation hook
+ * Plugin activation hook - Creates database tables and sets up default data
+ *
+ * Creates four tables: rooms, groups, bookings, and subscriptions.
+ * Also inserts default rooms and groups if none exist.
+ * Sets up upload directory for booking files.
+ *
+ * @since 1.0.0
+ * @return void
  */
 function hbc_activate() {
     global $wpdb;
@@ -170,6 +177,13 @@ register_activation_hook(__FILE__, 'hbc_activate');
 
 /**
  * Check and upgrade database schema if needed
+ *
+ * Checks for missing columns in the bookings table (description, file_path)
+ * and adds them if they don't exist. Runs on every plugin load to ensure
+ * database schema is up to date when upgrading from older versions.
+ *
+ * @since 1.3.0
+ * @return void
  */
 function hbc_check_database_upgrade() {
     global $wpdb;
@@ -197,7 +211,13 @@ function hbc_check_database_upgrade() {
 add_action('plugins_loaded', 'hbc_check_database_upgrade');
 
 /**
- * Deactivation hook
+ * Plugin deactivation hook
+ *
+ * Reserved for future cleanup tasks if needed.
+ * Currently doesn't remove tables or data to preserve user data.
+ *
+ * @since 1.0.0
+ * @return void
  */
 function hbc_deactivate() {
     // Clean up tasks if needed
@@ -205,7 +225,12 @@ function hbc_deactivate() {
 register_deactivation_hook(__FILE__, 'hbc_deactivate');
 
 /**
- * Load plugin textdomain
+ * Load plugin textdomain for translations
+ *
+ * Loads translation files from the /languages directory.
+ *
+ * @since 1.0.0
+ * @return void
  */
 function hbc_load_textdomain() {
     load_plugin_textdomain('hall-booking-calendar', false, dirname(HBC_PLUGIN_BASENAME) . '/languages');
@@ -218,6 +243,7 @@ require_once HBC_PLUGIN_DIR . 'includes/admin-settings.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-rooms.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-groups.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-bookings.php';
+require_once HBC_PLUGIN_DIR . 'includes/admin-bulk-import.php';
 require_once HBC_PLUGIN_DIR . 'includes/recurring-bookings.php';
 require_once HBC_PLUGIN_DIR . 'includes/calendar-subscription.php';
 require_once HBC_PLUGIN_DIR . 'includes/frontend-calendar.php';
@@ -225,8 +251,15 @@ require_once HBC_PLUGIN_DIR . 'includes/booking-handler.php';
 
 /**
  * Enqueue admin styles and scripts
+ *
+ * Only loads assets on Hall Booking admin pages to avoid conflicts.
+ *
+ * @since 1.0.0
+ * @param string $hook The current admin page hook
+ * @return void
  */
 function hbc_admin_enqueue_scripts($hook) {
+    // Only load on our plugin pages
     if (strpos($hook, 'hall-booking') === false) {
         return;
     }
@@ -238,12 +271,17 @@ add_action('admin_enqueue_scripts', 'hbc_admin_enqueue_scripts');
 
 /**
  * Enqueue frontend styles and scripts
+ *
+ * Loads on all frontend pages. Includes AJAX configuration for booking submissions.
+ *
+ * @since 1.0.0
+ * @return void
  */
 function hbc_frontend_enqueue_scripts() {
     wp_enqueue_style('hbc-frontend-style', HBC_PLUGIN_URL . 'assets/css/frontend-style.css', array(), HBC_VERSION);
     wp_enqueue_script('hbc-frontend-script', HBC_PLUGIN_URL . 'assets/js/frontend-script.js', array('jquery'), HBC_VERSION, true);
 
-    // Localize script for AJAX
+    // Localize script for AJAX - provides URL and nonce for secure AJAX requests
     wp_localize_script('hbc-frontend-script', 'hbc_ajax', array(
         'ajax_url' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('hbc_booking_nonce')

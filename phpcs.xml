@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<ruleset name="Hall Booking Calendar">
+    <description>WordPress Coding Standards for Hall Booking Calendar Plugin</description>
+
+    <!-- Check all PHP files in directory tree by default. -->
+    <file>.</file>
+
+    <!-- Exclude third party libraries and build files -->
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/.git/*</exclude-pattern>
+
+    <!-- Only check PHP files -->
+    <arg name="extensions" value="php"/>
+
+    <!-- Show progress and use colors -->
+    <arg value="ps"/>
+    <arg name="colors"/>
+
+    <!-- Show sniff codes in all reports -->
+    <arg value="ns"/>
+
+    <!-- Use WordPress Coding Standards -->
+    <rule ref="WordPress">
+        <!-- Allow array short syntax -->
+        <exclude name="Generic.Arrays.DisallowShortArraySyntax"/>
+
+        <!-- Relax some file naming rules for WordPress plugins -->
+        <exclude name="WordPress.Files.FileName"/>
+    </rule>
+
+    <!-- Use WordPress-Extra for additional checks -->
+    <rule ref="WordPress-Extra">
+        <!-- Allow short array syntax [] instead of array() -->
+        <exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
+    </rule>
+
+    <!-- Use WordPress-Docs for documentation standards -->
+    <rule ref="WordPress-Docs"/>
+
+    <!-- Check for PHP cross-version compatibility -->
+    <config name="testVersion" value="7.0-"/>
+    <rule ref="PHPCompatibilityWP"/>
+
+    <!-- Set minimum supported WordPress version -->
+    <config name="minimum_supported_wp_version" value="5.0"/>
+
+    <!-- Verify that everything in the global namespace is prefixed -->
+    <rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+        <properties>
+            <property name="prefixes" type="array">
+                <element value="hbc"/>
+                <element value="HBC"/>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- Allow short ternary operator -->
+    <rule ref="WordPress.PHP.DisallowShortTernary">
+        <severity>0</severity>
+    </rule>
+</ruleset>

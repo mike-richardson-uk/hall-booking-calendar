@@ -1,0 +1,11 @@
+room_id,user_name,user_email,booking_date,start_time,end_time,purpose,description,group_id,is_recurring,recurrence_pattern,recurrence_end_date
+1,John Doe,john.doe@example.com,2026-02-15,09:00,10:30,Team Meeting,Weekly team standup meeting,1,0,,,
+2,Jane Smith,jane.smith@example.com,2026-02-16,14:00,16:00,Training Session,New employee onboarding training,2,0,,,
+3,Bob Johnson,bob.johnson@example.com,2026-02-17,10:00,11:00,Client Presentation,Q1 results presentation to stakeholders,3,0,,,
+1,Alice Williams,alice.williams@example.com,2026-02-18,09:00,10:00,Weekly Standup,Development team standup meeting,1,1,weekly,2026-03-31
+2,Charlie Brown,charlie.brown@example.com,2026-02-20,13:00,14:30,Lunch and Learn,Monthly educational session,2,1,monthly,2026-06-20
+3,Diana Prince,diana.prince@example.com,2026-02-21,15:00,17:00,Board Meeting,Monthly board of directors meeting,1,1,monthly,2026-05-21
+1,Eve Martinez,eve.martinez@example.com,2026-02-22,11:00,12:00,Department Sync,Biweekly department synchronization,1,1,biweekly,2026-04-22
+2,Frank Castle,frank.castle@example.com,2026-02-24,09:30,11:00,Project Review,Review project milestones and deliverables,3,0,,,
+3,Grace Hopper,grace.hopper@example.com,2026-02-25,14:00,15:30,Code Review Session,Peer code review and best practices discussion,1,0,,,
+1,Henry Ford,henry.ford@example.com,2026-02-26,10:00,11:30,Innovation Workshop,Brainstorming session for new product ideas,2,0,,,

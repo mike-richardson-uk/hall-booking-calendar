@@ -10,15 +10,32 @@ if (!defined('WPINC')) {
 
 /**
  * Handle booking submission via AJAX
+ *
+ * Processes new booking requests from the frontend form. Validates all input,
+ * checks for conflicts, handles file uploads, and creates single or recurring bookings.
+ * Sends email notifications to both user and webmaster upon success.
+ *
+ * Validation includes:
+ * - Nonce verification for security
+ * - Password check if enabled
+ * - Required field validation
+ * - Email format validation
+ * - Room and group existence check
+ * - Date not in past check
+ * - Time range validation
+ * - Booking conflict detection
+ *
+ * @since 1.0.0
+ * @return void Sends JSON response and exits
  */
 function hbc_handle_booking_submission() {
-    // Verify nonce
+    // Verify nonce for security
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'hbc_booking_nonce')) {
         wp_send_json_error(array('message' => __('Security check failed.', 'hall-booking-calendar')));
         return;
     }
 
-    // Verify password if required
+    // Verify password if password protection is enabled
     $require_password = get_option('hbc_require_password', '0');
     if ($require_password == '1') {
         $booking_password = get_option('hbc_booking_password', '');
@@ -173,11 +190,27 @@ add_action('wp_ajax_nopriv_hbc_submit_booking', 'hbc_handle_booking_submission')
 
 /**
  * Check for booking conflicts
+ *
+ * Determines if a proposed booking conflicts with existing bookings for the same room.
+ * A conflict occurs when time ranges overlap. Checks three scenarios:
+ * 1. New booking starts during an existing booking
+ * 2. New booking ends during an existing booking
+ * 3. New booking completely encompasses an existing booking
+ *
+ * @since 1.0.0
+ * @param int    $room_id           Room ID to check
+ * @param string $booking_date      Date in Y-m-d format
+ * @param string $start_time        Start time in H:i:s format
+ * @param string $end_time          End time in H:i:s format
+ * @param int    $exclude_booking_id Optional. Booking ID to exclude (for updates). Default 0.
+ * @return bool True if conflict exists, false otherwise
  */
 function hbc_check_booking_conflict($room_id, $booking_date, $start_time, $end_time, $exclude_booking_id = 0) {
     global $wpdb;
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
 
+    // Query checks for any overlapping time ranges
+    // Excludes cancelled bookings and optionally a specific booking (for updates)
     $query = $wpdb->prepare(
         "SELECT COUNT(*) FROM $bookings_table
         WHERE room_id = %d
@@ -206,7 +239,13 @@ function hbc_check_booking_conflict($room_id, $booking_date, $start_time, $end_t
 }
 
 /**
- * Get available time slots for a room on a specific date
+ * Get available time slots for a room on a specific date via AJAX
+ *
+ * Returns all existing bookings for a room on a given date so the frontend
+ * can display which time slots are already taken.
+ *
+ * @since 1.0.0
+ * @return void Sends JSON response with booked slots array
  */
 function hbc_get_available_slots() {
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'hbc_booking_nonce')) {
@@ -244,10 +283,22 @@ add_action('wp_ajax_hbc_get_available_slots', 'hbc_get_available_slots');
 add_action('wp_ajax_nopriv_hbc_get_available_slots', 'hbc_get_available_slots');
 
 /**
- * Handle file upload for booking
+ * Handle file upload for booking attachments
+ *
+ * Validates and uploads PDF files attached to bookings.
+ * Files are stored in wp-content/uploads/hall-bookings/ directory.
+ *
+ * Validation:
+ * - Only PDF files allowed
+ * - Maximum file size: 5MB
+ * - Generates unique filename using timestamp
+ *
+ * @since 1.3.0
+ * @param array $file File array from $_FILES
+ * @return array Array with 'success' boolean and either 'file_path' or 'message'
  */
 function hbc_handle_file_upload($file) {
-    // Validate file type
+    // Validate file type - only PDFs allowed for security
     $allowed_type = 'application/pdf';
     $file_type = $file['type'];
     $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
@@ -259,7 +310,7 @@ function hbc_handle_file_upload($file) {
         );
     }
 
-    // Validate file size (5MB max)
+    // Validate file size (5MB max to prevent abuse)
     $max_size = 5 * 1024 * 1024; // 5MB in bytes
     if ($file['size'] > $max_size) {
         return array(
@@ -297,7 +348,21 @@ function hbc_handle_file_upload($file) {
 }
 
 /**
- * Send booking notification email
+ * Send booking notification emails
+ *
+ * Sends two emails:
+ * 1. Confirmation email to the user who made the booking
+ * 2. Notification email to the webmaster for approval
+ *
+ * For recurring/multi-date bookings, combines all dates into a single email
+ * rather than sending separate emails for each date.
+ *
+ * Email includes: room name, date(s), time(s), group, purpose, description,
+ * and link to attached file if present.
+ *
+ * @since 1.0.0
+ * @param int $booking_id The ID of the booking (parent booking for series)
+ * @return void
  */
 function hbc_send_booking_notification($booking_id) {
     global $wpdb;
@@ -305,6 +370,7 @@ function hbc_send_booking_notification($booking_id) {
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
     $groups_table = $wpdb->prefix . 'hbc_groups';
 
+    // Fetch booking with joined room and group names
     $booking = $wpdb->get_row($wpdb->prepare(
         "SELECT b.*, r.name as room_name, g.name as group_name
         FROM $bookings_table b
@@ -322,6 +388,7 @@ function hbc_send_booking_notification($booking_id) {
     $bookings = array($booking);
     if (!empty($booking->series_id)) {
         // Get all bookings in the series for a combined email
+        // This provides better user experience than multiple individual emails
         $bookings = $wpdb->get_results($wpdb->prepare(
             "SELECT b.*, r.name as room_name, g.name as group_name
             FROM $bookings_table b

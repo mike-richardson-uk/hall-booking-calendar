@@ -1,6 +1,17 @@
 <?php
 /**
  * Recurring Bookings Handler
+ *
+ * Handles creation and management of recurring and multi-date bookings.
+ * Supports various recurrence patterns:
+ * - Daily: Every day within date range
+ * - Weekly: Same day each week
+ * - Biweekly: Every 2 weeks on same day
+ * - Monthly: Same date each month (e.g., 15th of each month)
+ * - Monthly Weekday: Same weekday position (e.g., 3rd Wednesday)
+ *
+ * @package Hall_Booking_Calendar
+ * @since 1.2.0
  */
 
 // If this file is called directly, abort.
@@ -318,11 +329,19 @@ function hbc_update_recurring_booking($booking_id, $data, $scope = 'single') {
 }
 
 /**
- * Helper function to build UPDATE query
+ * Helper function to build UPDATE query string
+ *
+ * Creates a comma-separated string of column=value pairs for SQL UPDATE.
+ * Used internally for batch updates across booking series.
+ *
+ * @since 1.2.0
+ * @param array $data Associative array of column names and values
+ * @return string SQL SET clause string (without SET keyword)
  */
 function hbc_build_update_query($data) {
     $updates = array();
     foreach ($data as $key => $value) {
+        // Escape each value for SQL safety
         $updates[] = "`$key` = '" . esc_sql($value) . "'";
     }
     return implode(', ', $updates);
