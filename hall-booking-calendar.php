@@ -271,6 +271,54 @@ function hbc_load_textdomain() {
 }
 add_action('plugins_loaded', 'hbc_load_textdomain');
 
+/**
+ * Check if Elementor is active and register widget
+ *
+ * @since 1.4.0
+ * @return void
+ */
+function hbc_register_elementor_widget() {
+    // Check if Elementor is installed and activated
+    if (!did_action('elementor/loaded')) {
+        return;
+    }
+
+    // Register the widget
+    add_action('elementor/widgets/register', 'hbc_register_elementor_widget_class');
+
+    // Enqueue widget scripts
+    add_action('elementor/frontend/after_enqueue_scripts', 'hbc_enqueue_elementor_scripts');
+}
+add_action('plugins_loaded', 'hbc_register_elementor_widget');
+
+/**
+ * Register Elementor widget class
+ *
+ * @since 1.4.0
+ * @param object $widgets_manager Elementor widgets manager
+ * @return void
+ */
+function hbc_register_elementor_widget_class($widgets_manager) {
+    require_once HBC_PLUGIN_DIR . 'includes/elementor-widget.php';
+
+    if (class_exists('HBC_Elementor_Widget')) {
+        $widgets_manager->register(new HBC_Elementor_Widget());
+    }
+}
+
+/**
+ * Enqueue Elementor widget scripts
+ *
+ * Ensures calendar scripts are loaded when widget is used in Elementor.
+ *
+ * @since 1.4.0
+ * @return void
+ */
+function hbc_enqueue_elementor_scripts() {
+    // Scripts are already enqueued by the frontend-calendar.php shortcode handler
+    // This function is here for future Elementor-specific script needs
+}
+
 // Include admin functions
 require_once HBC_PLUGIN_DIR . 'includes/admin-menu.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-settings.php';
