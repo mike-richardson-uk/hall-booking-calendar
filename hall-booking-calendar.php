@@ -243,6 +243,7 @@ require_once HBC_PLUGIN_DIR . 'includes/admin-settings.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-rooms.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-groups.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-bookings.php';
+require_once HBC_PLUGIN_DIR . 'includes/admin-bulk-import.php';
 require_once HBC_PLUGIN_DIR . 'includes/recurring-bookings.php';
 require_once HBC_PLUGIN_DIR . 'includes/calendar-subscription.php';
 require_once HBC_PLUGIN_DIR . 'includes/frontend-calendar.php';

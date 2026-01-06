@@ -17,6 +17,7 @@ if (!defined('WPINC')) {
  * - Groups (organize bookings by category)
  * - Bookings (view and manage all bookings)
  * - Subscriptions (calendar feed management)
+ * - Bulk Import (CSV upload for batch booking creation)
  * - Settings (configure password protection and emails)
  *
  * @since 1.0.0
@@ -76,6 +77,15 @@ function hbc_add_admin_menu() {
         'manage_options',
         'hall-booking-subscriptions',
         'hbc_admin_subscriptions_page'
+    );
+
+    add_submenu_page(
+        'hall-booking-calendar',
+        __('Bulk Import', 'hall-booking-calendar'),
+        __('Bulk Import', 'hall-booking-calendar'),
+        'manage_options',
+        'hall-booking-bulk-import',
+        'hbc_admin_bulk_import_page'
     );
 
     add_submenu_page(

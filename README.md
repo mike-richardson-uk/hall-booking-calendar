@@ -144,6 +144,42 @@ When password protection is enabled, users must enter the correct password to su
 4. Update booking status (Pending/Confirmed/Cancelled)
 5. Delete bookings if needed
 
+### Bulk Import Bookings
+
+1. Go to **Hall Booking → Bulk Import**
+2. Download the example CSV template
+3. Fill in your booking data following the format
+4. Upload the CSV file
+5. Review import results (success/failures)
+
+**CSV Format Requirements:**
+
+Required columns:
+- `room_id` - Room ID (numeric)
+- `user_name` - Name of person booking
+- `user_email` - Valid email address
+- `booking_date` - Date in YYYY-MM-DD format
+- `start_time` - Start time in HH:MM format (24-hour)
+- `end_time` - End time in HH:MM format (24-hour)
+- `purpose` - Purpose of booking
+
+Optional columns:
+- `description` - Detailed description
+- `group_id` - Group ID (numeric)
+- `is_recurring` - 1 for recurring, 0 for single booking
+- `recurrence_pattern` - daily, weekly, biweekly, monthly, monthly_weekday
+- `recurrence_end_date` - End date for recurring bookings (YYYY-MM-DD)
+
+**Important Notes:**
+- Header row is required
+- All imported bookings are auto-confirmed
+- Conflicts will be detected and skipped
+- Room/Group IDs must exist and be active
+- Dates cannot be in the past
+- UTF-8 encoding recommended
+
+See `example-bookings.csv` for a complete example.
+
 ### User Booking Process
 
 1. Users visit the page with the calendar shortcode
@@ -324,6 +360,18 @@ GPL-2.0+
 ## Changelog
 
 ### 1.3.1 (Development)
+- **Bulk Import**: CSV file upload for batch booking creation
+  - Import multiple bookings at once via CSV file
+  - Support for both single and recurring bookings in bulk
+  - Comprehensive validation with detailed error reporting
+  - Conflict detection before import
+  - Auto-confirmation of imported bookings
+  - Example CSV template included
+  - Room and Group ID reference tables in admin
+- **Code Documentation**: Comprehensive PHPDoc blocks throughout plugin
+  - Added @since, @param, @return tags to all functions
+  - Documented complex logic with inline comments
+  - Improved code readability for maintainability
 - **Code Linting**: Added comprehensive code linting setup
   - PHP_CodeSniffer (PHPCS) with WordPress Coding Standards
   - ESLint with WordPress recommended configuration for JavaScript
