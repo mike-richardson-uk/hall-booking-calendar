@@ -38,10 +38,11 @@ function hbc_handle_booking_submission() {
     // Verify password if password protection is enabled
     $require_password = get_option('hbc_require_password', '0');
     if ($require_password == '1') {
-        $booking_password = get_option('hbc_booking_password', '');
+        $hashed_password = get_option('hbc_booking_password', '');
         $submitted_password = isset($_POST['booking_password_input']) ? $_POST['booking_password_input'] : '';
 
-        if ($submitted_password !== $booking_password) {
+        // Use timing-safe password verification
+        if (!wp_check_password($submitted_password, $hashed_password)) {
             wp_send_json_error(array('message' => __('Incorrect password. Please try again.', 'hall-booking-calendar')));
             return;
         }
@@ -111,15 +112,38 @@ function hbc_handle_booking_submission() {
         }
     }
 
-    // Validate date is not in the past
-    if (strtotime($booking_date) < strtotime(date('Y-m-d'))) {
-        wp_send_json_error(array('message' => __('Cannot book a date in the past.', 'hall-booking-calendar')));
-        return;
-    }
+    // Validate date is not in the past using DateTime for robustness
+    try {
+        $booking_datetime = new DateTime($booking_date, wp_timezone());
+        $today = new DateTime('today', wp_timezone());
 
-    // Validate time range
-    if (strtotime($start_time) >= strtotime($end_time)) {
-        wp_send_json_error(array('message' => __('End time must be after start time.', 'hall-booking-calendar')));
+        if ($booking_datetime < $today) {
+            wp_send_json_error(array('message' => __('Cannot book a date in the past.', 'hall-booking-calendar')));
+            return;
+        }
+
+        // Validate time format
+        if (!preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', $start_time) ||
+            !preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', $end_time)) {
+            wp_send_json_error(array('message' => __('Invalid time format.', 'hall-booking-calendar')));
+            return;
+        }
+
+        // Validate time range using DateTime for proper comparison
+        $start_dt = DateTime::createFromFormat('H:i:s', $start_time . ':00', wp_timezone());
+        $end_dt = DateTime::createFromFormat('H:i:s', $end_time . ':00', wp_timezone());
+
+        if (!$start_dt || !$end_dt) {
+            wp_send_json_error(array('message' => __('Invalid time format.', 'hall-booking-calendar')));
+            return;
+        }
+
+        if ($start_dt >= $end_dt) {
+            wp_send_json_error(array('message' => __('End time must be after start time.', 'hall-booking-calendar')));
+            return;
+        }
+    } catch (Exception $e) {
+        wp_send_json_error(array('message' => __('Invalid date or time format.', 'hall-booking-calendar')));
         return;
     }
 
@@ -158,9 +182,34 @@ function hbc_handle_booking_submission() {
             wp_send_json_error(array('message' => $result['message']));
         }
     } else {
-        // Single booking - check for conflicts
-        $conflict = hbc_check_booking_conflict($room_id, $booking_date, $start_time, $end_time);
-        if ($conflict) {
+        // Single booking - use database transaction to prevent race conditions
+        // Start transaction
+        $wpdb->query('START TRANSACTION');
+
+        // Lock rows and check for conflicts atomically
+        $conflict = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $bookings_table
+            WHERE room_id = %d
+            AND booking_date = %s
+            AND status != 'cancelled'
+            AND (
+                (start_time < %s AND end_time > %s)
+                OR (start_time < %s AND end_time > %s)
+                OR (start_time >= %s AND end_time <= %s)
+            )
+            FOR UPDATE",
+            $room_id,
+            $booking_date,
+            $end_time,
+            $start_time,
+            $end_time,
+            $end_time,
+            $start_time,
+            $end_time
+        ));
+
+        if ($conflict > 0) {
+            $wpdb->query('ROLLBACK');
             wp_send_json_error(array('message' => __('This room is already booked for the selected time. Please choose a different time or room.', 'hall-booking-calendar')));
             return;
         }
@@ -171,6 +220,12 @@ function hbc_handle_booking_submission() {
             $booking_data,
             array('%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
         );
+
+        if ($result) {
+            $wpdb->query('COMMIT');
+        } else {
+            $wpdb->query('ROLLBACK');
+        }
 
         if ($result) {
             // Send notification email
@@ -319,6 +374,31 @@ function hbc_handle_file_upload($file) {
         );
     }
 
+    // Additional MIME type verification using file content
+    if (function_exists('mime_content_type')) {
+        $real_mime = mime_content_type($file['tmp_name']);
+        if ($real_mime !== 'application/pdf') {
+            return array(
+                'success' => false,
+                'message' => __('File content does not match PDF format.', 'hall-booking-calendar')
+            );
+        }
+    }
+
+    // Verify PDF signature (first 5 bytes should be %PDF-)
+    $handle = fopen($file['tmp_name'], 'rb');
+    if ($handle) {
+        $signature = fread($handle, 5);
+        fclose($handle);
+
+        if ($signature !== '%PDF-') {
+            return array(
+                'success' => false,
+                'message' => __('Invalid PDF file format.', 'hall-booking-calendar')
+            );
+        }
+    }
+
     // Set up upload directory
     $upload_dir = wp_upload_dir();
     $hbc_upload_dir = $upload_dir['basedir'] . '/hall-bookings';
@@ -432,15 +512,18 @@ function hbc_send_booking_notification($booking_id) {
         $booking_details .= "\n";
     }
 
-    // Email to user
-    $to = $booking->user_email;
+    // Email to user - sanitize email headers to prevent injection
+    $to = sanitize_email($booking->user_email);
+    // Strip CRLF characters from user name to prevent email header injection
+    $safe_user_name = str_replace(array("\r", "\n", "%0a", "%0d"), '', $booking->user_name);
+
     $subject = $booking_count > 1
         ? __('Booking Confirmation - Multiple Bookings - Hall Booking Calendar', 'hall-booking-calendar')
         : __('Booking Confirmation - Hall Booking Calendar', 'hall-booking-calendar');
 
     $message = sprintf(
         __("Dear %s,\n\nThank you for your booking request.\n\n%s\nYour booking%s currently pending approval. You will receive another email once it is confirmed.\n\nThank you!", 'hall-booking-calendar'),
-        $booking->user_name,
+        $safe_user_name,
         $booking_details,
         $booking_count > 1 ? 's are' : ' is'
     );
@@ -448,15 +531,15 @@ function hbc_send_booking_notification($booking_id) {
     wp_mail($to, $subject, $message);
 
     // Email to webmaster (from settings)
-    $webmaster_email = get_option('hbc_webmaster_email', get_option('admin_email'));
+    $webmaster_email = sanitize_email(get_option('hbc_webmaster_email', get_option('admin_email')));
     $webmaster_subject = $booking_count > 1
         ? __('New Booking Request - Multiple Bookings - Hall Booking Calendar', 'hall-booking-calendar')
         : __('New Booking Request - Hall Booking Calendar', 'hall-booking-calendar');
 
     $webmaster_message = sprintf(
         __("A new booking request has been submitted:\n\nUser: %s (%s)\n\n%s\nPlease review and approve the booking%s in the admin panel.", 'hall-booking-calendar'),
-        $booking->user_name,
-        $booking->user_email,
+        $safe_user_name,
+        sanitize_email($booking->user_email),
         $booking_details,
         $booking_count > 1 ? 's' : ''
     );
