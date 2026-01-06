@@ -1,0 +1,29 @@
+{
+  "extends": [
+    "stylelint-config-standard",
+    "stylelint-config-wordpress"
+  ],
+  "rules": {
+    "no-descending-specificity": null,
+    "no-duplicate-selectors": null,
+    "declaration-block-no-duplicate-properties": true,
+    "color-hex-length": "short",
+    "color-named": "never",
+    "selector-class-pattern": null,
+    "max-line-length": null,
+    "comment-empty-line-before": null,
+    "declaration-empty-line-before": null,
+    "rule-empty-line-before": [
+      "always-multi-line",
+      {
+        "except": ["first-nested"],
+        "ignore": ["after-comment"]
+      }
+    ]
+  },
+  "ignoreFiles": [
+    "node_modules/**/*",
+    "vendor/**/*",
+    "**/*.min.css"
+  ]
+}

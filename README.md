@@ -233,6 +233,85 @@ Edit `/assets/css/frontend-style.css` to customize room colors:
 
 Modify the booking form validation in `/includes/booking-handler.php` to enforce business hours.
 
+## Development
+
+### Prerequisites
+
+- Node.js 18+ and npm 9+ (for JavaScript/CSS linting)
+- Composer (for PHP linting)
+
+### Setup Development Environment
+
+1. **Install Node.js dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Install PHP dependencies:**
+   ```bash
+   composer install
+   ```
+
+### Code Linting
+
+This project uses automated code linting to maintain code quality and consistency:
+
+- **PHP**: PHP_CodeSniffer (PHPCS) with WordPress Coding Standards
+- **JavaScript**: ESLint with WordPress recommended configuration
+- **CSS**: stylelint with WordPress standards
+
+#### Run All Linters
+
+```bash
+npm run lint
+```
+
+#### Run Individual Linters
+
+**PHP Linting:**
+```bash
+npm run lint:php
+# or directly with composer
+composer run lint
+```
+
+**JavaScript Linting:**
+```bash
+npm run lint:js
+```
+
+**CSS Linting:**
+```bash
+npm run lint:css
+```
+
+#### Auto-fix Issues
+
+**JavaScript and CSS:**
+```bash
+npm run lint:fix
+```
+
+**PHP:**
+```bash
+composer run lint:fix
+```
+
+### Configuration Files
+
+- `.eslintrc.json` - ESLint configuration for JavaScript
+- `.stylelintrc.json` - stylelint configuration for CSS
+- `phpcs.xml` - PHP_CodeSniffer configuration
+- `.editorconfig` - Editor configuration for consistent coding style
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Run linters and fix any issues before committing
+4. Commit your changes with clear messages
+5. Push to your fork and submit a pull request
+
 ## Support
 
 For issues, questions, or contributions, please visit:
@@ -243,6 +322,18 @@ https://github.com/slashzero/hall-calendar
 GPL-2.0+
 
 ## Changelog
+
+### 1.3.1 (Development)
+- **Code Linting**: Added comprehensive code linting setup
+  - PHP_CodeSniffer (PHPCS) with WordPress Coding Standards
+  - ESLint with WordPress recommended configuration for JavaScript
+  - stylelint with WordPress standards for CSS
+  - EditorConfig for consistent coding styles across editors
+- Added `package.json` for npm dependencies
+- Added `composer.json` for PHP development dependencies
+- Created configuration files: `.eslintrc.json`, `.stylelintrc.json`, `phpcs.xml`, `.editorconfig`
+- Added `.gitignore` to exclude dependencies and build files
+- Updated documentation with development setup and linting instructions
 
 ### 1.3.0
 - **Agenda View**: Paginated list view of upcoming bookings with group filtering (10 per page)

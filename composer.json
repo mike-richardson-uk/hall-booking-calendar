@@ -1,0 +1,30 @@
+{
+  "name": "slashzero/hall-booking-calendar",
+  "description": "A WordPress plugin to manage a hall calendar with 3 rooms, recurring bookings, and calendar subscriptions.",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0+",
+  "require": {
+    "php": ">=7.0"
+  },
+  "require-dev": {
+    "squizlabs/php_codesniffer": "^3.8",
+    "wp-coding-standards/wpcs": "^3.0",
+    "phpcompatibility/phpcompatibility-wp": "^2.1",
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.0"
+  },
+  "scripts": {
+    "lint": [
+      "phpcs --standard=phpcs.xml"
+    ],
+    "lint:fix": [
+      "phpcbf --standard=phpcs.xml"
+    ],
+    "phpcs": "phpcs",
+    "phpcbf": "phpcbf"
+  },
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    }
+  }
+}
