@@ -9,7 +9,18 @@ if (!defined('WPINC')) {
 }
 
 /**
- * Add admin menu
+ * Register admin menu and submenus for Hall Booking Calendar
+ *
+ * Creates a top-level menu with the following submenus:
+ * - Dashboard (statistics and recent bookings)
+ * - Rooms (manage available rooms)
+ * - Groups (organize bookings by category)
+ * - Bookings (view and manage all bookings)
+ * - Subscriptions (calendar feed management)
+ * - Settings (configure password protection and emails)
+ *
+ * @since 1.0.0
+ * @return void
  */
 function hbc_add_admin_menu() {
     add_menu_page(
@@ -79,7 +90,19 @@ function hbc_add_admin_menu() {
 add_action('admin_menu', 'hbc_add_admin_menu');
 
 /**
- * Dashboard page
+ * Display the main dashboard page
+ *
+ * Shows key statistics:
+ * - Active rooms count
+ * - Active groups count
+ * - Total bookings
+ * - Pending bookings requiring approval
+ * - Today's bookings
+ *
+ * Also displays a table of the 10 most recent bookings.
+ *
+ * @since 1.0.0
+ * @return void
  */
 function hbc_admin_dashboard_page() {
     global $wpdb;
@@ -88,6 +111,7 @@ function hbc_admin_dashboard_page() {
     $groups_table = $wpdb->prefix . 'hbc_groups';
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
 
+    // Fetch dashboard statistics
     $total_rooms = $wpdb->get_var("SELECT COUNT(*) FROM $rooms_table WHERE status = 'active'");
     $total_groups = $wpdb->get_var("SELECT COUNT(*) FROM $groups_table WHERE status = 'active'");
     $total_bookings = $wpdb->get_var("SELECT COUNT(*) FROM $bookings_table");
