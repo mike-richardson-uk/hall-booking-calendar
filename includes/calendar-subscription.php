@@ -55,41 +55,77 @@ function hbc_handle_ical_feed() {
 
     $token = sanitize_text_field($_GET['token']);
 
-    // Verify token
+    // Verify token and check expiration (90 days from creation)
     $subscription = $wpdb->get_row($wpdb->prepare(
         "SELECT * FROM $subscriptions_table WHERE token = %s AND status = 'active'",
         $token
     ));
 
     if (!$subscription) {
-        wp_die(__('Invalid subscription token.', 'hall-booking-calendar'));
+        wp_die(__('Invalid or expired subscription token.', 'hall-booking-calendar'));
+    }
+
+    // Check if token has expired (90 days from creation)
+    $created_time = strtotime($subscription->created_at);
+    $expiry_time = strtotime('+90 days', $created_time);
+    if (time() > $expiry_time) {
+        // Auto-expire the token
+        $wpdb->update($subscriptions_table, array('status' => 'inactive'), array('id' => $subscription->id));
+        wp_die(__('This subscription token has expired. Please create a new subscription.', 'hall-booking-calendar'));
+    }
+
+    // Implement rate limiting: max 100 requests per hour per token
+    $rate_limit_key = 'hbc_token_rate_limit_' . md5($token);
+    $request_count = get_transient($rate_limit_key);
+
+    if ($request_count === false) {
+        // First request in this hour
+        set_transient($rate_limit_key, 1, HOUR_IN_SECONDS);
+    } else {
+        $request_count = intval($request_count);
+        if ($request_count >= 100) {
+            wp_die(__('Rate limit exceeded. Please try again later.', 'hall-booking-calendar'), 'Too Many Requests', array('response' => 429));
+        }
+        set_transient($rate_limit_key, $request_count + 1, HOUR_IN_SECONDS);
     }
 
     // Update last accessed time
     $wpdb->update($subscriptions_table, array('last_accessed' => current_time('mysql')), array('id' => $subscription->id));
 
-    // Build query for bookings
+    // Build query for bookings with proper parameterization
+    $conditions = array("b.status IN ('confirmed', 'pending')");
+    $params = array();
+
+    // Add filters based on subscription settings
+    if ($subscription->group_id) {
+        $conditions[] = 'b.group_id = %d';
+        $params[] = $subscription->group_id;
+    }
+
+    if ($subscription->room_id) {
+        $conditions[] = 'b.room_id = %d';
+        $params[] = $subscription->room_id;
+    }
+
+    // Get future bookings (from 1 month ago to 6 months ahead)
+    $conditions[] = "b.booking_date >= DATE_SUB(NOW(), INTERVAL 1 MONTH)";
+    $conditions[] = "b.booking_date <= DATE_ADD(NOW(), INTERVAL 6 MONTH)";
+
+    $where_clause = implode(' AND ', $conditions);
+
     $sql = "SELECT b.*, r.name as room_name, g.name as group_name
             FROM $bookings_table b
             LEFT JOIN $rooms_table r ON b.room_id = r.id
             LEFT JOIN $groups_table g ON b.group_id = g.id
-            WHERE b.status IN ('confirmed', 'pending')";
+            WHERE {$where_clause}
+            ORDER BY b.booking_date ASC, b.start_time ASC";
 
-    // Add filters
-    if ($subscription->group_id) {
-        $sql .= $wpdb->prepare(" AND b.group_id = %d", $subscription->group_id);
+    // Use prepared statement if we have parameters
+    if (!empty($params)) {
+        $bookings = $wpdb->get_results($wpdb->prepare($sql, $params));
+    } else {
+        $bookings = $wpdb->get_results($sql);
     }
-
-    if ($subscription->room_id) {
-        $sql .= $wpdb->prepare(" AND b.room_id = %d", $subscription->room_id);
-    }
-
-    // Get future bookings (from 1 month ago to 6 months ahead)
-    $sql .= " AND b.booking_date >= DATE_SUB(NOW(), INTERVAL 1 MONTH)";
-    $sql .= " AND b.booking_date <= DATE_ADD(NOW(), INTERVAL 6 MONTH)";
-    $sql .= " ORDER BY b.booking_date ASC, b.start_time ASC";
-
-    $bookings = $wpdb->get_results($sql);
 
     // Generate iCal content
     $ical_content = hbc_generate_ical_content($bookings);
@@ -216,6 +252,30 @@ function hbc_admin_subscriptions_page() {
     $groups_table = $wpdb->prefix . 'hbc_groups';
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
 
+    // Handle subscription revocation
+    if (isset($_GET['action']) && $_GET['action'] === 'revoke' && isset($_GET['sub_id']) && check_admin_referer('hbc_revoke_sub_' . $_GET['sub_id'])) {
+        $sub_id = intval($_GET['sub_id']);
+        $user_id = get_current_user_id();
+
+        // Ensure user can only revoke their own subscriptions
+        $subscription = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $subscriptions_table WHERE id = %d AND user_id = %d",
+            $sub_id,
+            $user_id
+        ));
+
+        if ($subscription) {
+            $wpdb->update($subscriptions_table, array('status' => 'inactive'), array('id' => $sub_id));
+            add_settings_error('hbc_messages', 'hbc_message', __('Subscription revoked successfully.', 'hall-booking-calendar'), 'updated');
+        } else {
+            add_settings_error('hbc_messages', 'hbc_message', __('Unable to revoke subscription.', 'hall-booking-calendar'), 'error');
+        }
+
+        // Redirect to remove query params
+        wp_redirect(admin_url('admin.php?page=hbc-subscriptions'));
+        exit;
+    }
+
     // Handle new subscription creation
     if (isset($_POST['hbc_create_subscription']) && check_admin_referer('hbc_create_subscription', 'hbc_sub_nonce')) {
         $user_id = is_user_logged_in() ? get_current_user_id() : null;
@@ -225,12 +285,12 @@ function hbc_admin_subscriptions_page() {
         $token = hbc_generate_subscription_token($user_id, $group_id, $room_id);
         $subscription_url = hbc_get_subscription_url($token);
 
-        add_settings_error('hbc_messages', 'hbc_message', __('Subscription created successfully.', 'hall-booking-calendar'), 'updated');
+        add_settings_error('hbc_messages', 'hbc_message', __('Subscription created successfully. This token will expire in 90 days.', 'hall-booking-calendar'), 'updated');
     }
 
     // Get groups and rooms for filter
-    $groups = $wpdb->get_results("SELECT * FROM $groups_table WHERE status = 'active' ORDER BY name ASC");
-    $rooms = $wpdb->get_results("SELECT * FROM $rooms_table WHERE status = 'active' ORDER BY name ASC");
+    $groups = $wpdb->get_results($wpdb->prepare("SELECT * FROM $groups_table WHERE status = %s ORDER BY name ASC", 'active'));
+    $rooms = $wpdb->get_results($wpdb->prepare("SELECT * FROM $rooms_table WHERE status = %s ORDER BY name ASC", 'active'));
 
     // Get existing subscriptions for current user
     $user_subscriptions = array();
@@ -255,6 +315,7 @@ function hbc_admin_subscriptions_page() {
 
         <div class="hbc-subscription-info">
             <p><?php _e('Create a calendar subscription to sync bookings with your calendar application (Google Calendar, Outlook, Apple Calendar, etc.).', 'hall-booking-calendar'); ?></p>
+            <p><strong><?php _e('Security Note:', 'hall-booking-calendar'); ?></strong> <?php _e('Tokens expire after 90 days and are rate-limited to 100 requests per hour. Keep your subscription URL private and revoke tokens if compromised.', 'hall-booking-calendar'); ?></p>
         </div>
 
         <div class="hbc-create-subscription">
@@ -302,15 +363,32 @@ function hbc_admin_subscriptions_page() {
             <table class="wp-list-table widefat fixed striped">
                 <thead>
                     <tr>
+                        <th><?php _e('Status', 'hall-booking-calendar'); ?></th>
                         <th><?php _e('Filter', 'hall-booking-calendar'); ?></th>
                         <th><?php _e('URL', 'hall-booking-calendar'); ?></th>
                         <th><?php _e('Created', 'hall-booking-calendar'); ?></th>
+                        <th><?php _e('Expires', 'hall-booking-calendar'); ?></th>
                         <th><?php _e('Last Accessed', 'hall-booking-calendar'); ?></th>
+                        <th><?php _e('Actions', 'hall-booking-calendar'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($user_subscriptions as $sub) : ?>
-                    <tr>
+                    <?php foreach ($user_subscriptions as $sub) :
+                        $created_time = strtotime($sub->created_at);
+                        $expiry_time = strtotime('+90 days', $created_time);
+                        $is_expired = (time() > $expiry_time) || ($sub->status === 'inactive');
+                        $days_until_expiry = ceil(($expiry_time - time()) / DAY_IN_SECONDS);
+                    ?>
+                    <tr<?php echo $is_expired ? ' style="opacity: 0.5;"' : ''; ?>>
+                        <td>
+                            <?php if ($is_expired) : ?>
+                                <span style="color: red;">● <?php _e('Expired', 'hall-booking-calendar'); ?></span>
+                            <?php elseif ($days_until_expiry <= 7) : ?>
+                                <span style="color: orange;">● <?php printf(__('Expires in %d days', 'hall-booking-calendar'), $days_until_expiry); ?></span>
+                            <?php else : ?>
+                                <span style="color: green;">● <?php _e('Active', 'hall-booking-calendar'); ?></span>
+                            <?php endif; ?>
+                        </td>
                         <td>
                             <?php
                             if ($sub->group_name && $sub->room_name) {
@@ -325,11 +403,21 @@ function hbc_admin_subscriptions_page() {
                             ?>
                         </td>
                         <td>
-                            <input type="text" readonly value="<?php echo esc_url(hbc_get_subscription_url($sub->token)); ?>" class="regular-text" onclick="this.select();">
-                            <button type="button" class="button" onclick="navigator.clipboard.writeText('<?php echo esc_url(hbc_get_subscription_url($sub->token)); ?>');"><?php _e('Copy', 'hall-booking-calendar'); ?></button>
+                            <?php if (!$is_expired) : ?>
+                                <input type="text" readonly value="<?php echo esc_url(hbc_get_subscription_url($sub->token)); ?>" class="regular-text" onclick="this.select();">
+                                <button type="button" class="button" onclick="navigator.clipboard.writeText('<?php echo esc_url(hbc_get_subscription_url($sub->token)); ?>');"><?php _e('Copy', 'hall-booking-calendar'); ?></button>
+                            <?php else : ?>
+                                <em><?php _e('Token expired', 'hall-booking-calendar'); ?></em>
+                            <?php endif; ?>
                         </td>
                         <td><?php echo esc_html(date('F j, Y', strtotime($sub->created_at))); ?></td>
+                        <td><?php echo esc_html(date('F j, Y', $expiry_time)); ?></td>
                         <td><?php echo $sub->last_accessed ? esc_html(date('F j, Y g:i A', strtotime($sub->last_accessed))) : __('Never', 'hall-booking-calendar'); ?></td>
+                        <td>
+                            <?php if (!$is_expired) : ?>
+                                <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=hbc-subscriptions&action=revoke&sub_id=' . $sub->id), 'hbc_revoke_sub_' . $sub->id); ?>" class="button button-small" onclick="return confirm('<?php esc_attr_e('Are you sure you want to revoke this subscription? This cannot be undone.', 'hall-booking-calendar'); ?>');"><?php _e('Revoke', 'hall-booking-calendar'); ?></a>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>

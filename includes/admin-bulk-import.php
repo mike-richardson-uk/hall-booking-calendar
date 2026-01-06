@@ -45,6 +45,23 @@ function hbc_handle_bulk_import() {
 		wp_die(__('Unauthorized access', 'hall-booking-calendar'));
 	}
 
+	// Implement rate limiting: max 5 imports per 10 minutes per user
+	$user_id = get_current_user_id();
+	$rate_limit_key = 'hbc_csv_import_limit_' . $user_id;
+	$import_count = get_transient($rate_limit_key);
+
+	if ($import_count === false) {
+		// First import in this time window
+		set_transient($rate_limit_key, 1, 10 * MINUTE_IN_SECONDS);
+	} else {
+		$import_count = intval($import_count);
+		if ($import_count >= 5) {
+			add_settings_error('hbc_bulk_import', 'hbc_rate_limit', __('Import rate limit exceeded. Please wait a few minutes before importing again.', 'hall-booking-calendar'), 'error');
+			return;
+		}
+		set_transient($rate_limit_key, $import_count + 1, 10 * MINUTE_IN_SECONDS);
+	}
+
 	// Check if file was uploaded
 	if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
 		add_settings_error('hbc_bulk_import', 'hbc_file_error', __('Failed to upload file. Please try again.', 'hall-booking-calendar'), 'error');

@@ -3,7 +3,7 @@
  * Plugin Name: Hall Booking Calendar
  * Plugin URI: https://github.com/slashzero/hall-calendar
  * Description: A WordPress plugin to manage a hall calendar with 3 rooms, recurring bookings, and calendar subscriptions.
- * Version: 1.3.1
+ * Version: 1.4.0
  * Author: Hall Calendar Team
  * Author URI: https://github.com/slashzero
  * License: GPL-2.0+
@@ -18,7 +18,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('HBC_VERSION', '1.3.1');
+define('HBC_VERSION', '1.4.0');
 define('HBC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HBC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('HBC_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -182,6 +182,8 @@ register_activation_hook(__FILE__, 'hbc_activate');
  * and adds them if they don't exist. Runs on every plugin load to ensure
  * database schema is up to date when upgrading from older versions.
  *
+ * Also handles security upgrades like password hashing migration.
+ *
  * @since 1.3.0
  * @return void
  */
@@ -207,6 +209,38 @@ function hbc_check_database_upgrade() {
     if (!in_array('file_path', $columns)) {
         $wpdb->query("ALTER TABLE $bookings_table ADD COLUMN file_path varchar(255) AFTER description");
     }
+
+    // Security upgrade: Hash plain-text passwords (v1.4.0 upgrade)
+    hbc_upgrade_password_security();
+}
+
+/**
+ * Upgrade password security by hashing plain-text passwords
+ *
+ * Migrates plain-text booking passwords to hashed format.
+ * Only runs once per installation using a flag in options.
+ *
+ * @since 1.4.0
+ * @return void
+ */
+function hbc_upgrade_password_security() {
+    // Check if upgrade has already been done
+    if (get_option('hbc_password_hashed', false)) {
+        return;
+    }
+
+    // Get the current password
+    $password = get_option('hbc_booking_password', '');
+
+    // If password exists and doesn't look like a hash (hashes are 60+ chars starting with $)
+    if (!empty($password) && strlen($password) < 60 && substr($password, 0, 1) !== '$') {
+        // Hash the plain-text password
+        $hashed_password = wp_hash_password($password);
+        update_option('hbc_booking_password', $hashed_password);
+    }
+
+    // Set flag to prevent running this upgrade again
+    update_option('hbc_password_hashed', true);
 }
 add_action('plugins_loaded', 'hbc_check_database_upgrade');
 

@@ -304,8 +304,8 @@ function hbc_render_booking_form($selected_date = '') {
         return;
     }
 
-    $rooms = $wpdb->get_results("SELECT * FROM $rooms_table WHERE status = 'active' ORDER BY id ASC");
-    $groups = $wpdb->get_results("SELECT * FROM $groups_table WHERE status = 'active' ORDER BY name ASC");
+    $rooms = $wpdb->get_results($wpdb->prepare("SELECT * FROM $rooms_table WHERE status = %s ORDER BY id ASC", 'active'));
+    $groups = $wpdb->get_results($wpdb->prepare("SELECT * FROM $groups_table WHERE status = %s ORDER BY name ASC", 'active'));
 
     $current_user = wp_get_current_user();
     $require_password = get_option('hbc_require_password', '0');
