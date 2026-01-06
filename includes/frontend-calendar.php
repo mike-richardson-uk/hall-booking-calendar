@@ -616,7 +616,7 @@ function hbc_display_single_booking($booking_id) {
     }
 
     $booking = $wpdb->get_row($wpdb->prepare(
-        "SELECT b.*, r.name as room_name, r.capacity, r.description as room_description, g.name as group_name
+        "SELECT b.*, r.name as room_name, r.capacity, r.description as room_description, g.name as group_name, g.id as group_id
         FROM $bookings_table b
         LEFT JOIN $rooms_table r ON b.room_id = r.id
         LEFT JOIN $groups_table g ON b.group_id = g.id
@@ -670,78 +670,16 @@ function hbc_display_single_booking($booking_id) {
                 </div>
             </div>
 
-            <div class="hbc-single-section hbc-room-details">
-                <h3><?php _e('Room Details', 'hall-booking-calendar'); ?></h3>
-                <div class="hbc-single-info">
-                    <div class="hbc-info-row">
-                        <span class="hbc-info-label"><?php _e('Room:', 'hall-booking-calendar'); ?></span>
-                        <span class="hbc-info-value"><?php echo esc_html($booking->room_name); ?></span>
-                    </div>
-                    <div class="hbc-info-row">
-                        <span class="hbc-info-label"><?php _e('Capacity:', 'hall-booking-calendar'); ?></span>
-                        <span class="hbc-info-value"><?php echo esc_html($booking->capacity); ?> <?php _e('people', 'hall-booking-calendar'); ?></span>
-                    </div>
-                    <?php if ($booking->group_name) : ?>
-                    <div class="hbc-info-row">
-                        <span class="hbc-info-label"><?php _e('Group:', 'hall-booking-calendar'); ?></span>
-                        <span class="hbc-info-value"><?php echo esc_html($booking->group_name); ?></span>
-                    </div>
-                    <?php endif; ?>
-                </div>
+            <?php if ($booking->group_name && $booking->group_id) : ?>
+            <div class="hbc-single-section hbc-group-bookings">
+                <h3><?php _e('View All Future Bookings', 'hall-booking-calendar'); ?></h3>
+                <p>
+                    <a href="<?php echo esc_url(add_query_arg(array('view' => 'agenda', 'group_filter' => $booking->group_id), remove_query_arg('booking_id'))); ?>" class="hbc-view-group-bookings-btn">
+                        <?php printf(__('View all upcoming bookings for %s', 'hall-booking-calendar'), esc_html($booking->group_name)); ?>
+                    </a>
+                </p>
             </div>
-
-            <div class="hbc-single-section hbc-booking-info">
-                <h3><?php _e('Booking Information', 'hall-booking-calendar'); ?></h3>
-                <div class="hbc-single-info">
-                    <div class="hbc-info-row">
-                        <span class="hbc-info-label"><?php _e('Booked by:', 'hall-booking-calendar'); ?></span>
-                        <span class="hbc-info-value"><?php echo esc_html($booking->user_name); ?></span>
-                    </div>
-                    <div class="hbc-info-row">
-                        <span class="hbc-info-label"><?php _e('Email:', 'hall-booking-calendar'); ?></span>
-                        <span class="hbc-info-value">
-                            <a href="mailto:<?php echo esc_attr($booking->user_email); ?>">
-                                <?php echo esc_html($booking->user_email); ?>
-                            </a>
-                        </span>
-                    </div>
-                    <?php if ($booking->purpose) : ?>
-                    <div class="hbc-info-row">
-                        <span class="hbc-info-label"><?php _e('Purpose:', 'hall-booking-calendar'); ?></span>
-                        <span class="hbc-info-value"><?php echo esc_html($booking->purpose); ?></span>
-                    </div>
-                    <?php endif; ?>
-                    <?php if ($booking->description) : ?>
-                    <div class="hbc-info-row hbc-full-width">
-                        <span class="hbc-info-label"><?php _e('Description:', 'hall-booking-calendar'); ?></span>
-                        <span class="hbc-info-value"><?php echo nl2br(esc_html($booking->description)); ?></span>
-                    </div>
-                    <?php endif; ?>
-                    <?php if ($booking->file_path) : ?>
-                    <div class="hbc-info-row">
-                        <span class="hbc-info-label"><?php _e('Attached File:', 'hall-booking-calendar'); ?></span>
-                        <span class="hbc-info-value">
-                            <?php
-                            $upload_dir = wp_upload_dir();
-                            $file_url = $upload_dir['baseurl'] . '/' . $booking->file_path;
-                            $file_name = basename($booking->file_path);
-                            ?>
-                            <a href="<?php echo esc_url($file_url); ?>" target="_blank" class="hbc-file-link">
-                                📄 <?php echo esc_html($file_name); ?>
-                            </a>
-                        </span>
-                    </div>
-                    <?php endif; ?>
-                    <div class="hbc-info-row">
-                        <span class="hbc-info-label"><?php _e('Booking ID:', 'hall-booking-calendar'); ?></span>
-                        <span class="hbc-info-value">#<?php echo esc_html($booking->id); ?></span>
-                    </div>
-                    <div class="hbc-info-row">
-                        <span class="hbc-info-label"><?php _e('Created:', 'hall-booking-calendar'); ?></span>
-                        <span class="hbc-info-value"><?php echo date('F j, Y g:i A', strtotime($booking->created_at)); ?></span>
-                    </div>
-                </div>
-            </div>
+            <?php endif; ?>
 
             <?php if (!empty($series_bookings)) : ?>
             <div class="hbc-single-section hbc-series-info">
