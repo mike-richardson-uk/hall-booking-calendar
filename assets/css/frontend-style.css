@@ -3,6 +3,7 @@
 /* Base font size standardization - all text 14px except headings */
 .hbc-calendar-container,
 .hbc-agenda-container,
+.hbc-compact-agenda,
 .hbc-single-booking,
 .hbc-booking-page,
 .hbc-booking-form-container {
@@ -1170,5 +1171,108 @@
 
     .hbc-info-label {
         flex: none;
+    }
+}
+
+/* Compact Agenda View */
+.hbc-compact-agenda {
+    max-width: 900px;
+    margin: 0 auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+}
+
+.hbc-compact-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.hbc-compact-item {
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.hbc-compact-item:last-child {
+    border-bottom: none;
+}
+
+.hbc-compact-item a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    text-decoration: none;
+    color: #1e293b;
+    transition: background-color 0.15s ease;
+}
+
+.hbc-compact-item a:hover {
+    background-color: #f1f5f9;
+}
+
+.hbc-compact-date {
+    flex: 0 0 90px;
+    font-weight: 600;
+    color: #334155;
+    white-space: nowrap;
+}
+
+.hbc-compact-time {
+    flex: 0 0 80px;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+.hbc-compact-purpose {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hbc-compact-room {
+    flex: 0 0 auto;
+    color: #64748b;
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+
+.hbc-compact-item.hbc-status-pending .hbc-compact-date {
+    border-left: 3px solid #f59e0b;
+    padding-left: 9px;
+}
+
+.hbc-compact-item.hbc-status-confirmed .hbc-compact-date {
+    border-left: 3px solid #22c55e;
+    padding-left: 9px;
+}
+
+.hbc-compact-empty {
+    padding: 20px;
+    text-align: center;
+    color: #64748b;
+}
+
+@media (max-width: 600px) {
+    .hbc-compact-item a {
+        flex-wrap: wrap;
+        gap: 4px 8px;
+    }
+
+    .hbc-compact-date {
+        flex: 0 0 auto;
+    }
+
+    .hbc-compact-time {
+        flex: 0 0 auto;
+    }
+
+    .hbc-compact-purpose {
+        flex: 1 1 100%;
+        order: 3;
+    }
+
+    .hbc-compact-room {
+        flex: 1 1 100%;
+        order: 4;
     }
 }

@@ -35,7 +35,8 @@ if (!defined('WPINC')) {
 function hbc_calendar_shortcode($atts) {
     $atts = shortcode_atts(array(
         'view' => 'calendar',
-        'group' => 'all'
+        'group' => 'all',
+        'items' => ''
     ), $atts);
 
     ob_start();
@@ -47,6 +48,11 @@ function hbc_calendar_shortcode($atts) {
     // Check if showing full-page booking form
     elseif (isset($_GET['action']) && $_GET['action'] === 'book') {
         echo hbc_display_booking_page();
+    }
+    // Compact agenda view - abbreviated single-line-per-event list
+    elseif ($atts['view'] == 'compact') {
+        $items = !empty($atts['items']) ? intval($atts['items']) : 0;
+        echo hbc_display_compact_agenda($atts['group'], $items);
     }
     // Agenda view - list of upcoming bookings
     elseif ($atts['view'] == 'agenda') {
@@ -748,6 +754,96 @@ function hbc_display_agenda($group_filter = 'all') {
             <div class="hbc-agenda-empty">
                 <p><?php _e('No upcoming bookings found.', 'hall-booking-calendar'); ?></p>
             </div>
+        <?php endif; ?>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+
+/**
+ * Display compact agenda view - abbreviated single-line-per-event list
+ *
+ * @since 1.7.5
+ * @param string $group_filter Group ID to filter by, or 'all' for no filter.
+ * @param int    $items        Number of items to display. 0 uses the agenda limit setting.
+ * @return string HTML output
+ */
+function hbc_display_compact_agenda($group_filter = 'all', $items = 0) {
+    global $wpdb;
+    $bookings_table = $wpdb->prefix . 'hbc_bookings';
+    $rooms_table = $wpdb->prefix . 'hbc_rooms';
+    $groups_table = $wpdb->prefix . 'hbc_groups';
+    $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
+
+    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$bookings_table'");
+    if (!$table_exists) {
+        return '<div class="hbc-error"><p>' . __('Hall Booking Calendar plugin is not properly activated.', 'hall-booking-calendar') . '</p></div>';
+    }
+
+    $limit = $items > 0 ? $items : intval(get_option('hbc_agenda_limit', 10));
+    if ($limit < 1) {
+        $limit = 10;
+    }
+
+    $today = date('Y-m-d');
+    $where = "WHERE b.booking_date >= %s AND b.status != 'cancelled'";
+    $params = array($today);
+
+    if ($group_filter !== 'all' && is_numeric($group_filter)) {
+        $where .= " AND b.group_id = %d";
+        $params[] = intval($group_filter);
+    }
+
+    $sql = "SELECT b.*, r.name as room_name, g.name as group_name
+            FROM $bookings_table b
+            LEFT JOIN $rooms_table r ON b.room_id = r.id
+            LEFT JOIN $groups_table g ON b.group_id = g.id
+            $where
+            ORDER BY b.booking_date ASC, b.start_time ASC
+            LIMIT %d";
+    $params[] = $limit;
+
+    $bookings = $wpdb->get_results($wpdb->prepare($sql, $params));
+
+    // Pre-fetch room names via junction table
+    $compact_booking_rooms = array();
+    $compact_ids = wp_list_pluck($bookings, 'id');
+    if (!empty($compact_ids)) {
+        $ids_placeholder = implode(',', array_map('intval', $compact_ids));
+        $room_rows = $wpdb->get_results(
+            "SELECT br.booking_id, r.name FROM $booking_rooms_table br
+             INNER JOIN $rooms_table r ON br.room_id = r.id
+             WHERE br.booking_id IN ($ids_placeholder) ORDER BY r.name ASC"
+        );
+        foreach ($room_rows as $row) {
+            $compact_booking_rooms[$row->booking_id][] = $row->name;
+        }
+    }
+
+    ob_start();
+    ?>
+    <div class="hbc-compact-agenda">
+        <?php if ($bookings) : ?>
+            <ul class="hbc-compact-list">
+                <?php foreach ($bookings as $booking) :
+                    $rooms_display = isset($compact_booking_rooms[$booking->id]) ? implode(', ', $compact_booking_rooms[$booking->id]) : $booking->room_name;
+                    $date_display = date('D j M', strtotime($booking->booking_date));
+                    $time_display = date('g:i A', strtotime($booking->start_time));
+                    $purpose_display = $booking->purpose ? $booking->purpose : __('No purpose', 'hall-booking-calendar');
+                    $booking_url = add_query_arg('booking_id', $booking->id);
+                ?>
+                    <li class="hbc-compact-item hbc-status-<?php echo esc_attr($booking->status); ?>">
+                        <a href="<?php echo esc_url($booking_url); ?>">
+                            <span class="hbc-compact-date"><?php echo esc_html($date_display); ?></span>
+                            <span class="hbc-compact-time"><?php echo esc_html($time_display); ?></span>
+                            <span class="hbc-compact-purpose"><?php echo esc_html(wp_trim_words($purpose_display, 8, '...')); ?></span>
+                            <span class="hbc-compact-room"><?php echo esc_html($rooms_display); ?></span>
+                        </a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        <?php else : ?>
+            <p class="hbc-compact-empty"><?php _e('No upcoming bookings.', 'hall-booking-calendar'); ?></p>
         <?php endif; ?>
     </div>
     <?php

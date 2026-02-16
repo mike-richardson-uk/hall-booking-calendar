@@ -146,7 +146,7 @@ function hbc_admin_settings_page() {
                     </th>
                     <td>
                         <code>[hall_booking_calendar]</code>
-                        <p class="description"><?php _e('Displays the full calendar with booking links. Attributes: <code>view="calendar|agenda"</code>, <code>group="all|{id}"</code>', 'hall-booking-calendar'); ?></p>
+                        <p class="description"><?php _e('Displays the full calendar with booking links. Attributes: <code>view="calendar|agenda|compact"</code>, <code>group="all|{id}"</code>, <code>items="{count}"</code> (compact view only)', 'hall-booking-calendar'); ?></p>
                         <br>
                         <code>[hall_booking_form]</code>
                         <p class="description"><?php _e('Displays the booking form directly. Attributes: <code>group="{id}"</code>, <code>room="{id}"</code>', 'hall-booking-calendar'); ?></p>
@@ -199,7 +199,9 @@ function hbc_admin_settings_page() {
                         <ul style="list-style: disc; margin-left: 20px;">
                             <li><code>view="calendar"</code> &mdash; <?php _e('Monthly calendar grid (default).', 'hall-booking-calendar'); ?></li>
                             <li><code>view="agenda"</code> &mdash; <?php _e('Paginated list of upcoming bookings with group and room filters.', 'hall-booking-calendar'); ?></li>
+                            <li><code>view="compact"</code> &mdash; <?php _e('Abbreviated single-line-per-event list. Great for sidebars and summary pages.', 'hall-booking-calendar'); ?></li>
                             <li><code>group="all"</code> &mdash; <?php _e('Show all groups (default). Use a group ID to restrict to one group.', 'hall-booking-calendar'); ?></li>
+                            <li><code>items="{count}"</code> &mdash; <?php _e('Number of events to show in compact view. Defaults to Agenda View Limit setting.', 'hall-booking-calendar'); ?></li>
                         </ul>
                     </td>
                 </tr>
@@ -221,6 +223,13 @@ function hbc_admin_settings_page() {
             <p><code>[hall_booking_calendar view="agenda"]</code></p>
             <p><?php _e('To restrict the agenda to a specific group, pass the group ID:', 'hall-booking-calendar'); ?></p>
             <p><code>[hall_booking_calendar view="agenda" group="1"]</code></p>
+
+            <h3><?php _e('Compact Agenda View', 'hall-booking-calendar'); ?></h3>
+            <p><?php _e('The compact view shows an abbreviated single-line-per-event list. Each line displays the date, time, purpose, and room. Clicking a line opens the full booking detail. Use the shortcode:', 'hall-booking-calendar'); ?></p>
+            <p><code>[hall_booking_calendar view="compact"]</code></p>
+            <p><?php _e('Control the number of events with the <code>items</code> parameter:', 'hall-booking-calendar'); ?></p>
+            <p><code>[hall_booking_calendar view="compact" items="5"]</code></p>
+            <p><?php printf(__('If <code>items</code> is omitted, the Agenda View Limit setting (%d) is used.', 'hall-booking-calendar'), intval(get_option('hbc_agenda_limit', 10))); ?></p>
 
             <h3><?php _e('Booking Approval Workflow', 'hall-booking-calendar'); ?></h3>
             <ol style="margin-left: 20px;">
