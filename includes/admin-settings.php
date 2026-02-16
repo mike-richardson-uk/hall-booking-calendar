@@ -103,6 +103,40 @@ function hbc_admin_settings_page() {
 
                 <tr>
                     <th scope="row">
+                        <label><?php _e('Booking Page', 'hall-booking-calendar'); ?></label>
+                    </th>
+                    <td>
+                        <?php
+                        $booking_page_id = get_option('hbc_booking_page_id', 0);
+                        $booking_page = $booking_page_id ? get_post($booking_page_id) : null;
+                        if ($booking_page && $booking_page->post_status === 'publish') :
+                            $page_url = get_permalink($booking_page_id);
+                        ?>
+                            <a href="<?php echo esc_url($page_url); ?>" target="_blank"><?php echo esc_html($booking_page->post_title); ?></a>
+                            (<a href="<?php echo esc_url(get_edit_post_link($booking_page_id)); ?>"><?php _e('Edit', 'hall-booking-calendar'); ?></a>)
+                            <p class="description"><?php _e('This page was created automatically and contains the booking form. You can edit or move it as needed.', 'hall-booking-calendar'); ?></p>
+                        <?php else : ?>
+                            <span style="color: #999;"><?php _e('No booking page found.', 'hall-booking-calendar'); ?></span>
+                            <p class="description"><?php _e('Create a page with the shortcode <code>[hall_booking_form]</code> to add a standalone booking form.', 'hall-booking-calendar'); ?></p>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">
+                        <label><?php _e('Shortcodes', 'hall-booking-calendar'); ?></label>
+                    </th>
+                    <td>
+                        <code>[hall_booking_calendar]</code>
+                        <p class="description"><?php _e('Displays the full calendar with booking links. Attributes: <code>view="calendar|agenda"</code>, <code>group="all|{id}"</code>', 'hall-booking-calendar'); ?></p>
+                        <br>
+                        <code>[hall_booking_form]</code>
+                        <p class="description"><?php _e('Displays the booking form directly. Attributes: <code>group="{id}"</code>, <code>room="{id}"</code>', 'hall-booking-calendar'); ?></p>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">
                         <label><?php _e('Upload Directory', 'hall-booking-calendar'); ?></label>
                     </th>
                     <td>

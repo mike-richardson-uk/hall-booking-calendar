@@ -66,6 +66,51 @@ function hbc_calendar_shortcode($atts) {
 add_shortcode('hall_booking_calendar', 'hbc_calendar_shortcode');
 
 /**
+ * Register shortcode for direct booking form access
+ *
+ * Shortcode: [hall_booking_form group="" room=""]
+ *
+ * Displays the booking form directly without requiring the calendar view.
+ * Optionally pre-selects a group or room.
+ *
+ * @since 1.5.0
+ * @param array $atts Shortcode attributes {
+ *     @type string $group Group ID to pre-select. Default ''.
+ *     @type string $room  Room ID to pre-select. Default ''.
+ * }
+ * @return string HTML output for the booking form
+ */
+function hbc_booking_form_shortcode($atts) {
+    $atts = shortcode_atts(array(
+        'group' => '',
+        'room' => ''
+    ), $atts);
+
+    ob_start();
+
+    // Check if viewing a single booking detail (linked from confirmation)
+    if (isset($_GET['booking_id']) && is_numeric($_GET['booking_id'])) {
+        echo hbc_display_single_booking(intval($_GET['booking_id']));
+    } else {
+        // Get pre-selected date if provided via URL
+        $selected_date = isset($_GET['date']) ? sanitize_text_field($_GET['date']) : '';
+        ?>
+        <div class="hbc-booking-page">
+            <div class="hbc-booking-page-header">
+                <h2><?php _e('Book a Room', 'hall-booking-calendar'); ?></h2>
+            </div>
+            <div class="hbc-booking-page-content">
+                <?php hbc_render_booking_form($selected_date, $atts['group'], $atts['room']); ?>
+            </div>
+        </div>
+        <?php
+    }
+
+    return ob_get_clean();
+}
+add_shortcode('hall_booking_form', 'hbc_booking_form_shortcode');
+
+/**
  * Display calendar view
  *
  * Renders a monthly calendar grid showing room availability and bookings.
@@ -292,7 +337,7 @@ function hbc_display_booking_form() {
 /**
  * Render booking form
  */
-function hbc_render_booking_form($selected_date = '') {
+function hbc_render_booking_form($selected_date = '', $preselect_group = '', $preselect_room = '') {
     global $wpdb;
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
     $groups_table = $wpdb->prefix . 'hbc_groups';
@@ -347,7 +392,7 @@ function hbc_render_booking_form($selected_date = '') {
                 <select id="hbc_room_id" name="room_id" required>
                     <option value=""><?php _e('-- Select a Room --', 'hall-booking-calendar'); ?></option>
                     <?php foreach ($rooms as $room) : ?>
-                        <option value="<?php echo esc_attr($room->id); ?>"><?php echo esc_html($room->name . ' (Capacity: ' . $room->capacity . ')'); ?></option>
+                        <option value="<?php echo esc_attr($room->id); ?>" <?php selected($preselect_room, $room->id); ?>><?php echo esc_html($room->name . ' (Capacity: ' . $room->capacity . ')'); ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -388,7 +433,7 @@ function hbc_render_booking_form($selected_date = '') {
                 <select id="hbc_group_id" name="group_id">
                     <option value=""><?php _e('-- Select a Group (Optional) --', 'hall-booking-calendar'); ?></option>
                     <?php foreach ($groups as $group) : ?>
-                        <option value="<?php echo esc_attr($group->id); ?>"><?php echo esc_html($group->name); ?></option>
+                        <option value="<?php echo esc_attr($group->id); ?>" <?php selected($preselect_group, $group->id); ?>><?php echo esc_html($group->name); ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
