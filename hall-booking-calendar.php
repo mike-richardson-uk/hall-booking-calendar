@@ -91,6 +91,18 @@ function hbc_activate() {
         KEY parent_booking_id (parent_booking_id)
     ) $charset_collate;";
 
+    // Create booking_rooms junction table for multi-room bookings
+    $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
+    $sql_booking_rooms = "CREATE TABLE IF NOT EXISTS $booking_rooms_table (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        booking_id mediumint(9) NOT NULL,
+        room_id mediumint(9) NOT NULL,
+        PRIMARY KEY  (id),
+        UNIQUE KEY booking_room (booking_id, room_id),
+        KEY booking_id (booking_id),
+        KEY room_id (room_id)
+    ) $charset_collate;";
+
     // Create calendar subscriptions table
     $subscriptions_table = $wpdb->prefix . 'hbc_subscriptions';
     $sql_subscriptions = "CREATE TABLE IF NOT EXISTS $subscriptions_table (
@@ -111,6 +123,7 @@ function hbc_activate() {
     dbDelta($sql_rooms);
     dbDelta($sql_groups);
     dbDelta($sql_bookings);
+    dbDelta($sql_booking_rooms);
     dbDelta($sql_subscriptions);
 
     // Insert default 3 rooms if none exist
@@ -226,8 +239,60 @@ function hbc_check_database_upgrade() {
         $wpdb->query("ALTER TABLE $bookings_table ADD COLUMN file_path varchar(255) AFTER description");
     }
 
+    // Multi-room upgrade: Create booking_rooms junction table and migrate data (v1.6.0)
+    hbc_upgrade_multi_room_support();
+
     // Security upgrade: Hash plain-text passwords (v1.4.0 upgrade)
     hbc_upgrade_password_security();
+}
+
+/**
+ * Upgrade to multi-room booking support
+ *
+ * Creates the booking_rooms junction table if needed and migrates
+ * existing single-room bookings into the junction table.
+ *
+ * @since 1.6.0
+ * @return void
+ */
+function hbc_upgrade_multi_room_support() {
+    global $wpdb;
+
+    // Check if migration has already been done
+    if (get_option('hbc_multi_room_migrated', false)) {
+        return;
+    }
+
+    $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
+    $bookings_table = $wpdb->prefix . 'hbc_bookings';
+    $charset_collate = $wpdb->get_charset_collate();
+
+    // Create the junction table if it doesn't exist
+    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$booking_rooms_table'") === $booking_rooms_table;
+    if (!$table_exists) {
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        $sql = "CREATE TABLE IF NOT EXISTS $booking_rooms_table (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            booking_id mediumint(9) NOT NULL,
+            room_id mediumint(9) NOT NULL,
+            PRIMARY KEY  (id),
+            UNIQUE KEY booking_room (booking_id, room_id),
+            KEY booking_id (booking_id),
+            KEY room_id (room_id)
+        ) $charset_collate;";
+        dbDelta($sql);
+    }
+
+    // Migrate existing bookings: copy room_id into junction table
+    $existing_count = $wpdb->get_var("SELECT COUNT(*) FROM $booking_rooms_table");
+    if ($existing_count == 0) {
+        $wpdb->query(
+            "INSERT IGNORE INTO $booking_rooms_table (booking_id, room_id)
+             SELECT id, room_id FROM $bookings_table WHERE room_id IS NOT NULL AND room_id > 0"
+        );
+    }
+
+    update_option('hbc_multi_room_migrated', true);
 }
 
 /**

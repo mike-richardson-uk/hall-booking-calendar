@@ -153,37 +153,53 @@ function hbc_display_calendar($group_filter = 'all') {
     // Get all active groups for the filter dropdown
     $groups = $wpdb->get_results("SELECT * FROM $groups_table WHERE status = 'active' ORDER BY name ASC");
 
-    // Get bookings for the current month
+    // Get bookings for the current month using junction table for multi-room support
     $first_day = date('Y-m-01', strtotime("$current_year-$current_month-01"));
     $last_day = date('Y-m-t', strtotime("$current_year-$current_month-01"));
+    $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
 
-    // Build query based on group filter
+    // Build query based on group filter - join with booking_rooms to get per-room entries
     if ($group_filter !== 'all' && is_numeric($group_filter)) {
         $bookings = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $bookings_table WHERE booking_date BETWEEN %s AND %s AND status != 'cancelled' AND group_id = %d",
+            "SELECT b.*, br.room_id as br_room_id FROM $bookings_table b
+             INNER JOIN $booking_rooms_table br ON b.id = br.booking_id
+             WHERE b.booking_date BETWEEN %s AND %s AND b.status != 'cancelled' AND b.group_id = %d",
             $first_day,
             $last_day,
             intval($group_filter)
         ));
     } else {
         $bookings = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $bookings_table WHERE booking_date BETWEEN %s AND %s AND status != 'cancelled'",
+            "SELECT b.*, br.room_id as br_room_id FROM $bookings_table b
+             INNER JOIN $booking_rooms_table br ON b.id = br.booking_id
+             WHERE b.booking_date BETWEEN %s AND %s AND b.status != 'cancelled'",
             $first_day,
             $last_day
         ));
     }
 
-    // Organize bookings by date and room
+    // Organize bookings by date and room (using junction table room_id)
     $bookings_by_date = array();
     foreach ($bookings as $booking) {
         $date_key = $booking->booking_date;
+        $room_key = $booking->br_room_id;
         if (!isset($bookings_by_date[$date_key])) {
             $bookings_by_date[$date_key] = array();
         }
-        if (!isset($bookings_by_date[$date_key][$booking->room_id])) {
-            $bookings_by_date[$date_key][$booking->room_id] = array();
+        if (!isset($bookings_by_date[$date_key][$room_key])) {
+            $bookings_by_date[$date_key][$room_key] = array();
         }
-        $bookings_by_date[$date_key][$booking->room_id][] = $booking;
+        // Avoid duplicate booking entries for same room (shouldn't happen, but safety)
+        $already_added = false;
+        foreach ($bookings_by_date[$date_key][$room_key] as $existing) {
+            if ($existing->id === $booking->id) {
+                $already_added = true;
+                break;
+            }
+        }
+        if (!$already_added) {
+            $bookings_by_date[$date_key][$room_key][] = $booking;
+        }
     }
 
     ?>
@@ -388,13 +404,22 @@ function hbc_render_booking_form($selected_date = '', $preselect_group = '', $pr
             <h3><?php _e('Room & Time', 'hall-booking-calendar'); ?></h3>
 
             <div class="hbc-form-row">
-                <label for="hbc_room_id"><?php _e('Select Room:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
-                <select id="hbc_room_id" name="room_id" required>
-                    <option value=""><?php _e('-- Select a Room --', 'hall-booking-calendar'); ?></option>
-                    <?php foreach ($rooms as $room) : ?>
-                        <option value="<?php echo esc_attr($room->id); ?>" <?php selected($preselect_room, $room->id); ?>><?php echo esc_html($room->name . ' (Capacity: ' . $room->capacity . ')'); ?></option>
+                <label><?php _e('Select Room(s):', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                <div class="hbc-room-checkboxes" id="hbc_room_checkboxes">
+                    <?php
+                    $preselect_rooms = array();
+                    if (!empty($preselect_room)) {
+                        $preselect_rooms = array_map('intval', explode(',', $preselect_room));
+                    }
+                    foreach ($rooms as $room) : ?>
+                        <label class="hbc-room-checkbox-label">
+                            <input type="checkbox" name="room_ids[]" value="<?php echo esc_attr($room->id); ?>" <?php checked(in_array($room->id, $preselect_rooms)); ?>>
+                            <span class="hbc-room-checkbox-color hbc-room-<?php echo esc_attr($room->id); ?>"></span>
+                            <?php echo esc_html($room->name . ' (Capacity: ' . $room->capacity . ')'); ?>
+                        </label>
                     <?php endforeach; ?>
-                </select>
+                </div>
+                <p class="description"><?php _e('You can select multiple rooms for the same booking.', 'hall-booking-calendar'); ?></p>
             </div>
 
             <div class="hbc-form-row">
@@ -524,6 +549,7 @@ function hbc_display_agenda($group_filter = 'all') {
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
     $groups_table = $wpdb->prefix . 'hbc_groups';
+    $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
 
     // Check if tables exist
     $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$bookings_table'");
@@ -582,6 +608,21 @@ function hbc_display_agenda($group_filter = 'all') {
 
     $bookings = $wpdb->get_results($wpdb->prepare($sql, $params));
 
+    // Pre-fetch all room names per booking via junction table
+    $agenda_booking_rooms = array();
+    $agenda_booking_ids = wp_list_pluck($bookings, 'id');
+    if (!empty($agenda_booking_ids)) {
+        $ids_placeholder = implode(',', array_map('intval', $agenda_booking_ids));
+        $room_rows = $wpdb->get_results(
+            "SELECT br.booking_id, r.name FROM $booking_rooms_table br
+             INNER JOIN $rooms_table r ON br.room_id = r.id
+             WHERE br.booking_id IN ($ids_placeholder) ORDER BY r.name ASC"
+        );
+        foreach ($room_rows as $row) {
+            $agenda_booking_rooms[$row->booking_id][] = $row->name;
+        }
+    }
+
     ob_start();
     ?>
     <div class="hbc-agenda-container">
@@ -639,7 +680,10 @@ function hbc_display_agenda($group_filter = 'all') {
                         </div>
                         
                         <div class="hbc-agenda-details">
-                            <h4 class="hbc-agenda-room"><?php echo esc_html($booking->room_name); ?></h4>
+                            <h4 class="hbc-agenda-room"><?php
+                                $agenda_rooms_display = isset($agenda_booking_rooms[$booking->id]) ? implode(', ', $agenda_booking_rooms[$booking->id]) : $booking->room_name;
+                                echo esc_html($agenda_rooms_display);
+                            ?></h4>
                             <?php if ($booking->purpose) : ?>
                                 <p class="hbc-agenda-purpose"><?php echo esc_html($booking->purpose); ?></p>
                             <?php endif; ?>
@@ -715,6 +759,7 @@ function hbc_display_single_booking($booking_id) {
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
     $groups_table = $wpdb->prefix . 'hbc_groups';
+    $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
 
     // Check if tables exist
     $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$bookings_table'");
@@ -735,6 +780,15 @@ function hbc_display_single_booking($booking_id) {
         return '<div class="hbc-error"><p>' . __('Booking not found.', 'hall-booking-calendar') . '</p></div>';
     }
 
+    // Get all rooms for this booking from junction table
+    $single_booking_rooms = $wpdb->get_results($wpdb->prepare(
+        "SELECT r.name, r.capacity FROM $booking_rooms_table br
+         INNER JOIN $rooms_table r ON br.room_id = r.id
+         WHERE br.booking_id = %d ORDER BY r.name ASC",
+        $booking_id
+    ));
+    $single_rooms_display = !empty($single_booking_rooms) ? implode(', ', wp_list_pluck($single_booking_rooms, 'name')) : $booking->room_name;
+
     // Get other bookings in the same series if applicable
     $series_bookings = array();
     if (!empty($booking->series_id)) {
@@ -753,7 +807,7 @@ function hbc_display_single_booking($booking_id) {
     ?>
     <div class="hbc-single-booking">
         <div class="hbc-single-header">
-            <h2><?php echo esc_html($booking->room_name); ?></h2>
+            <h2><?php echo esc_html($single_rooms_display); ?></h2>
             <span class="hbc-single-status hbc-status-<?php echo esc_attr($booking->status); ?>">
                 <?php echo esc_html(ucfirst($booking->status)); ?>
             </span>

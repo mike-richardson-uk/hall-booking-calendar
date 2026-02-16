@@ -64,13 +64,19 @@
             }
         });
 
-        // Get available slots when room and date are selected
-        $('#hbc_room_id, #hbc_booking_date').on('change', function() {
-            var roomId = $('#hbc_room_id').val();
+        // Get available slots when rooms or date are selected
+        $(document).on('change', 'input[name="room_ids[]"], #hbc_booking_date', function() {
+            var roomIds = [];
+            $('input[name="room_ids[]"]:checked').each(function() {
+                roomIds.push($(this).val());
+            });
             var bookingDate = $('#hbc_booking_date').val();
 
-            if (roomId && bookingDate) {
-                checkAvailability(roomId, bookingDate);
+            if (roomIds.length > 0 && bookingDate) {
+                // Check availability for each selected room
+                roomIds.forEach(function(roomId) {
+                    checkAvailability(roomId, bookingDate);
+                });
             }
         });
 
@@ -88,7 +94,7 @@
                 success: function(response) {
                     if (response.success) {
                         // You could display available/booked slots here
-                        console.log('Booked slots:', response.data.booked_slots);
+                        console.log('Booked slots for room ' + roomId + ':', response.data.booked_slots);
                     }
                 }
             });
@@ -101,6 +107,13 @@
             var form = $(this);
             var submitBtn = form.find('.hbc-submit-btn');
             var messageDiv = form.find('.hbc-form-message');
+
+            // Validate at least one room is selected
+            var selectedRooms = $('input[name="room_ids[]"]:checked');
+            if (selectedRooms.length === 0) {
+                showMessage('error', 'Please select at least one room.');
+                return;
+            }
 
             // Validate time range
             var startTime = $('#hbc_start_time').val();
@@ -126,7 +139,12 @@
             var formData = new FormData();
             formData.append('action', 'hbc_submit_booking');
             formData.append('nonce', hbc_ajax.nonce);
-            formData.append('room_id', $('#hbc_room_id').val());
+
+            // Append all selected room IDs
+            $('input[name="room_ids[]"]:checked').each(function(index) {
+                formData.append('room_ids[' + index + ']', $(this).val());
+            });
+
             formData.append('group_id', $('#hbc_group_id').val());
             formData.append('user_name', $('#hbc_user_name').val());
             formData.append('user_email', $('#hbc_user_email').val());

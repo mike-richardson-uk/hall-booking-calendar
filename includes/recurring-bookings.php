@@ -150,11 +150,18 @@ function hbc_generate_recurring_dates($start_date, $end_date, $pattern, $additio
  * @param string $pattern Recurrence pattern
  * @param string $recurrence_end End date for recurrence
  * @param array $additional_dates Additional dates for multi-date bookings
+ * @param array $room_ids Array of room IDs for multi-room support
  * @return array Result array with success status and booking IDs
  */
-function hbc_create_recurring_bookings($booking_data, $pattern = '', $recurrence_end = '', $additional_dates = array()) {
+function hbc_create_recurring_bookings($booking_data, $pattern = '', $recurrence_end = '', $additional_dates = array(), $room_ids = array()) {
     global $wpdb;
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
+    $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
+
+    // If no room_ids provided, use room_id from booking_data
+    if (empty($room_ids)) {
+        $room_ids = array($booking_data['room_id']);
+    }
 
     $start_date = $booking_data['booking_date'];
     $series_id = uniqid('series_', true);
@@ -166,18 +173,21 @@ function hbc_create_recurring_bookings($booking_data, $pattern = '', $recurrence
     $conflicts = array();
     $is_recurring = !empty($pattern) && !empty($recurrence_end);
 
-    // Check for conflicts on all dates first
+    // Check for conflicts on all dates for all rooms
     foreach ($dates as $date) {
-        if (hbc_check_booking_conflict($booking_data['room_id'], $date, $booking_data['start_time'], $booking_data['end_time'])) {
-            $conflicts[] = $date;
+        foreach ($room_ids as $rid) {
+            if (hbc_check_booking_conflict($rid, $date, $booking_data['start_time'], $booking_data['end_time'])) {
+                $conflicts[] = $date;
+                break; // One conflict per date is enough
+            }
         }
     }
 
     if (!empty($conflicts)) {
         return array(
             'success' => false,
-            'message' => sprintf(__('Booking conflicts found on the following dates: %s', 'hall-booking-calendar'), implode(', ', $conflicts)),
-            'conflicts' => $conflicts
+            'message' => sprintf(__('Booking conflicts found on the following dates: %s', 'hall-booking-calendar'), implode(', ', array_unique($conflicts))),
+            'conflicts' => array_unique($conflicts)
         );
     }
 
@@ -204,6 +214,14 @@ function hbc_create_recurring_bookings($booking_data, $pattern = '', $recurrence
     $parent_id = $wpdb->insert_id;
     $booking_ids[] = $parent_id;
 
+    // Insert room associations for parent booking
+    foreach ($room_ids as $rid) {
+        $wpdb->insert($booking_rooms_table, array(
+            'booking_id' => $parent_id,
+            'room_id' => $rid,
+        ));
+    }
+
     // Create child bookings for remaining dates
     $remaining_dates = array_slice($dates, 1); // Skip first date (already created)
 
@@ -220,7 +238,16 @@ function hbc_create_recurring_bookings($booking_data, $pattern = '', $recurrence
         $result = $wpdb->insert($bookings_table, $child_data, $format);
 
         if ($result) {
-            $booking_ids[] = $wpdb->insert_id;
+            $child_id = $wpdb->insert_id;
+            $booking_ids[] = $child_id;
+
+            // Insert room associations for child booking
+            foreach ($room_ids as $rid) {
+                $wpdb->insert($booking_rooms_table, array(
+                    'booking_id' => $child_id,
+                    'room_id' => $rid,
+                ));
+            }
         }
     }
 
