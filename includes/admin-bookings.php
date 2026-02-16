@@ -211,11 +211,11 @@ function hbc_display_bookings_list() {
                     <th style="width: 30px;"><input type="checkbox" id="hbc-select-all-checkbox" title="<?php _e('Select all', 'hall-booking-calendar'); ?>"></th>
                 <?php endif; ?>
                 <th><?php _e('ID', 'hall-booking-calendar'); ?></th>
+                <th><?php _e('Description', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Room', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('User', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Date', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Time', 'hall-booking-calendar'); ?></th>
-                <th><?php _e('Purpose', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('File', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Status', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Actions', 'hall-booking-calendar'); ?></th>
@@ -233,18 +233,18 @@ function hbc_display_bookings_list() {
                         </td>
                     <?php endif; ?>
                     <td><?php echo esc_html($booking->id); ?></td>
-                    <td><strong><?php
-                        $rooms_display = isset($all_booking_rooms[$booking->id]) ? implode(', ', $all_booking_rooms[$booking->id]) : esc_html($booking->room_name);
-                        echo esc_html($rooms_display);
-                    ?></strong><br>
+                    <td><strong><?php echo $booking->description ? esc_html(wp_trim_words($booking->description, 10)) : ($booking->purpose ? esc_html(wp_trim_words($booking->purpose, 10)) : '<em>' . __('None', 'hall-booking-calendar') . '</em>'); ?></strong><br>
                         <small><?php echo $booking->group_name ? esc_html($booking->group_name) : '<em>' . __('No group', 'hall-booking-calendar') . '</em>'; ?></small>
                     </td>
+                    <td><?php
+                        $rooms_display = isset($all_booking_rooms[$booking->id]) ? implode(', ', $all_booking_rooms[$booking->id]) : esc_html($booking->room_name);
+                        echo esc_html($rooms_display);
+                    ?></td>
                     <td><?php echo esc_html($booking->user_name); ?><br>
                         <small><?php echo esc_html($booking->user_email); ?></small>
                     </td>
                     <td><?php echo esc_html(date('M j, Y', strtotime($booking->booking_date))); ?></td>
                     <td><?php echo esc_html(date('g:i A', strtotime($booking->start_time)) . ' - ' . date('g:i A', strtotime($booking->end_time))); ?></td>
-                    <td><?php echo $booking->purpose ? esc_html(wp_trim_words($booking->purpose, 10)) : '<em>' . __('None', 'hall-booking-calendar') . '</em>'; ?></td>
                     <td>
                         <?php if (!empty($booking->file_path)) : ?>
                             <?php
@@ -351,6 +351,14 @@ function hbc_display_booking_details($booking_id) {
                 <td><?php echo esc_html($booking->id); ?></td>
             </tr>
             <tr>
+                <th><?php _e('Description:', 'hall-booking-calendar'); ?></th>
+                <td><?php echo $booking->description ? nl2br(esc_html($booking->description)) : '<em>' . __('None', 'hall-booking-calendar') . '</em>'; ?></td>
+            </tr>
+            <tr>
+                <th><?php _e('Purpose:', 'hall-booking-calendar'); ?></th>
+                <td><?php echo esc_html($booking->purpose); ?></td>
+            </tr>
+            <tr>
                 <th><?php _e('Room(s):', 'hall-booking-calendar'); ?></th>
                 <td>
                     <?php if (!empty($booking_room_rows)) : ?>
@@ -381,14 +389,6 @@ function hbc_display_booking_details($booking_id) {
             <tr>
                 <th><?php _e('Time:', 'hall-booking-calendar'); ?></th>
                 <td><?php echo esc_html(date('g:i A', strtotime($booking->start_time)) . ' - ' . date('g:i A', strtotime($booking->end_time))); ?></td>
-            </tr>
-            <tr>
-                <th><?php _e('Purpose:', 'hall-booking-calendar'); ?></th>
-                <td><?php echo esc_html($booking->purpose); ?></td>
-            </tr>
-            <tr>
-                <th><?php _e('Description:', 'hall-booking-calendar'); ?></th>
-                <td><?php echo $booking->description ? nl2br(esc_html($booking->description)) : '<em>' . __('None', 'hall-booking-calendar') . '</em>'; ?></td>
             </tr>
             <tr>
                 <th><?php _e('Attached File:', 'hall-booking-calendar'); ?></th>
