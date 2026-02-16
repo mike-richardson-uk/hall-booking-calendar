@@ -166,6 +166,69 @@ function hbc_admin_settings_page() {
         </form>
     </div>
 
+        <hr>
+
+        <h2><?php _e('Usage Instructions', 'hall-booking-calendar'); ?></h2>
+
+        <div class="hbc-instructions">
+            <h3><?php _e('Shortcodes', 'hall-booking-calendar'); ?></h3>
+            <table class="form-table">
+                <tr>
+                    <th><code>[hall_booking_calendar]</code></th>
+                    <td>
+                        <p><?php _e('Displays the monthly calendar grid with room availability and booking links.', 'hall-booking-calendar'); ?></p>
+                        <p><strong><?php _e('Attributes:', 'hall-booking-calendar'); ?></strong></p>
+                        <ul style="list-style: disc; margin-left: 20px;">
+                            <li><code>view="calendar"</code> &mdash; <?php _e('Monthly calendar grid (default).', 'hall-booking-calendar'); ?></li>
+                            <li><code>view="agenda"</code> &mdash; <?php _e('Paginated list of upcoming bookings with group and room filters.', 'hall-booking-calendar'); ?></li>
+                            <li><code>group="all"</code> &mdash; <?php _e('Show all groups (default). Use a group ID to restrict to one group.', 'hall-booking-calendar'); ?></li>
+                        </ul>
+                    </td>
+                </tr>
+                <tr>
+                    <th><code>[hall_booking_form]</code></th>
+                    <td>
+                        <p><?php _e('Displays a standalone booking form. Useful for a dedicated booking page.', 'hall-booking-calendar'); ?></p>
+                        <p><strong><?php _e('Attributes:', 'hall-booking-calendar'); ?></strong></p>
+                        <ul style="list-style: disc; margin-left: 20px;">
+                            <li><code>group="{id}"</code> &mdash; <?php _e('Pre-select a group in the form.', 'hall-booking-calendar'); ?></li>
+                            <li><code>room="{id}"</code> &mdash; <?php _e('Pre-select a room in the form.', 'hall-booking-calendar'); ?></li>
+                        </ul>
+                    </td>
+                </tr>
+            </table>
+
+            <h3><?php _e('Agenda View', 'hall-booking-calendar'); ?></h3>
+            <p><?php _e('The agenda view shows a paginated list of upcoming bookings (10 per page). Visitors can filter by group or room using the dropdown menus at the top of the view. Use the shortcode below to embed the agenda view on any page:', 'hall-booking-calendar'); ?></p>
+            <p><code>[hall_booking_calendar view="agenda"]</code></p>
+            <p><?php _e('To restrict the agenda to a specific group, pass the group ID:', 'hall-booking-calendar'); ?></p>
+            <p><code>[hall_booking_calendar view="agenda" group="1"]</code></p>
+
+            <h3><?php _e('Booking Approval Workflow', 'hall-booking-calendar'); ?></h3>
+            <ol style="margin-left: 20px;">
+                <li><?php _e('A user submits a booking through the calendar or booking form.', 'hall-booking-calendar'); ?></li>
+                <li><?php _e('The booking is created with a <strong>Pending</strong> status.', 'hall-booking-calendar'); ?></li>
+                <li><?php _e('Both the user and the webmaster (approver) receive an email notification. The approver email includes a direct link to review the booking.', 'hall-booking-calendar'); ?></li>
+                <li><?php _e('The approver clicks the link in the email (or navigates to <strong>Hall Booking &rarr; Bookings</strong> in the admin panel) and changes the status to <strong>Confirmed</strong> or <strong>Cancelled</strong>.', 'hall-booking-calendar'); ?></li>
+            </ol>
+            <p><?php _e('To filter pending bookings, use the status dropdown on the Bookings admin page.', 'hall-booking-calendar'); ?></p>
+
+            <h3><?php _e('Rooms &amp; Groups', 'hall-booking-calendar'); ?></h3>
+            <p><?php _e('Manage rooms under <strong>Hall Booking &rarr; Rooms</strong> and groups under <strong>Hall Booking &rarr; Groups</strong>. Each room has a name, description, and capacity. Groups allow you to organise bookings by department, team, or purpose.', 'hall-booking-calendar'); ?></p>
+
+            <h3><?php _e('Recurring Bookings', 'hall-booking-calendar'); ?></h3>
+            <p><?php _e('When creating a booking, users can enable the "Repeat this booking" option. Supported patterns: Daily, Weekly, Every 2 Weeks, Monthly (Same Date), and Monthly (Same Weekday). All dates in a series are sent as a single notification email.', 'hall-booking-calendar'); ?></p>
+
+            <h3><?php _e('Calendar Subscriptions (iCal)', 'hall-booking-calendar'); ?></h3>
+            <p><?php _e('Users can subscribe to booking calendars using iCal feeds. Manage subscriptions under <strong>Hall Booking &rarr; Subscriptions</strong>. Feeds can be filtered by group or room and are compatible with Google Calendar, Apple Calendar, and Outlook.', 'hall-booking-calendar'); ?></p>
+
+            <h3><?php _e('Bulk CSV Import', 'hall-booking-calendar'); ?></h3>
+            <p><?php _e('Import multiple bookings at once via <strong>Hall Booking &rarr; Bulk Import</strong>. The CSV must include these columns:', 'hall-booking-calendar'); ?></p>
+            <p><code>room_id, user_name, user_email, booking_date, start_time, end_time, purpose</code></p>
+            <p><?php _e('Optional columns: <code>description</code>, <code>group_id</code>, <code>is_recurring</code>, <code>recurrence_pattern</code>, <code>recurrence_end_date</code>.', 'hall-booking-calendar'); ?></p>
+        </div>
+    </div>
+
     <script>
     jQuery(document).ready(function($) {
         $('#hbc_require_password').on('change', function() {

@@ -536,12 +536,19 @@ function hbc_send_booking_notification($booking_id) {
         ? __('New Booking Request - Multiple Bookings - Hall Booking Calendar', 'hall-booking-calendar')
         : __('New Booking Request - Hall Booking Calendar', 'hall-booking-calendar');
 
+    // Build direct approval link to the admin booking detail page
+    $approval_url = admin_url('admin.php?page=hall-booking-bookings&action=view&booking_id=' . $booking->id);
+
+    // Build link to pending bookings list for quick overview
+    $pending_url = admin_url('admin.php?page=hall-booking-bookings&status=pending');
+
     $webmaster_message = sprintf(
-        __("A new booking request has been submitted:\n\nUser: %s (%s)\n\n%s\nPlease review and approve the booking%s in the admin panel.", 'hall-booking-calendar'),
+        __("A new booking request has been submitted:\n\nUser: %s (%s)\n\n%s\nReview and approve this booking:\n%s\n\nView all pending bookings:\n%s", 'hall-booking-calendar'),
         $safe_user_name,
         sanitize_email($booking->user_email),
         $booking_details,
-        $booking_count > 1 ? 's' : ''
+        $approval_url,
+        $pending_url
     );
 
     wp_mail($webmaster_email, $webmaster_subject, $webmaster_message);

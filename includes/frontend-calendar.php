@@ -541,8 +541,12 @@ function hbc_display_agenda($group_filter = 'all') {
         $group_filter = sanitize_text_field($_GET['group_filter']);
     }
 
-    // Get all active groups for the filter dropdown
+    // Get room filter from URL
+    $room_filter = isset($_GET['room_filter']) ? sanitize_text_field($_GET['room_filter']) : 'all';
+
+    // Get all active groups and rooms for the filter dropdowns
     $groups = $wpdb->get_results("SELECT * FROM $groups_table WHERE status = 'active' ORDER BY name ASC");
+    $rooms = $wpdb->get_results("SELECT * FROM $rooms_table WHERE status = 'active' ORDER BY id ASC");
 
     // Build query for upcoming bookings
     $today = date('Y-m-d');
@@ -552,6 +556,11 @@ function hbc_display_agenda($group_filter = 'all') {
     if ($group_filter !== 'all' && is_numeric($group_filter)) {
         $where .= " AND b.group_id = %d";
         $params[] = intval($group_filter);
+    }
+
+    if ($room_filter !== 'all' && is_numeric($room_filter)) {
+        $where .= " AND b.room_id = %d";
+        $params[] = intval($room_filter);
     }
 
     // Get total count for pagination
@@ -567,10 +576,10 @@ function hbc_display_agenda($group_filter = 'all') {
             $where
             ORDER BY b.booking_date ASC, b.start_time ASC
             LIMIT %d OFFSET %d";
-    
+
     $params[] = $per_page;
     $params[] = $offset;
-    
+
     $bookings = $wpdb->get_results($wpdb->prepare($sql, $params));
 
     ob_start();
@@ -578,17 +587,31 @@ function hbc_display_agenda($group_filter = 'all') {
     <div class="hbc-agenda-container">
         <div class="hbc-agenda-header">
             <h2><?php _e('Upcoming Bookings', 'hall-booking-calendar'); ?></h2>
-            
-            <div class="hbc-agenda-filter">
-                <label for="hbc-agenda-group-filter"><?php _e('Filter by Group:', 'hall-booking-calendar'); ?></label>
-                <select id="hbc-agenda-group-filter" onchange="if(this.value) window.location.href=this.value;">
-                    <option value="<?php echo esc_url(remove_query_arg('group_filter')); ?>"><?php _e('All Groups', 'hall-booking-calendar'); ?></option>
-                    <?php foreach ($groups as $group) : ?>
-                        <option value="<?php echo esc_url(add_query_arg('group_filter', $group->id)); ?>" <?php selected($group_filter, $group->id); ?>>
-                            <?php echo esc_html($group->name); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+
+            <div class="hbc-agenda-filters">
+                <div class="hbc-agenda-filter">
+                    <label for="hbc-agenda-group-filter"><?php _e('Group:', 'hall-booking-calendar'); ?></label>
+                    <select id="hbc-agenda-group-filter" onchange="if(this.value) window.location.href=this.value;">
+                        <option value="<?php echo esc_url(remove_query_arg(array('group_filter', 'booking_page'))); ?>"><?php _e('All Groups', 'hall-booking-calendar'); ?></option>
+                        <?php foreach ($groups as $group) : ?>
+                            <option value="<?php echo esc_url(add_query_arg(array('group_filter' => $group->id, 'booking_page' => 1))); ?>" <?php selected($group_filter, $group->id); ?>>
+                                <?php echo esc_html($group->name); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="hbc-agenda-filter">
+                    <label for="hbc-agenda-room-filter"><?php _e('Room:', 'hall-booking-calendar'); ?></label>
+                    <select id="hbc-agenda-room-filter" onchange="if(this.value) window.location.href=this.value;">
+                        <option value="<?php echo esc_url(remove_query_arg(array('room_filter', 'booking_page'))); ?>"><?php _e('All Rooms', 'hall-booking-calendar'); ?></option>
+                        <?php foreach ($rooms as $room) : ?>
+                            <option value="<?php echo esc_url(add_query_arg(array('room_filter' => $room->id, 'booking_page' => 1))); ?>" <?php selected($room_filter, $room->id); ?>>
+                                <?php echo esc_html($room->name); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             </div>
         </div>
 
