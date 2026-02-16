@@ -40,6 +40,13 @@ function hbc_handle_settings_save() {
     $require_password = isset($_POST['hbc_require_password']) ? '1' : '0';
     update_option('hbc_require_password', $require_password);
 
+    // Save agenda limit
+    $agenda_limit = isset($_POST['hbc_agenda_limit']) ? intval($_POST['hbc_agenda_limit']) : 10;
+    if ($agenda_limit < 1) {
+        $agenda_limit = 10;
+    }
+    update_option('hbc_agenda_limit', $agenda_limit);
+
     add_settings_error('hbc_settings', 'hbc_settings_updated', __('Settings saved successfully.', 'hall-booking-calendar'), 'updated');
 }
 add_action('admin_init', 'hbc_handle_settings_save');
@@ -52,6 +59,7 @@ function hbc_admin_settings_page() {
     $password_is_set = !empty(get_option('hbc_booking_password', ''));
     $webmaster_email = get_option('hbc_webmaster_email', get_option('admin_email'));
     $require_password = get_option('hbc_require_password', '0');
+    $agenda_limit = get_option('hbc_agenda_limit', 10);
 
     ?>
     <div class="wrap">
@@ -98,6 +106,16 @@ function hbc_admin_settings_page() {
                             <?php endif; ?>
                             <?php _e('Users must enter this password to make a booking. Password is securely hashed and encrypted.', 'hall-booking-calendar'); ?>
                         </p>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">
+                        <label for="hbc_agenda_limit"><?php _e('Agenda View Limit', 'hall-booking-calendar'); ?></label>
+                    </th>
+                    <td>
+                        <input type="number" id="hbc_agenda_limit" name="hbc_agenda_limit" value="<?php echo esc_attr($agenda_limit); ?>" class="small-text" min="1" max="100">
+                        <p class="description"><?php _e('Number of bookings to display per page in the agenda view. Default: 10.', 'hall-booking-calendar'); ?></p>
                     </td>
                 </tr>
 
@@ -199,7 +217,7 @@ function hbc_admin_settings_page() {
             </table>
 
             <h3><?php _e('Agenda View', 'hall-booking-calendar'); ?></h3>
-            <p><?php _e('The agenda view shows a paginated list of upcoming bookings (10 per page). Visitors can filter by group or room using the dropdown menus at the top of the view. Use the shortcode below to embed the agenda view on any page:', 'hall-booking-calendar'); ?></p>
+            <p><?php printf(__('The agenda view shows a paginated list of upcoming bookings (%d per page, configurable above). Visitors can filter by group or room using the dropdown menus at the top of the view. Use the shortcode below to embed the agenda view on any page:', 'hall-booking-calendar'), intval(get_option('hbc_agenda_limit', 10))); ?></p>
             <p><code>[hall_booking_calendar view="agenda"]</code></p>
             <p><?php _e('To restrict the agenda to a specific group, pass the group ID:', 'hall-booking-calendar'); ?></p>
             <p><code>[hall_booking_calendar view="agenda" group="1"]</code></p>
@@ -210,8 +228,9 @@ function hbc_admin_settings_page() {
                 <li><?php _e('The booking is created with a <strong>Pending</strong> status.', 'hall-booking-calendar'); ?></li>
                 <li><?php _e('Both the user and the webmaster (approver) receive an email notification. The approver email includes a direct link to review the booking.', 'hall-booking-calendar'); ?></li>
                 <li><?php _e('The approver clicks the link in the email (or navigates to <strong>Hall Booking &rarr; Bookings</strong> in the admin panel) and changes the status to <strong>Confirmed</strong> or <strong>Cancelled</strong>.', 'hall-booking-calendar'); ?></li>
+                <li><?php _e('When a booking is confirmed, the booker automatically receives a confirmation email.', 'hall-booking-calendar'); ?></li>
             </ol>
-            <p><?php _e('To filter pending bookings, use the status dropdown on the Bookings admin page.', 'hall-booking-calendar'); ?></p>
+            <p><?php _e('To filter pending bookings, use the status dropdown on the Bookings admin page. You can also use the <strong>Bulk Approve</strong> feature to approve multiple pending bookings at once.', 'hall-booking-calendar'); ?></p>
 
             <h3><?php _e('Rooms &amp; Groups', 'hall-booking-calendar'); ?></h3>
             <p><?php _e('Manage rooms under <strong>Hall Booking &rarr; Rooms</strong> and groups under <strong>Hall Booking &rarr; Groups</strong>. Each room has a name, description, and capacity. Groups allow you to organise bookings by department, team, or purpose.', 'hall-booking-calendar'); ?></p>

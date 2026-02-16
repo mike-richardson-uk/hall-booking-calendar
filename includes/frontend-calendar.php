@@ -559,7 +559,10 @@ function hbc_display_agenda($group_filter = 'all') {
 
     // Get current page
     $paged = isset($_GET['booking_page']) ? max(1, intval($_GET['booking_page'])) : 1;
-    $per_page = 10;
+    $per_page = intval(get_option('hbc_agenda_limit', 10));
+    if ($per_page < 1) {
+        $per_page = 10;
+    }
     $offset = ($paged - 1) * $per_page;
 
     // Get group filter from URL if not set

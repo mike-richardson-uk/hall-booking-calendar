@@ -602,3 +602,67 @@ function hbc_send_booking_notification($booking_id) {
 
     wp_mail($webmaster_email, $webmaster_subject, $webmaster_message);
 }
+
+/**
+ * Send acceptance notification email to the booker
+ *
+ * Sent when an admin confirms (approves) a booking. Notifies the user
+ * that their booking has been accepted.
+ *
+ * @since 1.7.0
+ * @param int $booking_id The ID of the approved booking
+ * @return void
+ */
+function hbc_send_acceptance_notification($booking_id) {
+    global $wpdb;
+    $bookings_table = $wpdb->prefix . 'hbc_bookings';
+    $rooms_table = $wpdb->prefix . 'hbc_rooms';
+    $groups_table = $wpdb->prefix . 'hbc_groups';
+    $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
+
+    $booking = $wpdb->get_row($wpdb->prepare(
+        "SELECT b.*, r.name as room_name, g.name as group_name
+        FROM $bookings_table b
+        LEFT JOIN $rooms_table r ON b.room_id = r.id
+        LEFT JOIN $groups_table g ON b.group_id = g.id
+        WHERE b.id = %d",
+        $booking_id
+    ));
+
+    if (!$booking) {
+        return;
+    }
+
+    // Get all room names for this booking from the junction table
+    $booking_room_names = $wpdb->get_col($wpdb->prepare(
+        "SELECT r.name FROM $booking_rooms_table br
+         INNER JOIN $rooms_table r ON br.room_id = r.id
+         WHERE br.booking_id = %d
+         ORDER BY r.name ASC",
+        $booking_id
+    ));
+    $rooms_display = !empty($booking_room_names) ? implode(', ', $booking_room_names) : $booking->room_name;
+
+    $to = sanitize_email($booking->user_email);
+    $safe_user_name = str_replace(array("\r", "\n", "%0a", "%0d"), '', $booking->user_name);
+
+    $subject = __('Booking Confirmed - Hall Booking Calendar', 'hall-booking-calendar');
+
+    $booking_details = sprintf(__("- Room(s): %s\n", 'hall-booking-calendar'), $rooms_display);
+    $booking_details .= sprintf(__("- Date: %s\n", 'hall-booking-calendar'), date('F j, Y', strtotime($booking->booking_date)));
+    $booking_details .= sprintf(__("- Time: %s - %s\n", 'hall-booking-calendar'), date('g:i A', strtotime($booking->start_time)), date('g:i A', strtotime($booking->end_time)));
+    if (!empty($booking->group_name)) {
+        $booking_details .= sprintf(__("- Group: %s\n", 'hall-booking-calendar'), $booking->group_name);
+    }
+    if (!empty($booking->purpose)) {
+        $booking_details .= sprintf(__("- Purpose: %s\n", 'hall-booking-calendar'), $booking->purpose);
+    }
+
+    $message = sprintf(
+        __("Dear %s,\n\nGreat news! Your booking has been confirmed.\n\n%s\nYour booking is now approved and confirmed. If you need to make any changes, please contact the administrator.\n\nThank you!", 'hall-booking-calendar'),
+        $safe_user_name,
+        $booking_details
+    );
+
+    wp_mail($to, $subject, $message);
+}

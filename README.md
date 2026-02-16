@@ -17,7 +17,8 @@ A comprehensive WordPress plugin for managing hall bookings with multiple rooms.
 - **File Attachments**: Upload PDF files (up to 5MB) with bookings
 - **Description Field**: Add detailed descriptions to bookings
 - **Simple Booking Form**: Clean single-page booking form with all fields visible
-- **Email Notifications**: Automated emails to both user and webmaster for confirmations
+- **Email Notifications**: Automated emails to both user and webmaster for confirmations, plus acceptance emails on approval
+- **Bulk Approve**: Approve multiple pending bookings at once from the admin bookings screen
 - **Admin Dashboard**: Complete admin interface for managing rooms, groups, and bookings
 - **Conflict Prevention**: Automatic checking for booking conflicts across all dates
 - **Status Management**: Pending, confirmed, and cancelled booking statuses
@@ -79,7 +80,7 @@ Replace `3` with the group ID. When filtering by a specific group, only bookings
 #### Agenda View Features
 
 The agenda view displays upcoming bookings in a list format with:
-- **Pagination**: 10 bookings per page with page navigation
+- **Pagination**: Configurable bookings per page (default 10) with page navigation
 - **Group Filter**: Dropdown to filter bookings by group
 - **Date Headers**: Bookings organized by date (e.g., "Monday, January 6, 2026")
 - **Time Display**: Clear start and end times for each booking
@@ -129,9 +130,10 @@ Groups help organize bookings by category, department, team, or event type. User
 
 1. Go to **Hall Booking → Settings**
 2. Configure:
-   - **Booking Password**: Set an optional password to protect booking submissions
-   - **Require Password**: Toggle to enable/disable password requirement
    - **Webmaster Email**: Set email address for admin notifications (defaults to WordPress admin email)
+   - **Password Protection**: Toggle to enable/disable password requirement
+   - **Booking Password**: Set an optional password to protect booking submissions
+   - **Agenda View Limit**: Set the number of bookings displayed per page in the agenda view (default: 10)
 3. Click "Save Settings"
 
 When password protection is enabled, users must enter the correct password to submit bookings.
@@ -142,7 +144,10 @@ When password protection is enabled, users must enter the correct password to su
 2. View all bookings with filtering options
 3. Click "View" to see booking details
 4. Update booking status (Pending/Confirmed/Cancelled)
-5. Delete bookings if needed
+5. Use **Bulk Approve** to confirm multiple pending bookings at once by selecting checkboxes and clicking "Approve Selected"
+6. Delete bookings if needed
+
+When a booking is confirmed (either individually or via bulk approve), the booker automatically receives a confirmation email.
 
 ### Bulk Import Bookings
 
@@ -244,6 +249,7 @@ The plugin creates four tables:
 The plugin sends automated emails to both users and administrators:
 - **User Email**: Booking confirmation with all details (pending approval)
 - **Webmaster Email**: Admin notification of new bookings with complete information
+- **Acceptance Email**: When a booking is confirmed, the booker receives a confirmation email with booking details
 - **Combined Series Emails**: For recurring/multi-date bookings, one email includes all dates
 - Email content includes: room, date/time, purpose, description, and PDF attachment link (if uploaded)
 
@@ -358,6 +364,13 @@ https://github.com/slashzero/hall-calendar
 GPL-2.0+
 
 ## Changelog
+
+### 1.7.0
+- **Bulk Approve**: Approve multiple pending bookings at once from the admin bookings screen with select-all functionality
+- **Acceptance Email**: Automatic confirmation email sent to bookers when their booking is approved (individually or via bulk approve)
+- **Configurable Agenda Limit**: New setting to control the number of bookings per page in the agenda view (default: 10)
+- Updated Settings page with Agenda View Limit option
+- Updated approval workflow documentation in admin settings
 
 ### 1.3.1 (Development)
 - **Bulk Import**: CSV file upload for batch booking creation
