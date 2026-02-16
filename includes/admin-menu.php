@@ -158,6 +158,8 @@ function hbc_admin_dashboard_page() {
             </div>
         </div>
 
+        <?php settings_errors('hbc_messages'); ?>
+
         <div class="hbc-recent-bookings">
             <h2><?php _e('Recent Bookings', 'hall-booking-calendar'); ?></h2>
             <?php
@@ -170,10 +172,35 @@ function hbc_admin_dashboard_page() {
             );
 
             if ($recent_bookings) {
+                // Check if any recent bookings are pending
+                $has_pending = false;
+                foreach ($recent_bookings as $bk) {
+                    if ($bk->status === 'pending') {
+                        $has_pending = true;
+                        break;
+                    }
+                }
                 ?>
+                <form method="post" action="" id="hbc-dashboard-bulk-approve-form">
+                    <?php wp_nonce_field('hbc_bulk_approve_bookings', 'hbc_bulk_nonce'); ?>
+
+                    <?php if ($has_pending) : ?>
+                        <div class="hbc-bulk-actions" style="margin-bottom: 10px;">
+                            <button type="submit" name="hbc_bulk_approve" class="button button-primary" onclick="return confirm('<?php esc_attr_e('Are you sure you want to approve all selected bookings?', 'hall-booking-calendar'); ?>');">
+                                <?php _e('Approve Selected', 'hall-booking-calendar'); ?>
+                            </button>
+                            <label style="margin-left: 10px;">
+                                <input type="checkbox" id="hbc-dashboard-select-all-pending"> <?php _e('Select All Pending', 'hall-booking-calendar'); ?>
+                            </label>
+                        </div>
+                    <?php endif; ?>
+
                 <table class="wp-list-table widefat fixed striped">
                     <thead>
                         <tr>
+                            <?php if ($has_pending) : ?>
+                                <th style="width: 30px;"><input type="checkbox" id="hbc-dashboard-select-all" title="<?php esc_attr_e('Select all', 'hall-booking-calendar'); ?>"></th>
+                            <?php endif; ?>
                             <th><?php _e('Room', 'hall-booking-calendar'); ?></th>
                             <th><?php _e('User', 'hall-booking-calendar'); ?></th>
                             <th><?php _e('Date', 'hall-booking-calendar'); ?></th>
@@ -184,6 +211,13 @@ function hbc_admin_dashboard_page() {
                     <tbody>
                         <?php foreach ($recent_bookings as $booking) : ?>
                         <tr>
+                            <?php if ($has_pending) : ?>
+                                <td>
+                                    <?php if ($booking->status === 'pending') : ?>
+                                        <input type="checkbox" name="bulk_booking_ids[]" value="<?php echo esc_attr($booking->id); ?>" class="hbc-dashboard-bulk-checkbox">
+                                    <?php endif; ?>
+                                </td>
+                            <?php endif; ?>
                             <td><?php echo esc_html($booking->room_name); ?></td>
                             <td><?php echo esc_html($booking->user_name); ?></td>
                             <td><?php echo esc_html(date('F j, Y', strtotime($booking->booking_date))); ?></td>
@@ -193,6 +227,34 @@ function hbc_admin_dashboard_page() {
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+
+                <?php if ($has_pending) : ?>
+                    <div class="hbc-bulk-actions" style="margin-top: 10px;">
+                        <button type="submit" name="hbc_bulk_approve" class="button button-primary" onclick="return confirm('<?php esc_attr_e('Are you sure you want to approve all selected bookings?', 'hall-booking-calendar'); ?>');">
+                            <?php _e('Approve Selected', 'hall-booking-calendar'); ?>
+                        </button>
+                    </div>
+                <?php endif; ?>
+
+                </form>
+
+                <script>
+                jQuery(document).ready(function($) {
+                    $('#hbc-dashboard-select-all').on('change', function() {
+                        $('.hbc-dashboard-bulk-checkbox').prop('checked', $(this).is(':checked'));
+                    });
+                    $('#hbc-dashboard-select-all-pending').on('change', function() {
+                        $('.hbc-dashboard-bulk-checkbox').prop('checked', $(this).is(':checked'));
+                        $('#hbc-dashboard-select-all').prop('checked', $(this).is(':checked'));
+                    });
+                    $('.hbc-dashboard-bulk-checkbox').on('change', function() {
+                        var total = $('.hbc-dashboard-bulk-checkbox').length;
+                        var checked = $('.hbc-dashboard-bulk-checkbox:checked').length;
+                        $('#hbc-dashboard-select-all').prop('checked', total === checked);
+                        $('#hbc-dashboard-select-all-pending').prop('checked', total === checked);
+                    });
+                });
+                </script>
                 <?php
             } else {
                 echo '<p>' . __('No bookings found.', 'hall-booking-calendar') . '</p>';
