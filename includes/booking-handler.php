@@ -54,7 +54,14 @@ function hbc_handle_booking_submission() {
     $groups_table = $wpdb->prefix . 'hbc_groups';
 
     // Sanitize input
-    $room_id = intval($_POST['room_id']);
+    $room_ids = isset($_POST['room_ids']) && is_array($_POST['room_ids']) ? array_map('intval', $_POST['room_ids']) : array();
+    // Backward compatibility: accept single room_id if room_ids not provided
+    if (empty($room_ids) && isset($_POST['room_id']) && !empty($_POST['room_id'])) {
+        $room_ids = array(intval($_POST['room_id']));
+    }
+    $room_ids = array_unique(array_filter($room_ids));
+    // Use first room as primary room_id for backward compatibility
+    $room_id = !empty($room_ids) ? $room_ids[0] : 0;
     $group_id = isset($_POST['group_id']) && !empty($_POST['group_id']) ? intval($_POST['group_id']) : null;
     $user_name = sanitize_text_field($_POST['user_name']);
     $user_email = sanitize_email($_POST['user_email']);
@@ -85,7 +92,7 @@ function hbc_handle_booking_submission() {
     }
 
     // Validate required fields
-    if (empty($room_id) || empty($user_name) || empty($user_email) || empty($booking_date) || empty($start_time) || empty($end_time)) {
+    if (empty($room_ids) || empty($user_name) || empty($user_email) || empty($booking_date) || empty($start_time) || empty($end_time)) {
         wp_send_json_error(array('message' => __('Please fill in all required fields.', 'hall-booking-calendar')));
         return;
     }
@@ -96,11 +103,13 @@ function hbc_handle_booking_submission() {
         return;
     }
 
-    // Validate room exists and is active
-    $room = $wpdb->get_row($wpdb->prepare("SELECT * FROM $rooms_table WHERE id = %d AND status = 'active'", $room_id));
-    if (!$room) {
-        wp_send_json_error(array('message' => __('Invalid room selected.', 'hall-booking-calendar')));
-        return;
+    // Validate all selected rooms exist and are active
+    foreach ($room_ids as $rid) {
+        $room = $wpdb->get_row($wpdb->prepare("SELECT * FROM $rooms_table WHERE id = %d AND status = 'active'", $rid));
+        if (!$room) {
+            wp_send_json_error(array('message' => sprintf(__('Invalid room selected (ID: %d).', 'hall-booking-calendar'), $rid)));
+            return;
+        }
     }
 
     // Validate group if provided
@@ -166,9 +175,11 @@ function hbc_handle_booking_submission() {
         'status' => 'pending'
     );
 
+    $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
+
     // Handle recurring or multi-date bookings
     if ($is_recurring || !empty($additional_dates)) {
-        $result = hbc_create_recurring_bookings($booking_data, $recurrence_pattern, $recurrence_end, $additional_dates);
+        $result = hbc_create_recurring_bookings($booking_data, $recurrence_pattern, $recurrence_end, $additional_dates, $room_ids);
 
         if ($result['success']) {
             // Send notification email for parent booking
@@ -186,31 +197,42 @@ function hbc_handle_booking_submission() {
         // Start transaction
         $wpdb->query('START TRANSACTION');
 
-        // Lock rows and check for conflicts atomically
-        $conflict = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $bookings_table
-            WHERE room_id = %d
-            AND booking_date = %s
-            AND status != 'cancelled'
-            AND (
-                (start_time < %s AND end_time > %s)
-                OR (start_time < %s AND end_time > %s)
-                OR (start_time >= %s AND end_time <= %s)
-            )
-            FOR UPDATE",
-            $room_id,
-            $booking_date,
-            $end_time,
-            $start_time,
-            $end_time,
-            $end_time,
-            $start_time,
-            $end_time
-        ));
+        // Check for conflicts on ALL selected rooms
+        $conflict_rooms = array();
+        foreach ($room_ids as $rid) {
+            $conflict = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM $bookings_table b
+                INNER JOIN $booking_rooms_table br ON b.id = br.booking_id
+                WHERE br.room_id = %d
+                AND b.booking_date = %s
+                AND b.status != 'cancelled'
+                AND (
+                    (b.start_time < %s AND b.end_time > %s)
+                    OR (b.start_time < %s AND b.end_time > %s)
+                    OR (b.start_time >= %s AND b.end_time <= %s)
+                )
+                FOR UPDATE",
+                $rid,
+                $booking_date,
+                $end_time,
+                $start_time,
+                $end_time,
+                $end_time,
+                $start_time,
+                $end_time
+            ));
+            if ($conflict > 0) {
+                $room_name = $wpdb->get_var($wpdb->prepare("SELECT name FROM $rooms_table WHERE id = %d", $rid));
+                $conflict_rooms[] = $room_name;
+            }
+        }
 
-        if ($conflict > 0) {
+        if (!empty($conflict_rooms)) {
             $wpdb->query('ROLLBACK');
-            wp_send_json_error(array('message' => __('This room is already booked for the selected time. Please choose a different time or room.', 'hall-booking-calendar')));
+            wp_send_json_error(array('message' => sprintf(
+                __('The following room(s) are already booked for the selected time: %s. Please choose a different time or room.', 'hall-booking-calendar'),
+                implode(', ', $conflict_rooms)
+            )));
             return;
         }
 
@@ -222,6 +244,14 @@ function hbc_handle_booking_submission() {
         );
 
         if ($result) {
+            $new_booking_id = $wpdb->insert_id;
+            // Insert into booking_rooms junction table
+            foreach ($room_ids as $rid) {
+                $wpdb->insert($booking_rooms_table, array(
+                    'booking_id' => $new_booking_id,
+                    'room_id' => $rid,
+                ));
+            }
             $wpdb->query('COMMIT');
         } else {
             $wpdb->query('ROLLBACK');
@@ -229,11 +259,11 @@ function hbc_handle_booking_submission() {
 
         if ($result) {
             // Send notification email
-            hbc_send_booking_notification($wpdb->insert_id);
+            hbc_send_booking_notification($new_booking_id);
 
             wp_send_json_success(array(
                 'message' => __('Your booking has been submitted successfully! You will receive a confirmation email once it is approved.', 'hall-booking-calendar'),
-                'booking_id' => $wpdb->insert_id
+                'booking_id' => $new_booking_id
             ));
         } else {
             wp_send_json_error(array('message' => __('Failed to submit booking. Please try again.', 'hall-booking-calendar')));
@@ -247,10 +277,8 @@ add_action('wp_ajax_nopriv_hbc_submit_booking', 'hbc_handle_booking_submission')
  * Check for booking conflicts
  *
  * Determines if a proposed booking conflicts with existing bookings for the same room.
- * A conflict occurs when time ranges overlap. Checks three scenarios:
- * 1. New booking starts during an existing booking
- * 2. New booking ends during an existing booking
- * 3. New booking completely encompasses an existing booking
+ * A conflict occurs when time ranges overlap. Uses the booking_rooms junction table
+ * for multi-room aware conflict detection.
  *
  * @since 1.0.0
  * @param int    $room_id           Room ID to check
@@ -263,19 +291,20 @@ add_action('wp_ajax_nopriv_hbc_submit_booking', 'hbc_handle_booking_submission')
 function hbc_check_booking_conflict($room_id, $booking_date, $start_time, $end_time, $exclude_booking_id = 0) {
     global $wpdb;
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
+    $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
 
-    // Query checks for any overlapping time ranges
-    // Excludes cancelled bookings and optionally a specific booking (for updates)
+    // Check via junction table for multi-room aware conflict detection
     $query = $wpdb->prepare(
-        "SELECT COUNT(*) FROM $bookings_table
-        WHERE room_id = %d
-        AND booking_date = %s
-        AND status != 'cancelled'
-        AND id != %d
+        "SELECT COUNT(*) FROM $bookings_table b
+        INNER JOIN $booking_rooms_table br ON b.id = br.booking_id
+        WHERE br.room_id = %d
+        AND b.booking_date = %s
+        AND b.status != 'cancelled'
+        AND b.id != %d
         AND (
-            (start_time < %s AND end_time > %s)
-            OR (start_time < %s AND end_time > %s)
-            OR (start_time >= %s AND end_time <= %s)
+            (b.start_time < %s AND b.end_time > %s)
+            OR (b.start_time < %s AND b.end_time > %s)
+            OR (b.start_time >= %s AND b.end_time <= %s)
         )",
         $room_id,
         $booking_date,
@@ -450,6 +479,8 @@ function hbc_send_booking_notification($booking_id) {
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
     $groups_table = $wpdb->prefix . 'hbc_groups';
 
+    $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
+
     // Fetch booking with joined room and group names
     $booking = $wpdb->get_row($wpdb->prepare(
         "SELECT b.*, r.name as room_name, g.name as group_name
@@ -463,6 +494,16 @@ function hbc_send_booking_notification($booking_id) {
     if (!$booking) {
         return;
     }
+
+    // Get all room names for this booking from the junction table
+    $booking_room_names = $wpdb->get_col($wpdb->prepare(
+        "SELECT r.name FROM $booking_rooms_table br
+         INNER JOIN $rooms_table r ON br.room_id = r.id
+         WHERE br.booking_id = %d
+         ORDER BY r.name ASC",
+        $booking_id
+    ));
+    $all_rooms_display = !empty($booking_room_names) ? implode(', ', $booking_room_names) : $booking->room_name;
 
     // Check if this is part of a recurring series
     $bookings = array($booking);
@@ -492,7 +533,15 @@ function hbc_send_booking_notification($booking_id) {
         if ($booking_count > 1) {
             $booking_details .= sprintf(__("Booking #%d:\n", 'hall-booking-calendar'), $idx + 1);
         }
-        $booking_details .= sprintf(__("- Room: %s\n", 'hall-booking-calendar'), $bk->room_name);
+        // Get all room names for this booking
+        $bk_room_names = $wpdb->get_col($wpdb->prepare(
+            "SELECT r.name FROM $booking_rooms_table br
+             INNER JOIN $rooms_table r ON br.room_id = r.id
+             WHERE br.booking_id = %d ORDER BY r.name ASC",
+            $bk->id
+        ));
+        $bk_rooms_display = !empty($bk_room_names) ? implode(', ', $bk_room_names) : $bk->room_name;
+        $booking_details .= sprintf(__("- Room(s): %s\n", 'hall-booking-calendar'), $bk_rooms_display);
         $booking_details .= sprintf(__("- Date: %s\n", 'hall-booking-calendar'), date('F j, Y', strtotime($bk->booking_date)));
         $booking_details .= sprintf(__("- Time: %s - %s\n", 'hall-booking-calendar'), date('g:i A', strtotime($bk->start_time)), date('g:i A', strtotime($bk->end_time)));
         if (!empty($bk->group_name)) {

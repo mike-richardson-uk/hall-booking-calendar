@@ -14,12 +14,39 @@ if (!defined('WPINC')) {
 function hbc_handle_booking_operations() {
     global $wpdb;
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
+    $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
 
-    // Update booking status and group
+    // Update booking status, group, and rooms
     if (isset($_POST['hbc_update_booking_status']) && check_admin_referer('hbc_update_booking_status', 'hbc_booking_nonce')) {
         $booking_id = intval($_POST['booking_id']);
         $status = sanitize_text_field($_POST['booking_status']);
         $group_id = isset($_POST['booking_group_id']) && $_POST['booking_group_id'] !== '' ? intval($_POST['booking_group_id']) : null;
+
+        // Update rooms via junction table if room checkboxes were submitted
+        if (isset($_POST['booking_room_ids']) && is_array($_POST['booking_room_ids'])) {
+            $new_room_ids = array_map('intval', $_POST['booking_room_ids']);
+            $new_room_ids = array_unique(array_filter($new_room_ids));
+
+            if (!empty($new_room_ids)) {
+                // Delete old room associations
+                $wpdb->delete($booking_rooms_table, array('booking_id' => $booking_id));
+
+                // Insert new room associations
+                foreach ($new_room_ids as $rid) {
+                    $wpdb->insert($booking_rooms_table, array(
+                        'booking_id' => $booking_id,
+                        'room_id' => $rid,
+                    ));
+                }
+
+                // Update the primary room_id in bookings table for backward compat
+                $wpdb->update(
+                    $bookings_table,
+                    array('room_id' => $new_room_ids[0]),
+                    array('id' => $booking_id)
+                );
+            }
+        }
 
         $wpdb->update(
             $bookings_table,
@@ -73,6 +100,7 @@ function hbc_display_bookings_list() {
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
     $groups_table = $wpdb->prefix . 'hbc_groups';
+    $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
 
     // Filter by status
     $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
@@ -89,6 +117,22 @@ function hbc_display_bookings_list() {
     $sql .= " ORDER BY b.booking_date DESC, b.start_time DESC";
 
     $bookings = $wpdb->get_results($sql);
+
+    // Pre-fetch all room names for bookings via junction table
+    $booking_ids = wp_list_pluck($bookings, 'id');
+    $all_booking_rooms = array();
+    if (!empty($booking_ids)) {
+        $ids_placeholder = implode(',', array_map('intval', $booking_ids));
+        $room_rows = $wpdb->get_results(
+            "SELECT br.booking_id, r.name FROM $booking_rooms_table br
+             INNER JOIN $rooms_table r ON br.room_id = r.id
+             WHERE br.booking_id IN ($ids_placeholder)
+             ORDER BY r.name ASC"
+        );
+        foreach ($room_rows as $row) {
+            $all_booking_rooms[$row->booking_id][] = $row->name;
+        }
+    }
 
     ?>
     <div class="hbc-filter-bar">
@@ -122,7 +166,10 @@ function hbc_display_bookings_list() {
                 <?php foreach ($bookings as $booking) : ?>
                 <tr>
                     <td><?php echo esc_html($booking->id); ?></td>
-                    <td><strong><?php echo esc_html($booking->room_name); ?></strong><br>
+                    <td><strong><?php
+                        $rooms_display = isset($all_booking_rooms[$booking->id]) ? implode(', ', $all_booking_rooms[$booking->id]) : esc_html($booking->room_name);
+                        echo esc_html($rooms_display);
+                    ?></strong><br>
                         <small><?php echo $booking->group_name ? esc_html($booking->group_name) : '<em>' . __('No group', 'hall-booking-calendar') . '</em>'; ?></small>
                     </td>
                     <td><?php echo esc_html($booking->user_name); ?><br>
@@ -167,6 +214,7 @@ function hbc_display_booking_details($booking_id) {
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
     $groups_table = $wpdb->prefix . 'hbc_groups';
+    $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
 
     $booking = $wpdb->get_row($wpdb->prepare(
         "SELECT b.*, r.name as room_name, r.capacity, g.name as group_name
@@ -182,7 +230,17 @@ function hbc_display_booking_details($booking_id) {
         return;
     }
 
-    // Get all active groups for the dropdown
+    // Get all rooms for this booking from junction table
+    $booking_room_rows = $wpdb->get_results($wpdb->prepare(
+        "SELECT r.id, r.name, r.capacity FROM $booking_rooms_table br
+         INNER JOIN $rooms_table r ON br.room_id = r.id
+         WHERE br.booking_id = %d ORDER BY r.name ASC",
+        $booking_id
+    ));
+    $booking_room_ids = wp_list_pluck($booking_room_rows, 'id');
+
+    // Get all active rooms and groups for the dropdowns
+    $all_rooms = $wpdb->get_results("SELECT * FROM $rooms_table WHERE status = 'active' ORDER BY id ASC");
     $all_groups = $wpdb->get_results("SELECT * FROM $groups_table WHERE status = 'active' ORDER BY name ASC");
 
     ?>
@@ -195,8 +253,16 @@ function hbc_display_booking_details($booking_id) {
                 <td><?php echo esc_html($booking->id); ?></td>
             </tr>
             <tr>
-                <th><?php _e('Room:', 'hall-booking-calendar'); ?></th>
-                <td><?php echo esc_html($booking->room_name); ?> (<?php _e('Capacity:', 'hall-booking-calendar'); ?> <?php echo esc_html($booking->capacity); ?>)</td>
+                <th><?php _e('Room(s):', 'hall-booking-calendar'); ?></th>
+                <td>
+                    <?php if (!empty($booking_room_rows)) : ?>
+                        <?php foreach ($booking_room_rows as $br) : ?>
+                            <?php echo esc_html($br->name); ?> (<?php _e('Capacity:', 'hall-booking-calendar'); ?> <?php echo esc_html($br->capacity); ?>)<br>
+                        <?php endforeach; ?>
+                    <?php else : ?>
+                        <?php echo esc_html($booking->room_name); ?> (<?php _e('Capacity:', 'hall-booking-calendar'); ?> <?php echo esc_html($booking->capacity); ?>)
+                    <?php endif; ?>
+                </td>
             </tr>
             <tr>
                 <th><?php _e('Group:', 'hall-booking-calendar'); ?></th>
@@ -257,6 +323,17 @@ function hbc_display_booking_details($booking_id) {
             <input type="hidden" name="booking_id" value="<?php echo esc_attr($booking->id); ?>">
 
             <table class="form-table">
+                <tr>
+                    <th scope="row"><?php _e('Room(s):', 'hall-booking-calendar'); ?></th>
+                    <td>
+                        <?php foreach ($all_rooms as $ar) : ?>
+                            <label style="display: block; margin-bottom: 5px;">
+                                <input type="checkbox" name="booking_room_ids[]" value="<?php echo esc_attr($ar->id); ?>" <?php checked(in_array($ar->id, $booking_room_ids)); ?>>
+                                <?php echo esc_html($ar->name . ' (Capacity: ' . $ar->capacity . ')'); ?>
+                            </label>
+                        <?php endforeach; ?>
+                    </td>
+                </tr>
                 <tr>
                     <th scope="row"><label for="booking_group_id"><?php _e('Group:', 'hall-booking-calendar'); ?></label></th>
                     <td>

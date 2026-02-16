@@ -174,6 +174,19 @@ function hbc_generate_ical_content($bookings) {
  * @return string iCal event
  */
 function hbc_generate_ical_event($booking, $site_url) {
+    global $wpdb;
+    $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
+    $rooms_table = $wpdb->prefix . 'hbc_rooms';
+
+    // Get all room names for this booking
+    $room_names = $wpdb->get_col($wpdb->prepare(
+        "SELECT r.name FROM $booking_rooms_table br
+         INNER JOIN $rooms_table r ON br.room_id = r.id
+         WHERE br.booking_id = %d ORDER BY r.name ASC",
+        $booking->id
+    ));
+    $rooms_display = !empty($room_names) ? implode(', ', $room_names) : $booking->room_name;
+
     $event = "BEGIN:VEVENT\r\n";
     $event .= "UID:hbc-booking-" . $booking->id . "@" . parse_url($site_url, PHP_URL_HOST) . "\r\n";
 
@@ -187,7 +200,7 @@ function hbc_generate_ical_event($booking, $site_url) {
     $event .= "DTSTAMP:" . $created_datetime . "\r\n";
 
     // Summary (title)
-    $summary = $booking->room_name;
+    $summary = $rooms_display;
     if ($booking->group_name) {
         $summary .= ' - ' . $booking->group_name;
     }
@@ -203,7 +216,7 @@ function hbc_generate_ical_event($booking, $site_url) {
     $event .= "DESCRIPTION:" . hbc_escape_ical_string($description) . "\r\n";
 
     // Location
-    $event .= "LOCATION:" . hbc_escape_ical_string($booking->room_name) . "\r\n";
+    $event .= "LOCATION:" . hbc_escape_ical_string($rooms_display) . "\r\n";
 
     // Status
     $status = ($booking->status == 'confirmed') ? 'CONFIRMED' : 'TENTATIVE';

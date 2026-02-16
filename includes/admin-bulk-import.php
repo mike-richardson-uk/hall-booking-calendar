@@ -484,6 +484,7 @@ function hbc_import_single_booking($data) {
 
 		// Insert booking
 		$bookings_table = $wpdb->prefix . 'hbc_bookings';
+		$booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
 		$result = $wpdb->insert(
 			$bookings_table,
 			$booking_data,
@@ -491,6 +492,12 @@ function hbc_import_single_booking($data) {
 		);
 
 		if ($result) {
+			$new_id = $wpdb->insert_id;
+			// Insert into junction table for multi-room support
+			$wpdb->insert($booking_rooms_table, array(
+				'booking_id' => $new_id,
+				'room_id' => $booking_data['room_id'],
+			));
 			return array(
 				'success' => true,
 				'message' => __('Booking created successfully', 'hall-booking-calendar')
