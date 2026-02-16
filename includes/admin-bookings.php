@@ -70,12 +70,33 @@ function hbc_handle_booking_operations() {
             }
         }
 
+        // Collect all editable fields
+        $purpose = isset($_POST['booking_purpose']) ? sanitize_text_field($_POST['booking_purpose']) : '';
+        $description = isset($_POST['booking_description']) ? sanitize_textarea_field($_POST['booking_description']) : '';
+        $user_name = isset($_POST['booking_user_name']) ? sanitize_text_field($_POST['booking_user_name']) : '';
+        $user_email = isset($_POST['booking_user_email']) ? sanitize_email($_POST['booking_user_email']) : '';
+        $booking_date = isset($_POST['booking_date']) ? sanitize_text_field($_POST['booking_date']) : '';
+        $start_time = isset($_POST['booking_start_time']) ? sanitize_text_field($_POST['booking_start_time']) : '';
+        $end_time = isset($_POST['booking_end_time']) ? sanitize_text_field($_POST['booking_end_time']) : '';
+
         // Check if status is changing to confirmed (for acceptance email)
         $old_status = $wpdb->get_var($wpdb->prepare("SELECT status FROM $bookings_table WHERE id = %d", $booking_id));
 
+        $update_data = array(
+            'status' => $status,
+            'group_id' => $group_id,
+            'purpose' => $purpose,
+            'description' => $description,
+            'user_name' => $user_name,
+            'user_email' => $user_email,
+            'booking_date' => $booking_date,
+            'start_time' => $start_time,
+            'end_time' => $end_time,
+        );
+
         $wpdb->update(
             $bookings_table,
-            array('status' => $status, 'group_id' => $group_id),
+            $update_data,
             array('id' => $booking_id)
         );
 
@@ -211,7 +232,7 @@ function hbc_display_bookings_list() {
                     <th style="width: 30px;"><input type="checkbox" id="hbc-select-all-checkbox" title="<?php _e('Select all', 'hall-booking-calendar'); ?>"></th>
                 <?php endif; ?>
                 <th><?php _e('ID', 'hall-booking-calendar'); ?></th>
-                <th><?php _e('Description', 'hall-booking-calendar'); ?></th>
+                <th><?php _e('Purpose', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Room', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('User', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Date', 'hall-booking-calendar'); ?></th>
@@ -233,7 +254,7 @@ function hbc_display_bookings_list() {
                         </td>
                     <?php endif; ?>
                     <td><?php echo esc_html($booking->id); ?></td>
-                    <td><strong><?php echo $booking->description ? esc_html(wp_trim_words($booking->description, 10)) : ($booking->purpose ? esc_html(wp_trim_words($booking->purpose, 10)) : '<em>' . __('None', 'hall-booking-calendar') . '</em>'); ?></strong><br>
+                    <td><strong><?php echo $booking->purpose ? esc_html(wp_trim_words($booking->purpose, 10)) : '<em>' . __('None', 'hall-booking-calendar') . '</em>'; ?></strong><br>
                         <small><?php echo $booking->group_name ? esc_html($booking->group_name) : '<em>' . __('No group', 'hall-booking-calendar') . '</em>'; ?></small>
                     </td>
                     <td><?php
@@ -343,84 +364,21 @@ function hbc_display_booking_details($booking_id) {
 
     ?>
     <div class="hbc-booking-details">
-        <h2><?php _e('Booking Details', 'hall-booking-calendar'); ?></h2>
+        <h2><?php _e('Booking Details', 'hall-booking-calendar'); ?> #<?php echo esc_html($booking->id); ?></h2>
 
-        <table class="form-table">
-            <tr>
-                <th><?php _e('Booking ID:', 'hall-booking-calendar'); ?></th>
-                <td><?php echo esc_html($booking->id); ?></td>
-            </tr>
-            <tr>
-                <th><?php _e('Description:', 'hall-booking-calendar'); ?></th>
-                <td><?php echo $booking->description ? nl2br(esc_html($booking->description)) : '<em>' . __('None', 'hall-booking-calendar') . '</em>'; ?></td>
-            </tr>
-            <tr>
-                <th><?php _e('Purpose:', 'hall-booking-calendar'); ?></th>
-                <td><?php echo esc_html($booking->purpose); ?></td>
-            </tr>
-            <tr>
-                <th><?php _e('Room(s):', 'hall-booking-calendar'); ?></th>
-                <td>
-                    <?php if (!empty($booking_room_rows)) : ?>
-                        <?php foreach ($booking_room_rows as $br) : ?>
-                            <?php echo esc_html($br->name); ?> (<?php _e('Capacity:', 'hall-booking-calendar'); ?> <?php echo esc_html($br->capacity); ?>)<br>
-                        <?php endforeach; ?>
-                    <?php else : ?>
-                        <?php echo esc_html($booking->room_name); ?> (<?php _e('Capacity:', 'hall-booking-calendar'); ?> <?php echo esc_html($booking->capacity); ?>)
-                    <?php endif; ?>
-                </td>
-            </tr>
-            <tr>
-                <th><?php _e('Group:', 'hall-booking-calendar'); ?></th>
-                <td><?php echo $booking->group_name ? esc_html($booking->group_name) : '<em>' . __('None', 'hall-booking-calendar') . '</em>'; ?></td>
-            </tr>
-            <tr>
-                <th><?php _e('User Name:', 'hall-booking-calendar'); ?></th>
-                <td><?php echo esc_html($booking->user_name); ?></td>
-            </tr>
-            <tr>
-                <th><?php _e('User Email:', 'hall-booking-calendar'); ?></th>
-                <td><?php echo esc_html($booking->user_email); ?></td>
-            </tr>
-            <tr>
-                <th><?php _e('Booking Date:', 'hall-booking-calendar'); ?></th>
-                <td><?php echo esc_html(date('F j, Y', strtotime($booking->booking_date))); ?></td>
-            </tr>
-            <tr>
-                <th><?php _e('Time:', 'hall-booking-calendar'); ?></th>
-                <td><?php echo esc_html(date('g:i A', strtotime($booking->start_time)) . ' - ' . date('g:i A', strtotime($booking->end_time))); ?></td>
-            </tr>
-            <tr>
-                <th><?php _e('Attached File:', 'hall-booking-calendar'); ?></th>
-                <td>
-                    <?php if (!empty($booking->file_path)) : ?>
-                        <?php
-                        $upload_dir = wp_upload_dir();
-                        $file_url = $upload_dir['baseurl'] . '/' . $booking->file_path;
-                        $file_name = basename($booking->file_path);
-                        ?>
-                        <a href="<?php echo esc_url($file_url); ?>" target="_blank" class="button button-secondary">📄 <?php echo esc_html($file_name); ?></a>
-                    <?php else : ?>
-                        <em><?php _e('No file attached', 'hall-booking-calendar'); ?></em>
-                    <?php endif; ?>
-                </td>
-            </tr>
-            <tr>
-                <th><?php _e('Status:', 'hall-booking-calendar'); ?></th>
-                <td><span class="hbc-status hbc-status-<?php echo esc_attr($booking->status); ?>"><?php echo esc_html(ucfirst($booking->status)); ?></span></td>
-            </tr>
-            <tr>
-                <th><?php _e('Created At:', 'hall-booking-calendar'); ?></th>
-                <td><?php echo esc_html(date('F j, Y g:i A', strtotime($booking->created_at))); ?></td>
-            </tr>
-        </table>
-
-        <h3><?php _e('Update Booking', 'hall-booking-calendar'); ?></h3>
         <form method="post" action="<?php echo admin_url('admin.php?page=hall-booking-bookings&action=view&booking_id=' . $booking_id); ?>">
             <?php wp_nonce_field('hbc_update_booking_status', 'hbc_booking_nonce'); ?>
             <input type="hidden" name="booking_id" value="<?php echo esc_attr($booking->id); ?>">
 
             <table class="form-table">
+                <tr>
+                    <th scope="row"><label for="booking_purpose"><?php _e('Purpose:', 'hall-booking-calendar'); ?></label></th>
+                    <td><input type="text" name="booking_purpose" id="booking_purpose" value="<?php echo esc_attr($booking->purpose); ?>" class="regular-text large-text"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="booking_description"><?php _e('Description:', 'hall-booking-calendar'); ?></label></th>
+                    <td><textarea name="booking_description" id="booking_description" rows="4" class="large-text"><?php echo esc_textarea($booking->description); ?></textarea></td>
+                </tr>
                 <tr>
                     <th scope="row"><?php _e('Room(s):', 'hall-booking-calendar'); ?></th>
                     <td>
@@ -444,6 +402,41 @@ function hbc_display_booking_details($booking_id) {
                     </td>
                 </tr>
                 <tr>
+                    <th scope="row"><label for="booking_user_name"><?php _e('User Name:', 'hall-booking-calendar'); ?></label></th>
+                    <td><input type="text" name="booking_user_name" id="booking_user_name" value="<?php echo esc_attr($booking->user_name); ?>" class="regular-text"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="booking_user_email"><?php _e('User Email:', 'hall-booking-calendar'); ?></label></th>
+                    <td><input type="email" name="booking_user_email" id="booking_user_email" value="<?php echo esc_attr($booking->user_email); ?>" class="regular-text"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="booking_date"><?php _e('Booking Date:', 'hall-booking-calendar'); ?></label></th>
+                    <td><input type="date" name="booking_date" id="booking_date" value="<?php echo esc_attr($booking->booking_date); ?>"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="booking_start_time"><?php _e('Start Time:', 'hall-booking-calendar'); ?></label></th>
+                    <td><input type="time" name="booking_start_time" id="booking_start_time" value="<?php echo esc_attr($booking->start_time); ?>"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="booking_end_time"><?php _e('End Time:', 'hall-booking-calendar'); ?></label></th>
+                    <td><input type="time" name="booking_end_time" id="booking_end_time" value="<?php echo esc_attr($booking->end_time); ?>"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('Attached File:', 'hall-booking-calendar'); ?></th>
+                    <td>
+                        <?php if (!empty($booking->file_path)) : ?>
+                            <?php
+                            $upload_dir = wp_upload_dir();
+                            $file_url = $upload_dir['baseurl'] . '/' . $booking->file_path;
+                            $file_name = basename($booking->file_path);
+                            ?>
+                            <a href="<?php echo esc_url($file_url); ?>" target="_blank" class="button button-secondary">📄 <?php echo esc_html($file_name); ?></a>
+                        <?php else : ?>
+                            <em><?php _e('No file attached', 'hall-booking-calendar'); ?></em>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+                <tr>
                     <th scope="row"><label for="booking_status"><?php _e('Status:', 'hall-booking-calendar'); ?></label></th>
                     <td>
                         <select name="booking_status" id="booking_status">
@@ -452,6 +445,10 @@ function hbc_display_booking_details($booking_id) {
                             <option value="cancelled" <?php selected($booking->status, 'cancelled'); ?>><?php _e('Cancelled', 'hall-booking-calendar'); ?></option>
                         </select>
                     </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('Created At:', 'hall-booking-calendar'); ?></th>
+                    <td><?php echo esc_html(date('F j, Y g:i A', strtotime($booking->created_at))); ?></td>
                 </tr>
             </table>
 
