@@ -15,18 +15,19 @@ function hbc_handle_booking_operations() {
     global $wpdb;
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
 
-    // Update booking status
+    // Update booking status and group
     if (isset($_POST['hbc_update_booking_status']) && check_admin_referer('hbc_update_booking_status', 'hbc_booking_nonce')) {
         $booking_id = intval($_POST['booking_id']);
         $status = sanitize_text_field($_POST['booking_status']);
+        $group_id = isset($_POST['booking_group_id']) && $_POST['booking_group_id'] !== '' ? intval($_POST['booking_group_id']) : null;
 
         $wpdb->update(
             $bookings_table,
-            array('status' => $status),
+            array('status' => $status, 'group_id' => $group_id),
             array('id' => $booking_id)
         );
 
-        add_settings_error('hbc_messages', 'hbc_message', __('Booking status updated successfully.', 'hall-booking-calendar'), 'updated');
+        add_settings_error('hbc_messages', 'hbc_message', __('Booking updated successfully.', 'hall-booking-calendar'), 'updated');
     }
 
     // Delete booking
@@ -181,6 +182,9 @@ function hbc_display_booking_details($booking_id) {
         return;
     }
 
+    // Get all active groups for the dropdown
+    $all_groups = $wpdb->get_results("SELECT * FROM $groups_table WHERE status = 'active' ORDER BY name ASC");
+
     ?>
     <div class="hbc-booking-details">
         <h2><?php _e('Booking Details', 'hall-booking-calendar'); ?></h2>
@@ -247,18 +251,36 @@ function hbc_display_booking_details($booking_id) {
             </tr>
         </table>
 
-        <h3><?php _e('Update Status', 'hall-booking-calendar'); ?></h3>
+        <h3><?php _e('Update Booking', 'hall-booking-calendar'); ?></h3>
         <form method="post" action="<?php echo admin_url('admin.php?page=hall-booking-bookings&action=view&booking_id=' . $booking_id); ?>">
             <?php wp_nonce_field('hbc_update_booking_status', 'hbc_booking_nonce'); ?>
             <input type="hidden" name="booking_id" value="<?php echo esc_attr($booking->id); ?>">
 
-            <select name="booking_status">
-                <option value="pending" <?php selected($booking->status, 'pending'); ?>><?php _e('Pending', 'hall-booking-calendar'); ?></option>
-                <option value="confirmed" <?php selected($booking->status, 'confirmed'); ?>><?php _e('Confirmed', 'hall-booking-calendar'); ?></option>
-                <option value="cancelled" <?php selected($booking->status, 'cancelled'); ?>><?php _e('Cancelled', 'hall-booking-calendar'); ?></option>
-            </select>
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><label for="booking_group_id"><?php _e('Group:', 'hall-booking-calendar'); ?></label></th>
+                    <td>
+                        <select name="booking_group_id" id="booking_group_id">
+                            <option value=""><?php _e('-- No Group --', 'hall-booking-calendar'); ?></option>
+                            <?php foreach ($all_groups as $group) : ?>
+                                <option value="<?php echo esc_attr($group->id); ?>" <?php selected($booking->group_id, $group->id); ?>><?php echo esc_html($group->name); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="booking_status"><?php _e('Status:', 'hall-booking-calendar'); ?></label></th>
+                    <td>
+                        <select name="booking_status" id="booking_status">
+                            <option value="pending" <?php selected($booking->status, 'pending'); ?>><?php _e('Pending', 'hall-booking-calendar'); ?></option>
+                            <option value="confirmed" <?php selected($booking->status, 'confirmed'); ?>><?php _e('Confirmed', 'hall-booking-calendar'); ?></option>
+                            <option value="cancelled" <?php selected($booking->status, 'cancelled'); ?>><?php _e('Cancelled', 'hall-booking-calendar'); ?></option>
+                        </select>
+                    </td>
+                </tr>
+            </table>
 
-            <input type="submit" name="hbc_update_booking_status" class="button button-primary" value="<?php _e('Update Status', 'hall-booking-calendar'); ?>">
+            <input type="submit" name="hbc_update_booking_status" class="button button-primary" value="<?php _e('Update Booking', 'hall-booking-calendar'); ?>">
         </form>
 
         <p>

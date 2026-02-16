@@ -3,7 +3,7 @@
  * Plugin Name: Hall Booking Calendar
  * Plugin URI: https://github.com/slashzero/hall-calendar
  * Description: A WordPress plugin to manage a hall calendar with 3 rooms, recurring bookings, and calendar subscriptions.
- * Version: 1.4.0
+ * Version: 1.5.0
  * Author: Hall Calendar Team
  * Author URI: https://github.com/slashzero
  * License: GPL-2.0+
@@ -18,7 +18,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('HBC_VERSION', '1.4.0');
+define('HBC_VERSION', '1.5.0');
 define('HBC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HBC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('HBC_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -162,6 +162,22 @@ function hbc_activate() {
     // Add default settings
     add_option('hbc_booking_password', '');
     add_option('hbc_webmaster_email', get_option('admin_email'));
+
+    // Create a booking page with the shortcode if one doesn't already exist
+    $existing_page_id = get_option('hbc_booking_page_id', 0);
+    $existing_page = $existing_page_id ? get_post($existing_page_id) : null;
+    if (!$existing_page || $existing_page->post_status === 'trash') {
+        $page_id = wp_insert_post(array(
+            'post_title'   => __('Book a Room', 'hall-booking-calendar'),
+            'post_content' => '[hall_booking_form]',
+            'post_status'  => 'publish',
+            'post_type'    => 'page',
+            'post_author'  => get_current_user_id(),
+        ));
+        if ($page_id && !is_wp_error($page_id)) {
+            update_option('hbc_booking_page_id', $page_id);
+        }
+    }
 
     // Create uploads directory for booking files
     $upload_dir = wp_upload_dir();
