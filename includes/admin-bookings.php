@@ -16,6 +16,28 @@ function hbc_handle_booking_operations() {
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
     $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
 
+    // Bulk approve pending bookings
+    if (isset($_POST['hbc_bulk_approve']) && check_admin_referer('hbc_bulk_approve_bookings', 'hbc_bulk_nonce')) {
+        $booking_ids = isset($_POST['bulk_booking_ids']) && is_array($_POST['bulk_booking_ids']) ? array_map('intval', $_POST['bulk_booking_ids']) : array();
+        $booking_ids = array_filter($booking_ids);
+
+        if (!empty($booking_ids)) {
+            $approved_count = 0;
+            foreach ($booking_ids as $bid) {
+                $current_status = $wpdb->get_var($wpdb->prepare("SELECT status FROM $bookings_table WHERE id = %d", $bid));
+                if ($current_status === 'pending') {
+                    $wpdb->update($bookings_table, array('status' => 'confirmed'), array('id' => $bid));
+                    // Send confirmation email to booker
+                    hbc_send_acceptance_notification($bid);
+                    $approved_count++;
+                }
+            }
+            add_settings_error('hbc_messages', 'hbc_message', sprintf(__('%d booking(s) approved successfully.', 'hall-booking-calendar'), $approved_count), 'updated');
+        } else {
+            add_settings_error('hbc_messages', 'hbc_message', __('No bookings selected for approval.', 'hall-booking-calendar'), 'error');
+        }
+    }
+
     // Update booking status, group, and rooms
     if (isset($_POST['hbc_update_booking_status']) && check_admin_referer('hbc_update_booking_status', 'hbc_booking_nonce')) {
         $booking_id = intval($_POST['booking_id']);
@@ -48,11 +70,19 @@ function hbc_handle_booking_operations() {
             }
         }
 
+        // Check if status is changing to confirmed (for acceptance email)
+        $old_status = $wpdb->get_var($wpdb->prepare("SELECT status FROM $bookings_table WHERE id = %d", $booking_id));
+
         $wpdb->update(
             $bookings_table,
             array('status' => $status, 'group_id' => $group_id),
             array('id' => $booking_id)
         );
+
+        // Send acceptance email if status changed to confirmed
+        if ($status === 'confirmed' && $old_status !== 'confirmed') {
+            hbc_send_acceptance_notification($booking_id);
+        }
 
         add_settings_error('hbc_messages', 'hbc_message', __('Booking updated successfully.', 'hall-booking-calendar'), 'updated');
     }
@@ -147,9 +177,39 @@ function hbc_display_bookings_list() {
         </form>
     </div>
 
+    <?php
+    // Check if there are any pending bookings for the bulk approve button
+    $has_pending = false;
+    if ($bookings) {
+        foreach ($bookings as $bk) {
+            if ($bk->status === 'pending') {
+                $has_pending = true;
+                break;
+            }
+        }
+    }
+    ?>
+
+    <form method="post" action="" id="hbc-bulk-approve-form">
+        <?php wp_nonce_field('hbc_bulk_approve_bookings', 'hbc_bulk_nonce'); ?>
+
+        <?php if ($has_pending) : ?>
+            <div class="hbc-bulk-actions" style="margin-bottom: 10px;">
+                <button type="submit" name="hbc_bulk_approve" class="button button-primary" onclick="return confirm('<?php _e('Are you sure you want to approve all selected bookings?', 'hall-booking-calendar'); ?>');">
+                    <?php _e('Approve Selected', 'hall-booking-calendar'); ?>
+                </button>
+                <label style="margin-left: 10px;">
+                    <input type="checkbox" id="hbc-select-all-pending"> <?php _e('Select All Pending', 'hall-booking-calendar'); ?>
+                </label>
+            </div>
+        <?php endif; ?>
+
     <table class="wp-list-table widefat fixed striped">
         <thead>
             <tr>
+                <?php if ($has_pending) : ?>
+                    <th style="width: 30px;"><input type="checkbox" id="hbc-select-all-checkbox" title="<?php _e('Select all', 'hall-booking-calendar'); ?>"></th>
+                <?php endif; ?>
                 <th><?php _e('ID', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Room', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('User', 'hall-booking-calendar'); ?></th>
@@ -165,6 +225,13 @@ function hbc_display_bookings_list() {
             <?php if ($bookings) : ?>
                 <?php foreach ($bookings as $booking) : ?>
                 <tr>
+                    <?php if ($has_pending) : ?>
+                        <td>
+                            <?php if ($booking->status === 'pending') : ?>
+                                <input type="checkbox" name="bulk_booking_ids[]" value="<?php echo esc_attr($booking->id); ?>" class="hbc-bulk-checkbox">
+                            <?php endif; ?>
+                        </td>
+                    <?php endif; ?>
                     <td><?php echo esc_html($booking->id); ?></td>
                     <td><strong><?php
                         $rooms_display = isset($all_booking_rooms[$booking->id]) ? implode(', ', $all_booking_rooms[$booking->id]) : esc_html($booking->room_name);
@@ -198,11 +265,42 @@ function hbc_display_bookings_list() {
                 <?php endforeach; ?>
             <?php else : ?>
                 <tr>
-                    <td colspan="9"><?php _e('No bookings found.', 'hall-booking-calendar'); ?></td>
+                    <td colspan="<?php echo $has_pending ? '10' : '9'; ?>"><?php _e('No bookings found.', 'hall-booking-calendar'); ?></td>
                 </tr>
             <?php endif; ?>
         </tbody>
     </table>
+
+    <?php if ($has_pending) : ?>
+        <div class="hbc-bulk-actions" style="margin-top: 10px;">
+            <button type="submit" name="hbc_bulk_approve" class="button button-primary" onclick="return confirm('<?php _e('Are you sure you want to approve all selected bookings?', 'hall-booking-calendar'); ?>');">
+                <?php _e('Approve Selected', 'hall-booking-calendar'); ?>
+            </button>
+        </div>
+    <?php endif; ?>
+
+    </form>
+
+    <script>
+    jQuery(document).ready(function($) {
+        // Select all checkboxes
+        $('#hbc-select-all-checkbox').on('change', function() {
+            $('.hbc-bulk-checkbox').prop('checked', $(this).is(':checked'));
+        });
+        // Select all pending shortcut
+        $('#hbc-select-all-pending').on('change', function() {
+            $('.hbc-bulk-checkbox').prop('checked', $(this).is(':checked'));
+            $('#hbc-select-all-checkbox').prop('checked', $(this).is(':checked'));
+        });
+        // Update select-all when individual checkboxes change
+        $('.hbc-bulk-checkbox').on('change', function() {
+            var total = $('.hbc-bulk-checkbox').length;
+            var checked = $('.hbc-bulk-checkbox:checked').length;
+            $('#hbc-select-all-checkbox').prop('checked', total === checked);
+            $('#hbc-select-all-pending').prop('checked', total === checked);
+        });
+    });
+    </script>
     <?php
 }
 
