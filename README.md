@@ -70,12 +70,30 @@ This will display:
 [hall_booking_calendar view="agenda"]
 ```
 
+**Compact Agenda View (abbreviated single-line-per-event list):**
+```
+[hall_booking_calendar view="compact"]
+[hall_booking_calendar view="compact" items="5"]
+[hall_booking_calendar view="compact" group="3" items="10"]
+```
+The `items` parameter controls how many events to display. If omitted, uses the Agenda View Limit from Settings.
+
 **Display bookings for a specific group:**
 ```
 [hall_booking_calendar view="calendar" group="3"]
 [hall_booking_calendar view="agenda" group="3"]
 ```
 Replace `3` with the group ID. When filtering by a specific group, only bookings for that group will be shown.
+
+#### Compact Agenda View
+
+The compact agenda displays a condensed, single-line-per-event list of upcoming bookings. Each line shows:
+- **Date**: Abbreviated date (e.g., "Mon 6 Jan")
+- **Time**: Start time
+- **Purpose**: Truncated purpose text (primary identifier)
+- **Room**: Room name(s)
+
+Clicking any line opens the full booking detail page. Status is indicated via a colored left border (green = confirmed, amber = pending). Ideal for embedding in sidebars or summary pages.
 
 #### Agenda View Features
 
@@ -364,6 +382,14 @@ https://github.com/slashzero/hall-calendar
 GPL-2.0+
 
 ## Changelog
+
+### 1.7.5
+- **Compact Agenda View**: New `view="compact"` shortcode option displaying an abbreviated single-line-per-event list
+- Optional `items` parameter to control the number of events shown (e.g., `[hall_booking_calendar view="compact" items="5"]`)
+- Supports `group` filtering like other views
+- Status-colored left border indicators (green=confirmed, amber=pending)
+- Responsive layout for mobile devices
+- **Editable Bookings**: All booking fields (purpose, description, user, date, time) are now editable from the admin booking detail screen
 
 ### 1.7.1
 - **Dashboard Bulk Approve**: Select and approve multiple pending bookings directly from the dashboard page with checkboxes, select-all, and "Approve Selected" button
