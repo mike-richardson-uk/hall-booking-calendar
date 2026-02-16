@@ -906,7 +906,7 @@ function hbc_display_single_booking($booking_id) {
     ?>
     <div class="hbc-single-booking">
         <div class="hbc-single-header">
-            <h2><?php echo esc_html($single_rooms_display); ?></h2>
+            <h2><?php echo esc_html($booking->purpose); ?></h2>
             <span class="hbc-single-status hbc-status-<?php echo esc_attr($booking->status); ?>">
                 <?php echo esc_html(ucfirst($booking->status)); ?>
             </span>
@@ -914,8 +914,12 @@ function hbc_display_single_booking($booking_id) {
 
         <div class="hbc-single-content">
             <div class="hbc-single-section hbc-date-time">
-                <h3><?php _e('Date & Time', 'hall-booking-calendar'); ?></h3>
+                <h3><?php _e('Details', 'hall-booking-calendar'); ?></h3>
                 <div class="hbc-single-info">
+                    <div class="hbc-info-row">
+                        <span class="hbc-info-label"><?php _e('Room:', 'hall-booking-calendar'); ?></span>
+                        <span class="hbc-info-value"><?php echo esc_html($single_rooms_display); ?></span>
+                    </div>
                     <div class="hbc-info-row">
                         <span class="hbc-info-label"><?php _e('Date:', 'hall-booking-calendar'); ?></span>
                         <span class="hbc-info-value"><?php echo date('l, F j, Y', strtotime($booking->booking_date)); ?></span>
@@ -923,10 +927,16 @@ function hbc_display_single_booking($booking_id) {
                     <div class="hbc-info-row">
                         <span class="hbc-info-label"><?php _e('Time:', 'hall-booking-calendar'); ?></span>
                         <span class="hbc-info-value">
-                            <?php echo date('g:i A', strtotime($booking->start_time)); ?> - 
+                            <?php echo date('g:i A', strtotime($booking->start_time)); ?> -
                             <?php echo date('g:i A', strtotime($booking->end_time)); ?>
                         </span>
                     </div>
+                    <?php if (!empty($booking->description)) : ?>
+                    <div class="hbc-info-row">
+                        <span class="hbc-info-label"><?php _e('Description:', 'hall-booking-calendar'); ?></span>
+                        <span class="hbc-info-value"><?php echo esc_html($booking->description); ?></span>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
 
