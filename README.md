@@ -36,7 +36,7 @@ A comprehensive WordPress plugin for managing hall bookings with multiple rooms.
 
 After activation, you'll find a new "Hall Booking" menu item in your WordPress admin:
 
-- **Dashboard**: View booking statistics and recent bookings
+- **Dashboard**: View booking statistics, recent bookings, and bulk approve pending bookings
 - **Rooms**: Add, edit, or delete rooms
 - **Groups**: Add, edit, or delete groups for organizing bookings
 - **Bookings**: View and manage all bookings, update status, view attached files
@@ -364,6 +364,9 @@ https://github.com/slashzero/hall-calendar
 GPL-2.0+
 
 ## Changelog
+
+### 1.7.1
+- **Dashboard Bulk Approve**: Select and approve multiple pending bookings directly from the dashboard page with checkboxes, select-all, and "Approve Selected" button
 
 ### 1.7.0
 - **Bulk Approve**: Approve multiple pending bookings at once from the admin bookings screen with select-all functionality
