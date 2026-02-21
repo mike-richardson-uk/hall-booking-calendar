@@ -36,6 +36,7 @@ function hbc_calendar_shortcode($atts) {
     $atts = shortcode_atts(array(
         'view' => 'calendar',
         'group' => 'all',
+        'room' => 'all',
         'items' => ''
     ), $atts);
 
@@ -60,7 +61,7 @@ function hbc_calendar_shortcode($atts) {
     }
     // Calendar view (default) - monthly grid
     elseif ($atts['view'] == 'calendar') {
-        hbc_display_calendar($atts['group']);
+        hbc_display_calendar($atts['group'], $atts['room']);
     }
     // Standalone booking form (fallback, rarely used)
     else {
@@ -137,7 +138,7 @@ add_shortcode('hall_booking_form', 'hbc_booking_form_shortcode');
  * @param string $group_filter Group ID to filter by, or 'all' for no filter. Default 'all'.
  * @return void Outputs HTML directly
  */
-function hbc_display_calendar($group_filter = 'all') {
+function hbc_display_calendar($group_filter = 'all', $room_filter = 'all') {
     global $wpdb;
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
     $groups_table = $wpdb->prefix . 'hbc_groups';
@@ -153,36 +154,57 @@ function hbc_display_calendar($group_filter = 'all') {
     $current_month = isset($_GET['month']) ? intval($_GET['month']) : date('n');
     $current_year = isset($_GET['year']) ? intval($_GET['year']) : date('Y');
 
+    // Get group filter from URL if not set via shortcode
+    if ($group_filter === 'all' && isset($_GET['group_filter'])) {
+        $group_filter = sanitize_text_field($_GET['group_filter']);
+    }
+
+    // Get room filter from URL if not set via shortcode
+    if ($room_filter === 'all' && isset($_GET['room_filter'])) {
+        $room_filter = sanitize_text_field($_GET['room_filter']);
+    }
+
     // Get all active rooms
     $rooms = $wpdb->get_results("SELECT * FROM $rooms_table WHERE status = 'active' ORDER BY id ASC");
 
     // Get all active groups for the filter dropdown
     $groups = $wpdb->get_results("SELECT * FROM $groups_table WHERE status = 'active' ORDER BY name ASC");
 
+    // Determine which rooms to display in the calendar grid
+    $display_rooms = $rooms;
+    if ($room_filter !== 'all' && is_numeric($room_filter)) {
+        $display_rooms = array_filter($rooms, function($room) use ($room_filter) {
+            return $room->id == intval($room_filter);
+        });
+    }
+
     // Get bookings for the current month using junction table for multi-room support
     $first_day = date('Y-m-01', strtotime("$current_year-$current_month-01"));
     $last_day = date('Y-m-t', strtotime("$current_year-$current_month-01"));
     $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
 
-    // Build query based on group filter - join with booking_rooms to get per-room entries
+    // Build query with group and room filters
+    $where_clauses = array("b.booking_date BETWEEN %s AND %s", "b.status != 'cancelled'");
+    $params = array($first_day, $last_day);
+
     if ($group_filter !== 'all' && is_numeric($group_filter)) {
-        $bookings = $wpdb->get_results($wpdb->prepare(
-            "SELECT b.*, br.room_id as br_room_id FROM $bookings_table b
-             INNER JOIN $booking_rooms_table br ON b.id = br.booking_id
-             WHERE b.booking_date BETWEEN %s AND %s AND b.status != 'cancelled' AND b.group_id = %d",
-            $first_day,
-            $last_day,
-            intval($group_filter)
-        ));
-    } else {
-        $bookings = $wpdb->get_results($wpdb->prepare(
-            "SELECT b.*, br.room_id as br_room_id FROM $bookings_table b
-             INNER JOIN $booking_rooms_table br ON b.id = br.booking_id
-             WHERE b.booking_date BETWEEN %s AND %s AND b.status != 'cancelled'",
-            $first_day,
-            $last_day
-        ));
+        $where_clauses[] = "b.group_id = %d";
+        $params[] = intval($group_filter);
     }
+
+    if ($room_filter !== 'all' && is_numeric($room_filter)) {
+        $where_clauses[] = "br.room_id = %d";
+        $params[] = intval($room_filter);
+    }
+
+    $where = 'WHERE ' . implode(' AND ', $where_clauses);
+
+    $bookings = $wpdb->get_results($wpdb->prepare(
+        "SELECT b.*, br.room_id as br_room_id FROM $bookings_table b
+         INNER JOIN $booking_rooms_table br ON b.id = br.booking_id
+         $where",
+        $params
+    ));
 
     // Organize bookings by date and room (using junction table room_id)
     $bookings_by_date = array();
@@ -208,6 +230,9 @@ function hbc_display_calendar($group_filter = 'all') {
         }
     }
 
+    // Build base URL preserving current month/year
+    $base_url = remove_query_arg(array('group_filter', 'room_filter'));
+
     ?>
     <div class="hbc-calendar-container">
         <div class="hbc-calendar-header">
@@ -217,32 +242,41 @@ function hbc_display_calendar($group_filter = 'all') {
                 <a href="<?php echo add_query_arg(array('month' => ($current_month == 12 ? 1 : $current_month + 1), 'year' => ($current_month == 12 ? $current_year + 1 : $current_year))); ?>" class="hbc-nav-btn"><?php _e('Next', 'hall-booking-calendar'); ?> &raquo;</a>
             </div>
 
-            <?php if ($group_filter == 'all' && $groups) : ?>
-            <div class="hbc-group-filter">
-                <label for="hbc-group-filter-select"><?php _e('Filter by Group:', 'hall-booking-calendar'); ?></label>
-                <select id="hbc-group-filter-select" onchange="if(this.value) window.location.href=this.value;">
-                    <option value="<?php echo get_permalink(); ?>"><?php _e('All Groups', 'hall-booking-calendar'); ?></option>
-                    <?php foreach ($groups as $group) : ?>
-                        <option value="<?php echo esc_url(add_query_arg('group_filter', $group->id)); ?>"><?php echo esc_html($group->name); ?></option>
-                    <?php endforeach; ?>
-                </select>
+            <div class="hbc-calendar-filters">
+                <?php if ($groups) : ?>
+                <div class="hbc-calendar-filter">
+                    <label for="hbc-cal-group-filter"><?php _e('Group:', 'hall-booking-calendar'); ?></label>
+                    <select id="hbc-cal-group-filter" onchange="if(this.value) window.location.href=this.value;">
+                        <option value="<?php echo esc_url(remove_query_arg('group_filter')); ?>"><?php _e('All Groups', 'hall-booking-calendar'); ?></option>
+                        <?php foreach ($groups as $group) : ?>
+                            <option value="<?php echo esc_url(add_query_arg('group_filter', $group->id)); ?>" <?php selected($group_filter, $group->id); ?>>
+                                <?php echo esc_html($group->name); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <?php endif; ?>
+
+                <?php if ($rooms) : ?>
+                <div class="hbc-calendar-filter">
+                    <label for="hbc-cal-room-filter"><?php _e('Room:', 'hall-booking-calendar'); ?></label>
+                    <select id="hbc-cal-room-filter" onchange="if(this.value) window.location.href=this.value;">
+                        <option value="<?php echo esc_url(remove_query_arg('room_filter')); ?>"><?php _e('All Rooms', 'hall-booking-calendar'); ?></option>
+                        <?php foreach ($rooms as $room) : ?>
+                            <option value="<?php echo esc_url(add_query_arg('room_filter', $room->id)); ?>" <?php selected($room_filter, $room->id); ?>>
+                                <?php echo esc_html($room->name); ?> (<?php echo esc_html($room->capacity); ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <?php endif; ?>
             </div>
-            <?php elseif ($group_filter !== 'all') : ?>
-            <div class="hbc-group-filter">
-                <?php
-                $current_group = $wpdb->get_row($wpdb->prepare("SELECT * FROM $groups_table WHERE id = %d", intval($group_filter)));
-                if ($current_group) {
-                    echo '<p class="hbc-group-label">' . sprintf(__('Showing bookings for: %s', 'hall-booking-calendar'), '<strong>' . esc_html($current_group->name) . '</strong>') . '</p>';
-                }
-                ?>
-            </div>
-            <?php endif; ?>
         </div>
 
         <div class="hbc-rooms-legend">
-            <h3><?php _e('Available Rooms:', 'hall-booking-calendar'); ?></h3>
+            <h3><?php _e('Rooms:', 'hall-booking-calendar'); ?></h3>
             <ul>
-                <?php foreach ($rooms as $room) : ?>
+                <?php foreach ($display_rooms as $room) : ?>
                     <li><span class="hbc-room-color hbc-room-<?php echo esc_attr($room->id); ?>"></span> <?php echo esc_html($room->name); ?> (<?php _e('Capacity:', 'hall-booking-calendar'); ?> <?php echo esc_html($room->capacity); ?>)</li>
                 <?php endforeach; ?>
             </ul>
@@ -277,7 +311,7 @@ function hbc_display_calendar($group_filter = 'all') {
 
                 if (isset($bookings_by_date[$date])) {
                     echo '<div class="hbc-day-bookings">';
-                    foreach ($rooms as $room) {
+                    foreach ($display_rooms as $room) {
                         if (isset($bookings_by_date[$date][$room->id])) {
                             $count = count($bookings_by_date[$date][$room->id]);
                             $first_booking = $bookings_by_date[$date][$room->id][0];
@@ -300,7 +334,7 @@ function hbc_display_calendar($group_filter = 'all') {
                     }
                 } else {
                     echo '<div class="hbc-day-bookings">';
-                    foreach ($rooms as $room) {
+                    foreach ($display_rooms as $room) {
                         echo '<div class="hbc-booking-indicator hbc-available" title="' . esc_attr($room->name . ': Available') . '"></div>';
                     }
                     echo '</div>';
