@@ -926,9 +926,6 @@ function hbc_display_single_booking($booking_id) {
     <div class="hbc-single-booking">
         <div class="hbc-single-header">
             <h2><?php echo esc_html($booking->purpose); ?></h2>
-            <span class="hbc-single-status hbc-status-<?php echo esc_attr($booking->status); ?>">
-                <?php echo esc_html(ucfirst($booking->status)); ?>
-            </span>
         </div>
 
         <div class="hbc-single-content">
