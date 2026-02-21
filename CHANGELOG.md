@@ -2,6 +2,10 @@
 
 All notable changes to the Hall Booking Calendar plugin will be documented in this file.
 
+## 1.8.1
+- **Tabbed settings page**: Usage instructions section now uses tabs (Shortcodes, Views, Bookings, Administration) for easier navigation
+- **Changelog file**: Extracted changelog into a dedicated CHANGELOG.md
+
 ## 1.8.0
 - **Streamlined agenda view**: Purpose is now the primary heading in the agenda listing, with room name shown below. Removed "Booked by", group, and status fields for a cleaner display
 - **Streamlined booking detail page**: Removed status badge and "Details" heading for a cleaner layout
