@@ -49,6 +49,38 @@
     color: #fff;
 }
 
+/* Calendar Filter Bar */
+.hbc-calendar-filters {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    background: #f0f6fc;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    border: 1px solid #d0e3f1;
+}
+
+.hbc-calendar-filter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.hbc-calendar-filter label {
+    font-weight: 600;
+    color: #555;
+    white-space: nowrap;
+}
+
+.hbc-calendar-filter select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    min-width: 180px;
+}
+
+/* Legacy group filter (kept for backward compatibility) */
 .hbc-group-filter {
     background: #f0f6fc;
     padding: 15px;
@@ -481,6 +513,21 @@
         padding: 8px;
     }
 
+    .hbc-calendar-filters {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .hbc-calendar-filter {
+        width: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .hbc-calendar-filter select {
+        width: 100%;
+    }
+
     .hbc-rooms-legend ul {
         flex-direction: column;
     }
@@ -779,15 +826,10 @@
     flex: 1;
 }
 
-.hbc-agenda-room {
+.hbc-agenda-purpose-title {
     margin: 0 0 8px 0;
     font-size: 20px;
     color: #333;
-}
-
-.hbc-agenda-purpose {
-    margin: 0 0 10px 0;
-    color: #666;
 }
 
 .hbc-agenda-meta {
@@ -797,15 +839,9 @@
     color: #777;
 }
 
-.hbc-agenda-meta strong {
+.hbc-agenda-room-info {
     color: #555;
-}
-
-.hbc-agenda-status {
-    padding: 3px 10px;
-    border-radius: 3px;
     font-weight: 600;
-    text-transform: uppercase;
 }
 
 .hbc-agenda-actions {
