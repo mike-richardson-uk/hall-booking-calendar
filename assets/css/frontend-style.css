@@ -826,15 +826,10 @@
     flex: 1;
 }
 
-.hbc-agenda-room {
+.hbc-agenda-purpose-title {
     margin: 0 0 8px 0;
     font-size: 20px;
     color: #333;
-}
-
-.hbc-agenda-purpose {
-    margin: 0 0 10px 0;
-    color: #666;
 }
 
 .hbc-agenda-meta {
@@ -844,15 +839,9 @@
     color: #777;
 }
 
-.hbc-agenda-meta strong {
+.hbc-agenda-room-info {
     color: #555;
-}
-
-.hbc-agenda-status {
-    padding: 3px 10px;
-    border-radius: 3px;
     font-weight: 600;
-    text-transform: uppercase;
 }
 
 .hbc-agenda-actions {

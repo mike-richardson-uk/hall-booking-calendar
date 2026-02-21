@@ -723,27 +723,12 @@ function hbc_display_agenda($group_filter = 'all') {
                         </div>
                         
                         <div class="hbc-agenda-details">
-                            <h4 class="hbc-agenda-room"><?php
-                                $agenda_rooms_display = isset($agenda_booking_rooms[$booking->id]) ? implode(', ', $agenda_booking_rooms[$booking->id]) : $booking->room_name;
-                                echo esc_html($agenda_rooms_display);
-                            ?></h4>
-                            <?php if ($booking->purpose) : ?>
-                                <p class="hbc-agenda-purpose"><?php echo esc_html($booking->purpose); ?></p>
-                            <?php endif; ?>
+                            <h4 class="hbc-agenda-purpose-title"><?php echo esc_html($booking->purpose ? $booking->purpose : __('No purpose specified', 'hall-booking-calendar')); ?></h4>
                             <div class="hbc-agenda-meta">
-                                <span class="hbc-agenda-user">
-                                    <strong><?php _e('Booked by:', 'hall-booking-calendar'); ?></strong> 
-                                    <?php echo esc_html($booking->user_name); ?>
-                                </span>
-                                <?php if ($booking->group_name) : ?>
-                                    <span class="hbc-agenda-group">
-                                        <strong><?php _e('Group:', 'hall-booking-calendar'); ?></strong> 
-                                        <?php echo esc_html($booking->group_name); ?>
-                                    </span>
-                                <?php endif; ?>
-                                <span class="hbc-agenda-status hbc-status-<?php echo esc_attr($booking->status); ?>">
-                                    <?php echo esc_html(ucfirst($booking->status)); ?>
-                                </span>
+                                <span class="hbc-agenda-room-info"><?php
+                                    $agenda_rooms_display = isset($agenda_booking_rooms[$booking->id]) ? implode(', ', $agenda_booking_rooms[$booking->id]) : $booking->room_name;
+                                    echo esc_html($agenda_rooms_display);
+                                ?></span>
                             </div>
                         </div>
 
