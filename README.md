@@ -396,6 +396,14 @@ GPL-2.0+
 
 ## Changelog
 
+### 1.8.0
+- **Streamlined agenda view**: Purpose is now the primary heading in the agenda listing, with room name shown below. Removed "Booked by", group, and status fields for a cleaner display
+- **Streamlined booking detail page**: Removed status badge and "Details" heading for a cleaner layout
+- **Group filter on Bookings admin page**: Filter bookings by group alongside the existing status filter
+- **Linked group names**: Group names on the Groups admin page now link directly to their bookings
+- **Calendar View documentation**: Added Calendar View usage instructions to both the admin Settings page and the README
+- Updated README and Settings page to reflect current agenda and booking detail display
+
 ### 1.7.5
 - **Compact Agenda View**: New `view="compact"` shortcode option displaying an abbreviated single-line-per-event list
 - Optional `items` parameter to control the number of events shown (e.g., `[hall_booking_calendar view="compact" items="5"]`)
