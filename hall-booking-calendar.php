@@ -3,7 +3,7 @@
  * Plugin Name: Hall Booking Calendar
  * Plugin URI: https://github.com/slashzero/hall-calendar
  * Description: A WordPress plugin to manage a hall calendar with 3 rooms, recurring bookings, and calendar subscriptions.
- * Version: 1.9.0
+ * Version: 1.9.1
  * Author: Hall Calendar Team
  * Author URI: https://github.com/slashzero
  * License: GPL-2.0+
@@ -18,7 +18,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('HBC_VERSION', '1.9.0');
+define('HBC_VERSION', '1.9.1');
 define('HBC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HBC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('HBC_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -410,15 +410,15 @@ function hbc_enqueue_elementor_scripts() {
 /**
  * Register rewrite rules for pretty event URLs
  *
- * Maps /events/YYYYMMDD/group-slug/purpose-slug/ to custom query vars
+ * Maps /events/YYYY-MM-DD/group-slug/purpose-slug/ to custom query vars
  * so individual bookings can be accessed via SEO-friendly URLs.
  *
- * @since 1.9.0
+ * @since 1.9.1
  * @return void
  */
 function hbc_register_event_rewrite_rules() {
     add_rewrite_rule(
-        'events/([0-9]{8})/([^/]+)/([^/]+)/?$',
+        'events/([0-9]{4}-[0-9]{2}-[0-9]{2})/([^/]+)/([^/]+)/?$',
         'index.php?hbc_event_date=$matches[1]&hbc_event_group=$matches[2]&hbc_event_purpose=$matches[3]',
         'top'
     );
@@ -428,7 +428,7 @@ add_action('init', 'hbc_register_event_rewrite_rules');
 /**
  * Register custom query vars for event URLs
  *
- * @since 1.9.0
+ * @since 1.9.1
  * @param array $vars Existing query vars
  * @return array Modified query vars
  */
@@ -443,7 +443,7 @@ add_filter('query_vars', 'hbc_register_event_query_vars');
 /**
  * Handle event URLs by resolving slug to booking and loading the calendar page
  *
- * @since 1.9.0
+ * @since 1.9.1
  * @param WP_Query $query The main query
  * @return void
  */
@@ -486,7 +486,7 @@ add_action('pre_get_posts', 'hbc_handle_event_query');
  * Checks for [hall_booking_calendar] first, then falls back to the booking
  * form page stored in options.
  *
- * @since 1.9.0
+ * @since 1.9.1
  * @return int|false Page ID or false if not found
  */
 function hbc_find_calendar_page_id() {
@@ -521,8 +521,8 @@ function hbc_find_calendar_page_id() {
 /**
  * Resolve an event URL slug to a booking ID
  *
- * @since 1.9.0
- * @param string $date_str    Date in YYYYMMDD format
+ * @since 1.9.1
+ * @param string $date_str    Date in YYYY-MM-DD format
  * @param string $group_slug  Slugified group name
  * @param string $purpose_slug Slugified booking purpose
  * @return int Booking ID or 0 if not found
@@ -532,19 +532,20 @@ function hbc_resolve_booking_from_slug($date_str, $group_slug, $purpose_slug) {
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
     $groups_table = $wpdb->prefix . 'hbc_groups';
 
-    // Parse YYYYMMDD to full date
-    if (strlen($date_str) !== 8) {
+    // Parse YYYY-MM-DD date
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_str)) {
         return 0;
     }
-    $year = intval(substr($date_str, 0, 4));
-    $month = intval(substr($date_str, 4, 2));
-    $day = intval(substr($date_str, 6, 2));
+    $parts = explode('-', $date_str);
+    $year = intval($parts[0]);
+    $month = intval($parts[1]);
+    $day = intval($parts[2]);
 
     if (!checkdate($month, $day, $year)) {
         return 0;
     }
 
-    $full_date = sprintf('%04d-%02d-%02d', $year, $month, $day);
+    $full_date = $date_str;
 
     $bookings = $wpdb->get_results($wpdb->prepare(
         "SELECT b.id, b.purpose, g.name as group_name
@@ -570,12 +571,12 @@ function hbc_resolve_booking_from_slug($date_str, $group_slug, $purpose_slug) {
 /**
  * Generate a pretty event URL for a booking
  *
- * @since 1.9.0
+ * @since 1.9.1
  * @param object $booking Booking object with booking_date, group_name, and purpose
  * @return string The event URL
  */
 function hbc_get_event_url($booking) {
-    $date_part = date('Ymd', strtotime($booking->booking_date));
+    $date_part = date('Y-m-d', strtotime($booking->booking_date));
     $group_name = isset($booking->group_name) ? $booking->group_name : '';
     $group_slug = sanitize_title($group_name ?: 'general');
     $purpose_slug = sanitize_title($booking->purpose ?: 'booking');
@@ -586,7 +587,7 @@ function hbc_get_event_url($booking) {
 /**
  * Get the URL of the page containing the calendar shortcode
  *
- * @since 1.9.0
+ * @since 1.9.1
  * @return string Calendar page URL or home URL as fallback
  */
 function hbc_get_calendar_page_url() {
