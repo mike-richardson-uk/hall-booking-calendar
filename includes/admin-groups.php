@@ -118,7 +118,7 @@ function hbc_display_groups_list() {
                 ?>
                 <tr>
                     <td><?php echo esc_html($group->id); ?></td>
-                    <td><strong><?php echo esc_html($group->name); ?></strong></td>
+                    <td><strong><a href="<?php echo esc_url(admin_url('admin.php?page=hall-booking-bookings&group=' . $group->id)); ?>"><?php echo esc_html($group->name); ?></a></strong></td>
                     <td><?php echo esc_html($group->description); ?></td>
                     <td><?php echo esc_html($booking_count); ?></td>
                     <td><span class="hbc-status hbc-status-<?php echo esc_attr($group->status); ?>"><?php echo esc_html(ucfirst($group->status)); ?></span></td>

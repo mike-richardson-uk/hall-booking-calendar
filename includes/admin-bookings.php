@@ -153,16 +153,24 @@ function hbc_display_bookings_list() {
     $groups_table = $wpdb->prefix . 'hbc_groups';
     $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
 
-    // Filter by status
+    // Filters
     $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
+    $group_filter = isset($_GET['group']) ? intval($_GET['group']) : 0;
 
     $sql = "SELECT b.*, r.name as room_name, g.name as group_name
             FROM $bookings_table b
             LEFT JOIN $rooms_table r ON b.room_id = r.id
             LEFT JOIN $groups_table g ON b.group_id = g.id";
 
+    $where_clauses = array();
     if ($status_filter) {
-        $sql .= $wpdb->prepare(" WHERE b.status = %s", $status_filter);
+        $where_clauses[] = $wpdb->prepare("b.status = %s", $status_filter);
+    }
+    if ($group_filter) {
+        $where_clauses[] = $wpdb->prepare("b.group_id = %d", $group_filter);
+    }
+    if (!empty($where_clauses)) {
+        $sql .= " WHERE " . implode(" AND ", $where_clauses);
     }
 
     $sql .= " ORDER BY b.booking_date DESC, b.start_time DESC";
@@ -186,6 +194,9 @@ function hbc_display_bookings_list() {
     }
 
     ?>
+    <?php
+    $all_groups = $wpdb->get_results("SELECT id, name FROM $groups_table WHERE status = 'active' ORDER BY name ASC");
+    ?>
     <div class="hbc-filter-bar">
         <form method="get" action="">
             <input type="hidden" name="page" value="hall-booking-bookings">
@@ -194,6 +205,12 @@ function hbc_display_bookings_list() {
                 <option value="pending" <?php selected($status_filter, 'pending'); ?>><?php _e('Pending', 'hall-booking-calendar'); ?></option>
                 <option value="confirmed" <?php selected($status_filter, 'confirmed'); ?>><?php _e('Confirmed', 'hall-booking-calendar'); ?></option>
                 <option value="cancelled" <?php selected($status_filter, 'cancelled'); ?>><?php _e('Cancelled', 'hall-booking-calendar'); ?></option>
+            </select>
+            <select name="group" onchange="this.form.submit()">
+                <option value=""><?php _e('All Groups', 'hall-booking-calendar'); ?></option>
+                <?php foreach ($all_groups as $g) : ?>
+                    <option value="<?php echo esc_attr($g->id); ?>" <?php selected($group_filter, $g->id); ?>><?php echo esc_html($g->name); ?></option>
+                <?php endforeach; ?>
             </select>
         </form>
     </div>
