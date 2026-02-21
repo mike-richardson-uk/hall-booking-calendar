@@ -200,8 +200,9 @@ function hbc_display_calendar($group_filter = 'all', $room_filter = 'all') {
     $where = 'WHERE ' . implode(' AND ', $where_clauses);
 
     $bookings = $wpdb->get_results($wpdb->prepare(
-        "SELECT b.*, br.room_id as br_room_id FROM $bookings_table b
+        "SELECT b.*, br.room_id as br_room_id, g.name as group_name FROM $bookings_table b
          INNER JOIN $booking_rooms_table br ON b.id = br.booking_id
+         LEFT JOIN $groups_table g ON b.group_id = g.id
          $where",
         $params
     ));
@@ -315,7 +316,7 @@ function hbc_display_calendar($group_filter = 'all', $room_filter = 'all') {
                         if (isset($bookings_by_date[$date][$room->id])) {
                             $count = count($bookings_by_date[$date][$room->id]);
                             $first_booking = $bookings_by_date[$date][$room->id][0];
-                            $booking_url = add_query_arg('booking_id', $first_booking->id);
+                            $booking_url = hbc_get_event_url($first_booking);
                             echo '<a href="' . esc_url($booking_url) . '" class="hbc-booking-indicator hbc-room-' . esc_attr($room->id) . '" title="' . esc_attr($room->name . ': ' . $count . ' booking(s) - Click to view') . '"></a>';
                         } else {
                             echo '<div class="hbc-booking-indicator hbc-available" title="' . esc_attr($room->name . ': Available') . '"></div>';
@@ -329,8 +330,8 @@ function hbc_display_calendar($group_filter = 'all', $room_filter = 'all') {
                         $day_bookings_count += count($room_bookings);
                     }
                     if ($day_bookings_count > 0) {
-                        $first_booking_id = $bookings_by_date[$date][array_key_first($bookings_by_date[$date])][0]->id;
-                        echo '<a href="' . esc_url(add_query_arg('booking_id', $first_booking_id)) . '" class="hbc-view-bookings-link" title="' . sprintf(__('%d booking(s) on this day', 'hall-booking-calendar'), $day_bookings_count) . '">' . __('View', 'hall-booking-calendar') . '</a>';
+                        $first_booking_obj = $bookings_by_date[$date][array_key_first($bookings_by_date[$date])][0];
+                        echo '<a href="' . esc_url(hbc_get_event_url($first_booking_obj)) . '" class="hbc-view-bookings-link" title="' . sprintf(__('%d booking(s) on this day', 'hall-booking-calendar'), $day_bookings_count) . '">' . __('View', 'hall-booking-calendar') . '</a>';
                     }
                 } else {
                     echo '<div class="hbc-day-bookings">';
@@ -733,7 +734,7 @@ function hbc_display_agenda($group_filter = 'all') {
                         </div>
 
                         <div class="hbc-agenda-actions">
-                            <a href="<?php echo esc_url(add_query_arg('booking_id', $booking->id)); ?>" class="hbc-view-booking-btn">
+                            <a href="<?php echo esc_url(hbc_get_event_url($booking)); ?>" class="hbc-view-booking-btn">
                                 <?php _e('View Details', 'hall-booking-calendar'); ?>
                             </a>
                         </div>
@@ -849,7 +850,7 @@ function hbc_display_compact_agenda($group_filter = 'all', $items = 0) {
                     $date_display = date('D j M', strtotime($booking->booking_date));
                     $time_display = date('g:i A', strtotime($booking->start_time));
                     $purpose_display = $booking->purpose ? $booking->purpose : __('No purpose', 'hall-booking-calendar');
-                    $booking_url = add_query_arg('booking_id', $booking->id);
+                    $booking_url = hbc_get_event_url($booking);
                 ?>
                     <li class="hbc-compact-item hbc-status-<?php echo esc_attr($booking->status); ?>">
                         <a href="<?php echo esc_url($booking_url); ?>">
@@ -911,9 +912,10 @@ function hbc_display_single_booking($booking_id) {
     $series_bookings = array();
     if (!empty($booking->series_id)) {
         $series_bookings = $wpdb->get_results($wpdb->prepare(
-            "SELECT b.*, r.name as room_name
+            "SELECT b.*, r.name as room_name, g.name as group_name
             FROM $bookings_table b
             LEFT JOIN $rooms_table r ON b.room_id = r.id
+            LEFT JOIN $groups_table g ON b.group_id = g.id
             WHERE b.series_id = %s AND b.id != %d
             ORDER BY b.booking_date ASC, b.start_time ASC",
             $booking->series_id,
@@ -959,7 +961,12 @@ function hbc_display_single_booking($booking_id) {
             <div class="hbc-single-section hbc-group-bookings">
                 <h3><?php _e('View All Future Bookings', 'hall-booking-calendar'); ?></h3>
                 <p>
-                    <a href="<?php echo esc_url(add_query_arg(array('view' => 'agenda', 'group_filter' => $booking->group_id), remove_query_arg('booking_id'))); ?>" class="hbc-view-group-bookings-btn">
+                    <?php
+                    $group_bookings_url = get_query_var('hbc_event_date')
+                        ? add_query_arg(array('view' => 'agenda', 'group_filter' => $booking->group_id), hbc_get_calendar_page_url())
+                        : add_query_arg(array('view' => 'agenda', 'group_filter' => $booking->group_id), remove_query_arg('booking_id'));
+                    ?>
+                    <a href="<?php echo esc_url($group_bookings_url); ?>" class="hbc-view-group-bookings-btn">
                         <?php printf(__('View all upcoming bookings for %s', 'hall-booking-calendar'), esc_html($booking->group_name)); ?>
                     </a>
                 </p>
@@ -984,7 +991,7 @@ function hbc_display_single_booking($booking_id) {
                             <span class="hbc-series-time">
                                 <?php echo date('g:i A', strtotime($series_booking->start_time)); ?>
                             </span>
-                            <a href="<?php echo esc_url(add_query_arg('booking_id', $series_booking->id)); ?>" class="hbc-series-link">
+                            <a href="<?php echo esc_url(hbc_get_event_url($series_booking)); ?>" class="hbc-series-link">
                                 <?php _e('View', 'hall-booking-calendar'); ?>
                             </a>
                         </div>
@@ -1000,7 +1007,12 @@ function hbc_display_single_booking($booking_id) {
         </div>
 
         <div class="hbc-single-actions">
-            <a href="<?php echo esc_url(remove_query_arg('booking_id')); ?>" class="hbc-back-btn button">
+            <?php
+            $back_url = get_query_var('hbc_event_date')
+                ? hbc_get_calendar_page_url()
+                : remove_query_arg('booking_id');
+            ?>
+            <a href="<?php echo esc_url($back_url); ?>" class="hbc-back-btn button">
                 &larr; <?php _e('Back to Calendar', 'hall-booking-calendar'); ?>
             </a>
         </div>
