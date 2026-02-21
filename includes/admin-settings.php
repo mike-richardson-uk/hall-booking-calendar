@@ -218,6 +218,19 @@ function hbc_admin_settings_page() {
                 </tr>
             </table>
 
+            <h3><?php _e('Calendar View', 'hall-booking-calendar'); ?></h3>
+            <p><?php _e('The default calendar view displays a monthly grid showing room availability at a glance. Each day cell shows colour-coded indicators for each room &mdash; coloured when booked, grey when available. Use the shortcode:', 'hall-booking-calendar'); ?></p>
+            <p><code>[hall_booking_calendar]</code></p>
+            <ul style="list-style: disc; margin-left: 20px;">
+                <li><?php _e('<strong>Navigation</strong> &mdash; Use the Previous/Next arrows to move between months.', 'hall-booking-calendar'); ?></li>
+                <li><?php _e('<strong>Room legend</strong> &mdash; A colour key below the navigation shows each room name and capacity.', 'hall-booking-calendar'); ?></li>
+                <li><?php _e('<strong>Filters</strong> &mdash; Dropdown menus let visitors filter by Group or Room.', 'hall-booking-calendar'); ?></li>
+                <li><?php _e('<strong>Booking indicators</strong> &mdash; Click a coloured indicator to view that booking&rsquo;s detail page. Days with multiple bookings also show a &ldquo;View&rdquo; link.', 'hall-booking-calendar'); ?></li>
+                <li><?php _e('<strong>Book button</strong> &mdash; Future available dates show a &ldquo;Book&rdquo; button that opens the booking form with the date pre-filled.', 'hall-booking-calendar'); ?></li>
+            </ul>
+            <p><?php _e('To restrict the calendar to a specific group, pass the group ID:', 'hall-booking-calendar'); ?></p>
+            <p><code>[hall_booking_calendar group="1"]</code></p>
+
             <h3><?php _e('Agenda View', 'hall-booking-calendar'); ?></h3>
             <p><?php printf(__('The agenda view shows a paginated list of upcoming bookings (%d per page, configurable above). Visitors can filter by group or room using the dropdown menus at the top of the view. Use the shortcode below to embed the agenda view on any page:', 'hall-booking-calendar'), intval(get_option('hbc_agenda_limit', 10))); ?></p>
             <p><code>[hall_booking_calendar view="agenda"]</code></p>

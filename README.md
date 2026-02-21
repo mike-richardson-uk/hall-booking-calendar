@@ -58,6 +58,18 @@ This will display:
 - Booking buttons for available dates
 - Clickable booking indicators linking to booking details
 
+#### Calendar View
+
+The default calendar view displays a monthly grid showing room availability at a glance:
+
+- **Monthly grid** — Each day cell shows colour-coded indicators for every room (coloured when booked, grey when available)
+- **Navigation** — Previous/Next arrows to move between months
+- **Room legend** — A colour key below the navigation shows each room name and capacity
+- **Filters** — Dropdown menus let visitors filter by Group or Room
+- **Booking indicators** — Click a coloured indicator to open that booking's detail page. Days with multiple bookings also show a "View" link
+- **Book button** — Future available dates show a "Book" button that opens the booking form with the date pre-filled
+- **Today highlighting** — The current date is visually highlighted
+
 #### Shortcode Parameters
 
 **Calendar View (default):**
@@ -99,10 +111,10 @@ Clicking any line opens the full booking detail page. Status is indicated via a 
 
 The agenda view displays upcoming bookings in a list format with:
 - **Pagination**: Configurable bookings per page (default 10) with page navigation
-- **Group Filter**: Dropdown to filter bookings by group
+- **Group & Room Filters**: Dropdowns to filter bookings by group or room
 - **Date Headers**: Bookings organized by date (e.g., "Monday, January 6, 2026")
 - **Time Display**: Clear start and end times for each booking
-- **Booking Details**: Room name, purpose, booked by, group, and status
+- **Booking Details**: Purpose shown as the primary heading, with room name below
 - **View Details Links**: Click to see full booking information on dedicated page
 - **Upcoming Only**: Shows only future bookings (automatically excludes past dates)
 
@@ -114,11 +126,12 @@ Each booking has a dedicated detail page accessible by clicking:
 - "View" link in date listings
 
 The single booking page displays:
-- Complete booking information (date, time, room, purpose, description)
-- User contact details
+- Booking purpose as the page heading
+- Date, time, and room details
+- Description (if provided)
 - Attached PDF file (if uploaded) with download link
-- Recurring series information (if part of a series)
-- Links to other bookings in the series
+- Link to view all future bookings for the same group
+- Recurring series information (if part of a series) with links to other bookings
 - Back button to return to calendar/agenda
 
 ### Room Management
