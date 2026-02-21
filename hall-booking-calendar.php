@@ -410,7 +410,7 @@ function hbc_enqueue_elementor_scripts() {
 /**
  * Register rewrite rules for pretty event URLs
  *
- * Maps /events/YYMMDD/group-slug/purpose-slug/ to custom query vars
+ * Maps /events/YYYYMMDD/group-slug/purpose-slug/ to custom query vars
  * so individual bookings can be accessed via SEO-friendly URLs.
  *
  * @since 1.9.0
@@ -418,7 +418,7 @@ function hbc_enqueue_elementor_scripts() {
  */
 function hbc_register_event_rewrite_rules() {
     add_rewrite_rule(
-        'events/([0-9]{6})/([^/]+)/([^/]+)/?$',
+        'events/([0-9]{8})/([^/]+)/([^/]+)/?$',
         'index.php?hbc_event_date=$matches[1]&hbc_event_group=$matches[2]&hbc_event_purpose=$matches[3]',
         'top'
     );
@@ -522,7 +522,7 @@ function hbc_find_calendar_page_id() {
  * Resolve an event URL slug to a booking ID
  *
  * @since 1.9.0
- * @param string $date_str    Date in YYMMDD format
+ * @param string $date_str    Date in YYYYMMDD format
  * @param string $group_slug  Slugified group name
  * @param string $purpose_slug Slugified booking purpose
  * @return int Booking ID or 0 if not found
@@ -532,13 +532,13 @@ function hbc_resolve_booking_from_slug($date_str, $group_slug, $purpose_slug) {
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
     $groups_table = $wpdb->prefix . 'hbc_groups';
 
-    // Parse YYMMDD to full date
-    if (strlen($date_str) !== 6) {
+    // Parse YYYYMMDD to full date
+    if (strlen($date_str) !== 8) {
         return 0;
     }
-    $year = intval('20' . substr($date_str, 0, 2));
-    $month = intval(substr($date_str, 2, 2));
-    $day = intval(substr($date_str, 4, 2));
+    $year = intval(substr($date_str, 0, 4));
+    $month = intval(substr($date_str, 4, 2));
+    $day = intval(substr($date_str, 6, 2));
 
     if (!checkdate($month, $day, $year)) {
         return 0;
@@ -575,7 +575,7 @@ function hbc_resolve_booking_from_slug($date_str, $group_slug, $purpose_slug) {
  * @return string The event URL
  */
 function hbc_get_event_url($booking) {
-    $date_part = date('ymd', strtotime($booking->booking_date));
+    $date_part = date('Ymd', strtotime($booking->booking_date));
     $group_name = isset($booking->group_name) ? $booking->group_name : '';
     $group_slug = sanitize_title($group_name ?: 'general');
     $purpose_slug = sanitize_title($booking->purpose ?: 'booking');
