@@ -2,6 +2,11 @@
 
 All notable changes to the Hall Booking Calendar plugin will be documented in this file.
 
+## 1.9.0
+- **Pretty event URLs**: Individual bookings now use SEO-friendly URLs under `/events/YYMMDD/group/purpose/` (e.g., `/events/260315/scouts/weekly-meeting/`) instead of query parameters
+- **WordPress rewrite rules**: Registered custom rewrite rules and query vars for the `/events/` URL prefix
+- **Slug resolver**: Booking slugs are automatically generated from date, group name, and purpose; resolved back to booking IDs for display
+
 ## 1.8.1
 - **Tabbed settings page**: Usage instructions section now uses tabs (Shortcodes, Views, Bookings, Administration) for easier navigation
 - **Changelog file**: Extracted changelog into a dedicated CHANGELOG.md

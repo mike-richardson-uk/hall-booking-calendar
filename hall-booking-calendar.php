@@ -3,7 +3,7 @@
  * Plugin Name: Hall Booking Calendar
  * Plugin URI: https://github.com/slashzero/hall-calendar
  * Description: A WordPress plugin to manage a hall calendar with 3 rooms, recurring bookings, and calendar subscriptions.
- * Version: 1.8.1
+ * Version: 1.9.0
  * Author: Hall Calendar Team
  * Author URI: https://github.com/slashzero
  * License: GPL-2.0+
@@ -18,7 +18,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('HBC_VERSION', '1.8.1');
+define('HBC_VERSION', '1.9.0');
 define('HBC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HBC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('HBC_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -204,6 +204,13 @@ function hbc_activate() {
 }
 register_activation_hook(__FILE__, 'hbc_activate');
 
+// Flush rewrite rules after activation to register event URL rules
+function hbc_flush_rewrite_rules_on_activation() {
+    hbc_register_event_rewrite_rules();
+    flush_rewrite_rules();
+}
+register_activation_hook(__FILE__, 'hbc_flush_rewrite_rules_on_activation');
+
 /**
  * Check and upgrade database schema if needed
  *
@@ -335,7 +342,7 @@ add_action('plugins_loaded', 'hbc_check_database_upgrade');
  * @return void
  */
 function hbc_deactivate() {
-    // Clean up tasks if needed
+    flush_rewrite_rules();
 }
 register_deactivation_hook(__FILE__, 'hbc_deactivate');
 
@@ -398,6 +405,196 @@ function hbc_register_elementor_widget_class($widgets_manager) {
 function hbc_enqueue_elementor_scripts() {
     // Scripts are already enqueued by the frontend-calendar.php shortcode handler
     // This function is here for future Elementor-specific script needs
+}
+
+/**
+ * Register rewrite rules for pretty event URLs
+ *
+ * Maps /events/YYMMDD/group-slug/purpose-slug/ to custom query vars
+ * so individual bookings can be accessed via SEO-friendly URLs.
+ *
+ * @since 1.9.0
+ * @return void
+ */
+function hbc_register_event_rewrite_rules() {
+    add_rewrite_rule(
+        'events/([0-9]{6})/([^/]+)/([^/]+)/?$',
+        'index.php?hbc_event_date=$matches[1]&hbc_event_group=$matches[2]&hbc_event_purpose=$matches[3]',
+        'top'
+    );
+}
+add_action('init', 'hbc_register_event_rewrite_rules');
+
+/**
+ * Register custom query vars for event URLs
+ *
+ * @since 1.9.0
+ * @param array $vars Existing query vars
+ * @return array Modified query vars
+ */
+function hbc_register_event_query_vars($vars) {
+    $vars[] = 'hbc_event_date';
+    $vars[] = 'hbc_event_group';
+    $vars[] = 'hbc_event_purpose';
+    return $vars;
+}
+add_filter('query_vars', 'hbc_register_event_query_vars');
+
+/**
+ * Handle event URLs by resolving slug to booking and loading the calendar page
+ *
+ * @since 1.9.0
+ * @param WP_Query $query The main query
+ * @return void
+ */
+function hbc_handle_event_query($query) {
+    if (!$query->is_main_query() || is_admin()) {
+        return;
+    }
+
+    $event_date = $query->get('hbc_event_date');
+    if (empty($event_date)) {
+        return;
+    }
+
+    $group_slug = $query->get('hbc_event_group');
+    $purpose_slug = $query->get('hbc_event_purpose');
+
+    $booking_id = hbc_resolve_booking_from_slug($event_date, $group_slug, $purpose_slug);
+
+    if ($booking_id) {
+        $_GET['booking_id'] = $booking_id;
+
+        // Find the page that contains the calendar shortcode
+        $page_id = hbc_find_calendar_page_id();
+        if ($page_id) {
+            $query->set('page_id', $page_id);
+            $query->is_page = true;
+            $query->is_singular = true;
+            $query->is_home = false;
+            $query->is_archive = false;
+        }
+    } else {
+        $query->set_404();
+    }
+}
+add_action('pre_get_posts', 'hbc_handle_event_query');
+
+/**
+ * Find the page ID that contains the calendar or booking form shortcode
+ *
+ * Checks for [hall_booking_calendar] first, then falls back to the booking
+ * form page stored in options.
+ *
+ * @since 1.9.0
+ * @return int|false Page ID or false if not found
+ */
+function hbc_find_calendar_page_id() {
+    // Try cached value first
+    $cached = get_transient('hbc_calendar_page_id');
+    if ($cached) {
+        return intval($cached);
+    }
+
+    global $wpdb;
+
+    // Look for a page with the calendar shortcode
+    $page_id = $wpdb->get_var(
+        "SELECT ID FROM {$wpdb->posts}
+         WHERE post_content LIKE '%[hall_booking_calendar%'
+         AND post_status = 'publish' AND post_type = 'page'
+         LIMIT 1"
+    );
+
+    if (!$page_id) {
+        // Fall back to the booking form page
+        $page_id = get_option('hbc_booking_page_id', 0);
+    }
+
+    if ($page_id) {
+        set_transient('hbc_calendar_page_id', $page_id, HOUR_IN_SECONDS);
+    }
+
+    return $page_id ? intval($page_id) : false;
+}
+
+/**
+ * Resolve an event URL slug to a booking ID
+ *
+ * @since 1.9.0
+ * @param string $date_str    Date in YYMMDD format
+ * @param string $group_slug  Slugified group name
+ * @param string $purpose_slug Slugified booking purpose
+ * @return int Booking ID or 0 if not found
+ */
+function hbc_resolve_booking_from_slug($date_str, $group_slug, $purpose_slug) {
+    global $wpdb;
+    $bookings_table = $wpdb->prefix . 'hbc_bookings';
+    $groups_table = $wpdb->prefix . 'hbc_groups';
+
+    // Parse YYMMDD to full date
+    if (strlen($date_str) !== 6) {
+        return 0;
+    }
+    $year = intval('20' . substr($date_str, 0, 2));
+    $month = intval(substr($date_str, 2, 2));
+    $day = intval(substr($date_str, 4, 2));
+
+    if (!checkdate($month, $day, $year)) {
+        return 0;
+    }
+
+    $full_date = sprintf('%04d-%02d-%02d', $year, $month, $day);
+
+    $bookings = $wpdb->get_results($wpdb->prepare(
+        "SELECT b.id, b.purpose, g.name as group_name
+         FROM $bookings_table b
+         LEFT JOIN $groups_table g ON b.group_id = g.id
+         WHERE b.booking_date = %s AND b.status != 'cancelled'
+         ORDER BY b.start_time ASC",
+        $full_date
+    ));
+
+    foreach ($bookings as $booking) {
+        $b_group_slug = sanitize_title($booking->group_name ?: 'general');
+        $b_purpose_slug = sanitize_title($booking->purpose ?: 'booking');
+
+        if ($b_group_slug === $group_slug && $b_purpose_slug === $purpose_slug) {
+            return intval($booking->id);
+        }
+    }
+
+    return 0;
+}
+
+/**
+ * Generate a pretty event URL for a booking
+ *
+ * @since 1.9.0
+ * @param object $booking Booking object with booking_date, group_name, and purpose
+ * @return string The event URL
+ */
+function hbc_get_event_url($booking) {
+    $date_part = date('ymd', strtotime($booking->booking_date));
+    $group_name = isset($booking->group_name) ? $booking->group_name : '';
+    $group_slug = sanitize_title($group_name ?: 'general');
+    $purpose_slug = sanitize_title($booking->purpose ?: 'booking');
+
+    return home_url("events/{$date_part}/{$group_slug}/{$purpose_slug}/");
+}
+
+/**
+ * Get the URL of the page containing the calendar shortcode
+ *
+ * @since 1.9.0
+ * @return string Calendar page URL or home URL as fallback
+ */
+function hbc_get_calendar_page_url() {
+    $page_id = hbc_find_calendar_page_id();
+    if ($page_id) {
+        return get_permalink($page_id);
+    }
+    return home_url('/');
 }
 
 // Include admin functions
