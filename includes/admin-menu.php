@@ -187,10 +187,12 @@ function hbc_admin_dashboard_page() {
         <div class="hbc-recent-bookings">
             <h2><?php _e('Recent Bookings', 'hall-booking-calendar'); ?></h2>
             <?php
+            $groups_table = $wpdb->prefix . 'hbc_groups';
             $recent_bookings = $wpdb->get_results(
-                "SELECT b.*, r.name as room_name
+                "SELECT b.*, r.name as room_name, g.name as group_name
                 FROM $bookings_table b
                 LEFT JOIN $rooms_table r ON b.room_id = r.id
+                LEFT JOIN $groups_table g ON b.group_id = g.id
                 ORDER BY b.created_at DESC
                 LIMIT 10"
             );
@@ -225,11 +227,13 @@ function hbc_admin_dashboard_page() {
                             <?php if ($has_pending) : ?>
                                 <th style="width: 30px;"><input type="checkbox" id="hbc-dashboard-select-all" title="<?php esc_attr_e('Select all', 'hall-booking-calendar'); ?>"></th>
                             <?php endif; ?>
+                            <th><?php _e('Purpose', 'hall-booking-calendar'); ?></th>
                             <th><?php _e('Room', 'hall-booking-calendar'); ?></th>
                             <th><?php _e('User', 'hall-booking-calendar'); ?></th>
                             <th><?php _e('Date', 'hall-booking-calendar'); ?></th>
                             <th><?php _e('Time', 'hall-booking-calendar'); ?></th>
                             <th><?php _e('Status', 'hall-booking-calendar'); ?></th>
+                            <th><?php _e('Actions', 'hall-booking-calendar'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -242,11 +246,18 @@ function hbc_admin_dashboard_page() {
                                     <?php endif; ?>
                                 </td>
                             <?php endif; ?>
+                            <td>
+                                <strong><?php echo $booking->purpose ? esc_html(wp_trim_words($booking->purpose, 8)) : '<em>' . __('None', 'hall-booking-calendar') . '</em>'; ?></strong><br>
+                                <small><?php echo $booking->group_name ? esc_html($booking->group_name) : '<em>' . __('No group', 'hall-booking-calendar') . '</em>'; ?></small>
+                            </td>
                             <td><?php echo esc_html($booking->room_name); ?></td>
                             <td><?php echo esc_html($booking->user_name); ?></td>
-                            <td><?php echo esc_html(date('F j, Y', strtotime($booking->booking_date))); ?></td>
+                            <td><?php echo esc_html(date('M j, Y', strtotime($booking->booking_date))); ?></td>
                             <td><?php echo esc_html(date('g:i A', strtotime($booking->start_time)) . ' - ' . date('g:i A', strtotime($booking->end_time))); ?></td>
                             <td><span class="hbc-status hbc-status-<?php echo esc_attr($booking->status); ?>"><?php echo esc_html(ucfirst($booking->status)); ?></span></td>
+                            <td>
+                                <a href="<?php echo admin_url('admin.php?page=hall-booking-bookings&action=view&booking_id=' . $booking->id); ?>" class="button button-small"><?php _e('View', 'hall-booking-calendar'); ?></a>
+                            </td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
