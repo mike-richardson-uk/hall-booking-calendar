@@ -5,6 +5,7 @@ All notable changes to the Hall Booking Calendar plugin will be documented in th
 ## 1.11.0
 - **New event URL format**: Changed pretty event URLs from `/events/YYYY-MM-DD/group/purpose/` to `/events/group/YYYY-MM-DD/purpose/` (e.g., `/events/scouts/2026-03-15/weekly-meeting/`), putting the group first for better readability
 - **Group agenda pages**: New `/calendar/group-slug/` URLs show an agenda view of upcoming events for a specific group (e.g., `/calendar/scouts/`). Booking detail pages link to the group agenda via "View all upcoming bookings"
+- **Dashboard booking details**: Dashboard recent bookings table now shows Purpose/Group column and a View button linking to the full booking detail/edit page, so admins can review pending bookings before approving
 - **Fix pretty event URLs**: Prevent WordPress canonical redirect from redirecting custom URLs to the home page
 - **Fallback for missing calendar page**: Event URL handler now properly returns a 404 if no calendar page is found
 
