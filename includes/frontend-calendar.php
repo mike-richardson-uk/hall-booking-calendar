@@ -40,6 +40,11 @@ function hbc_calendar_shortcode($atts) {
         'items' => ''
     ), $atts);
 
+    // Allow URL-driven view override (used by /calendar/group-slug/ route)
+    if (isset($_GET['view']) && in_array($_GET['view'], array('agenda', 'calendar', 'compact'), true)) {
+        $atts['view'] = sanitize_text_field($_GET['view']);
+    }
+
     ob_start();
 
     // Check if viewing single booking detail page
@@ -1001,11 +1006,7 @@ function hbc_display_single_booking($booking_id) {
             <div class="hbc-single-section hbc-group-bookings">
                 <h3><?php _e('View All Future Bookings', 'hall-booking-calendar'); ?></h3>
                 <p>
-                    <?php
-                    $group_bookings_url = get_query_var('hbc_event_date')
-                        ? add_query_arg(array('view' => 'agenda', 'group_filter' => $booking->group_id), hbc_get_calendar_page_url())
-                        : add_query_arg(array('view' => 'agenda', 'group_filter' => $booking->group_id), remove_query_arg('booking_id'));
-                    ?>
+                    <?php $group_bookings_url = home_url('calendar/' . sanitize_title($booking->group_name) . '/'); ?>
                     <a href="<?php echo esc_url($group_bookings_url); ?>" class="hbc-view-group-bookings-btn">
                         <?php printf(__('View all upcoming bookings for %s', 'hall-booking-calendar'), esc_html($booking->group_name)); ?>
                     </a>

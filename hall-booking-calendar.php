@@ -3,7 +3,7 @@
  * Plugin Name: Hall Booking Calendar
  * Plugin URI: https://github.com/slashzero/hall-calendar
  * Description: A WordPress plugin to manage a hall calendar with 3 rooms, recurring bookings, and calendar subscriptions.
- * Version: 1.10.1
+ * Version: 1.11.0
  * Author: Hall Calendar Team
  * Author URI: https://github.com/slashzero
  * License: GPL-2.0+
@@ -18,7 +18,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('HBC_VERSION', '1.10.1');
+define('HBC_VERSION', '1.11.0');
 define('HBC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HBC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('HBC_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -507,16 +507,25 @@ function hbc_enqueue_elementor_scripts() {
 /**
  * Register rewrite rules for pretty event URLs
  *
- * Maps /events/YYYY-MM-DD/group-slug/purpose-slug/ to custom query vars
+ * Maps /events/group-slug/YYYY-MM-DD/purpose-slug/ to custom query vars
  * so individual bookings can be accessed via SEO-friendly URLs.
+ * Also maps /calendar/group-slug/ to a group agenda view.
  *
  * @since 1.10.0
  * @return void
  */
 function hbc_register_event_rewrite_rules() {
+    // Single event: /events/group-slug/YYYY-MM-DD/purpose-slug/
     add_rewrite_rule(
-        'events/([0-9]{4}-[0-9]{2}-[0-9]{2})/([^/]+)/([^/]+)/?$',
-        'index.php?hbc_event_date=$matches[1]&hbc_event_group=$matches[2]&hbc_event_purpose=$matches[3]',
+        'events/([^/]+)/([0-9]{4}-[0-9]{2}-[0-9]{2})/([^/]+)/?$',
+        'index.php?hbc_event_group=$matches[1]&hbc_event_date=$matches[2]&hbc_event_purpose=$matches[3]',
+        'top'
+    );
+
+    // Group agenda: /calendar/group-slug/
+    add_rewrite_rule(
+        'calendar/([^/]+)/?$',
+        'index.php?hbc_group_agenda=$matches[1]',
         'top'
     );
 }
@@ -533,6 +542,7 @@ function hbc_register_event_query_vars($vars) {
     $vars[] = 'hbc_event_date';
     $vars[] = 'hbc_event_group';
     $vars[] = 'hbc_event_purpose';
+    $vars[] = 'hbc_group_agenda';
     return $vars;
 }
 add_filter('query_vars', 'hbc_register_event_query_vars');
@@ -580,18 +590,76 @@ function hbc_handle_event_query($query) {
 add_action('pre_get_posts', 'hbc_handle_event_query');
 
 /**
- * Prevent WordPress canonical redirect from redirecting event URLs
+ * Handle group agenda URLs (/calendar/group-slug/)
+ *
+ * Resolves the group slug to a group ID, then loads the calendar page
+ * with the agenda view filtered to that group.
+ *
+ * @since 1.11.0
+ * @param WP_Query $query The main query
+ * @return void
+ */
+function hbc_handle_group_agenda_query($query) {
+    if (!$query->is_main_query() || is_admin()) {
+        return;
+    }
+
+    $group_slug = $query->get('hbc_group_agenda');
+    if (empty($group_slug)) {
+        return;
+    }
+
+    global $wpdb;
+    $groups_table = $wpdb->prefix . 'hbc_groups';
+
+    // Find group by matching sanitize_title(name) against the slug
+    $groups = $wpdb->get_results("SELECT id, name FROM $groups_table WHERE status = 'active'");
+    $group_id = 0;
+    $group_name = '';
+    foreach ($groups as $group) {
+        if (sanitize_title($group->name) === $group_slug) {
+            $group_id = intval($group->id);
+            $group_name = $group->name;
+            break;
+        }
+    }
+
+    if (!$group_id) {
+        $query->set_404();
+        return;
+    }
+
+    // Set query params so the shortcode renders the agenda for this group
+    $_GET['view'] = 'agenda';
+    $_GET['group_filter'] = $group_id;
+    $_GET['hbc_group_name'] = $group_name;
+
+    $page_id = hbc_find_calendar_page_id();
+    if ($page_id) {
+        $query->set('page_id', $page_id);
+        $query->is_page = true;
+        $query->is_singular = true;
+        $query->is_home = false;
+        $query->is_archive = false;
+    } else {
+        $query->set_404();
+    }
+}
+add_action('pre_get_posts', 'hbc_handle_group_agenda_query');
+
+/**
+ * Prevent WordPress canonical redirect from redirecting custom URLs
  *
  * When we serve a page (e.g. the calendar page) at a custom URL like /events/...
- * WordPress detects the URL doesn't match the page's real permalink and tries to
- * redirect. This filter disables that redirect for our custom event URLs.
+ * or /calendar/group-slug/, WordPress detects the URL doesn't match the page's
+ * real permalink and tries to redirect. This filter disables that redirect.
  *
  * @since 1.10.1
  * @param string $redirect_url The URL WordPress wants to redirect to
  * @return string|false The redirect URL or false to cancel
  */
 function hbc_disable_canonical_redirect_for_events($redirect_url) {
-    if (get_query_var('hbc_event_date')) {
+    if (get_query_var('hbc_event_date') || get_query_var('hbc_group_agenda')) {
         return false;
     }
     return $redirect_url;
@@ -699,7 +767,7 @@ function hbc_get_event_url($booking) {
     $group_slug = sanitize_title($group_name ?: 'general');
     $purpose_slug = sanitize_title($booking->purpose ?: 'booking');
 
-    return home_url("events/{$date_part}/{$group_slug}/{$purpose_slug}/");
+    return home_url("events/{$group_slug}/{$date_part}/{$purpose_slug}/");
 }
 
 /**
