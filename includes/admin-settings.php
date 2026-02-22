@@ -131,8 +131,16 @@ function hbc_admin_settings_page() {
                         <label for="hbc_terms_conditions"><?php _e('Terms and Conditions', 'hall-booking-calendar'); ?></label>
                     </th>
                     <td>
-                        <textarea id="hbc_terms_conditions" name="hbc_terms_conditions" class="large-text" rows="8"><?php echo esc_textarea($terms_conditions); ?></textarea>
-                        <p class="description"><?php _e('HTML is allowed (links, bold, lists, etc.). This text is displayed above a required checkbox on the booking form. Leave blank to disable the terms and conditions requirement.', 'hall-booking-calendar'); ?></p>
+                        <?php
+                        wp_editor($terms_conditions, 'hbc_terms_conditions', array(
+                            'textarea_name' => 'hbc_terms_conditions',
+                            'textarea_rows' => 10,
+                            'media_buttons' => false,
+                            'teeny'         => false,
+                            'quicktags'     => true,
+                        ));
+                        ?>
+                        <p class="description"><?php _e('This text is displayed above a required checkbox on the booking form. Leave blank to disable the terms and conditions requirement.', 'hall-booking-calendar'); ?></p>
                     </td>
                 </tr>
 
