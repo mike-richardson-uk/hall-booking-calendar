@@ -63,6 +63,15 @@ function hbc_add_admin_menu() {
 
     add_submenu_page(
         'hall-booking-calendar',
+        __('Event Categories', 'hall-booking-calendar'),
+        __('Categories', 'hall-booking-calendar'),
+        'manage_options',
+        'hall-booking-categories',
+        'hbc_admin_categories_page'
+    );
+
+    add_submenu_page(
+        'hall-booking-calendar',
         __('Bookings', 'hall-booking-calendar'),
         __('Bookings', 'hall-booking-calendar'),
         'manage_options',
@@ -86,6 +95,15 @@ function hbc_add_admin_menu() {
         'manage_options',
         'hall-booking-bulk-import',
         'hbc_admin_bulk_import_page'
+    );
+
+    add_submenu_page(
+        'hall-booking-calendar',
+        __('Export', 'hall-booking-calendar'),
+        __('Export', 'hall-booking-calendar'),
+        'manage_options',
+        'hall-booking-export',
+        'hbc_admin_export_page'
     );
 
     add_submenu_page(
@@ -120,10 +138,12 @@ function hbc_admin_dashboard_page() {
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
     $groups_table = $wpdb->prefix . 'hbc_groups';
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
+    $categories_table = $wpdb->prefix . 'hbc_categories';
 
     // Fetch dashboard statistics
     $total_rooms = $wpdb->get_var("SELECT COUNT(*) FROM $rooms_table WHERE status = 'active'");
     $total_groups = $wpdb->get_var("SELECT COUNT(*) FROM $groups_table WHERE status = 'active'");
+    $total_categories = $wpdb->get_var("SELECT COUNT(*) FROM $categories_table WHERE status = 'active'");
     $total_bookings = $wpdb->get_var("SELECT COUNT(*) FROM $bookings_table");
     $pending_bookings = $wpdb->get_var("SELECT COUNT(*) FROM $bookings_table WHERE status = 'pending'");
     $today_bookings = $wpdb->get_var($wpdb->prepare(
@@ -143,6 +163,10 @@ function hbc_admin_dashboard_page() {
             <div class="hbc-stat-box">
                 <h3><?php echo esc_html($total_groups); ?></h3>
                 <p><?php _e('Active Groups', 'hall-booking-calendar'); ?></p>
+            </div>
+            <div class="hbc-stat-box">
+                <h3><?php echo esc_html($total_categories); ?></h3>
+                <p><?php _e('Event Categories', 'hall-booking-calendar'); ?></p>
             </div>
             <div class="hbc-stat-box">
                 <h3><?php echo esc_html($total_bookings); ?></h3>

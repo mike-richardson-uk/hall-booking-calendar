@@ -43,6 +43,7 @@ function hbc_handle_booking_operations() {
         $booking_id = intval($_POST['booking_id']);
         $status = sanitize_text_field($_POST['booking_status']);
         $group_id = isset($_POST['booking_group_id']) && $_POST['booking_group_id'] !== '' ? intval($_POST['booking_group_id']) : null;
+        $category_id = isset($_POST['booking_category_id']) && $_POST['booking_category_id'] !== '' ? intval($_POST['booking_category_id']) : null;
 
         // Update rooms via junction table if room checkboxes were submitted
         if (isset($_POST['booking_room_ids']) && is_array($_POST['booking_room_ids'])) {
@@ -85,6 +86,7 @@ function hbc_handle_booking_operations() {
         $update_data = array(
             'status' => $status,
             'group_id' => $group_id,
+            'category_id' => $category_id,
             'purpose' => $purpose,
             'description' => $description,
             'user_name' => $user_name,
@@ -157,10 +159,13 @@ function hbc_display_bookings_list() {
     $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
     $group_filter = isset($_GET['group']) ? intval($_GET['group']) : 0;
 
-    $sql = "SELECT b.*, r.name as room_name, g.name as group_name
+    $categories_table = $wpdb->prefix . 'hbc_categories';
+
+    $sql = "SELECT b.*, r.name as room_name, g.name as group_name, c.name as category_name
             FROM $bookings_table b
             LEFT JOIN $rooms_table r ON b.room_id = r.id
-            LEFT JOIN $groups_table g ON b.group_id = g.id";
+            LEFT JOIN $groups_table g ON b.group_id = g.id
+            LEFT JOIN $categories_table c ON b.category_id = c.id";
 
     $where_clauses = array();
     if ($status_filter) {
@@ -250,6 +255,7 @@ function hbc_display_bookings_list() {
                 <?php endif; ?>
                 <th><?php _e('ID', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Purpose', 'hall-booking-calendar'); ?></th>
+                <th><?php _e('Category', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Room', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('User', 'hall-booking-calendar'); ?></th>
                 <th><?php _e('Date', 'hall-booking-calendar'); ?></th>
@@ -274,6 +280,7 @@ function hbc_display_bookings_list() {
                     <td><strong><?php echo $booking->purpose ? esc_html(wp_trim_words($booking->purpose, 10)) : '<em>' . __('None', 'hall-booking-calendar') . '</em>'; ?></strong><br>
                         <small><?php echo $booking->group_name ? esc_html($booking->group_name) : '<em>' . __('No group', 'hall-booking-calendar') . '</em>'; ?></small>
                     </td>
+                    <td><?php echo $booking->category_name ? esc_html($booking->category_name) : '<em>' . __('None', 'hall-booking-calendar') . '</em>'; ?></td>
                     <td><?php
                         $rooms_display = isset($all_booking_rooms[$booking->id]) ? implode(', ', $all_booking_rooms[$booking->id]) : esc_html($booking->room_name);
                         echo esc_html($rooms_display);
@@ -303,7 +310,7 @@ function hbc_display_bookings_list() {
                 <?php endforeach; ?>
             <?php else : ?>
                 <tr>
-                    <td colspan="<?php echo $has_pending ? '10' : '9'; ?>"><?php _e('No bookings found.', 'hall-booking-calendar'); ?></td>
+                    <td colspan="<?php echo $has_pending ? '11' : '10'; ?>"><?php _e('No bookings found.', 'hall-booking-calendar'); ?></td>
                 </tr>
             <?php endif; ?>
         </tbody>
@@ -352,11 +359,14 @@ function hbc_display_booking_details($booking_id) {
     $groups_table = $wpdb->prefix . 'hbc_groups';
     $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
 
+    $categories_table = $wpdb->prefix . 'hbc_categories';
+
     $booking = $wpdb->get_row($wpdb->prepare(
-        "SELECT b.*, r.name as room_name, r.capacity, g.name as group_name
+        "SELECT b.*, r.name as room_name, r.capacity, g.name as group_name, c.name as category_name
         FROM $bookings_table b
         LEFT JOIN $rooms_table r ON b.room_id = r.id
         LEFT JOIN $groups_table g ON b.group_id = g.id
+        LEFT JOIN $categories_table c ON b.category_id = c.id
         WHERE b.id = %d",
         $booking_id
     ));
@@ -378,6 +388,7 @@ function hbc_display_booking_details($booking_id) {
     // Get all active rooms and groups for the dropdowns
     $all_rooms = $wpdb->get_results("SELECT * FROM $rooms_table WHERE status = 'active' ORDER BY id ASC");
     $all_groups = $wpdb->get_results("SELECT * FROM $groups_table WHERE status = 'active' ORDER BY name ASC");
+    $all_categories = $wpdb->get_results("SELECT * FROM $categories_table WHERE status = 'active' ORDER BY name ASC");
 
     ?>
     <div class="hbc-booking-details">
@@ -414,6 +425,17 @@ function hbc_display_booking_details($booking_id) {
                             <option value=""><?php _e('-- No Group --', 'hall-booking-calendar'); ?></option>
                             <?php foreach ($all_groups as $group) : ?>
                                 <option value="<?php echo esc_attr($group->id); ?>" <?php selected($booking->group_id, $group->id); ?>><?php echo esc_html($group->name); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="booking_category_id"><?php _e('Category:', 'hall-booking-calendar'); ?></label></th>
+                    <td>
+                        <select name="booking_category_id" id="booking_category_id">
+                            <option value=""><?php _e('-- No Category --', 'hall-booking-calendar'); ?></option>
+                            <?php foreach ($all_categories as $cat) : ?>
+                                <option value="<?php echo esc_attr($cat->id); ?>" <?php selected($booking->category_id, $cat->id); ?>><?php echo esc_html($cat->name); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </td>
