@@ -3,7 +3,7 @@
  * Plugin Name: Hall Booking Calendar
  * Plugin URI: https://github.com/slashzero/hall-calendar
  * Description: A WordPress plugin to manage a hall calendar with 3 rooms, recurring bookings, and calendar subscriptions.
- * Version: 1.10.0
+ * Version: 1.10.1
  * Author: Hall Calendar Team
  * Author URI: https://github.com/slashzero
  * License: GPL-2.0+
@@ -18,7 +18,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('HBC_VERSION', '1.10.0');
+define('HBC_VERSION', '1.10.1');
 define('HBC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HBC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('HBC_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -570,12 +570,33 @@ function hbc_handle_event_query($query) {
             $query->is_singular = true;
             $query->is_home = false;
             $query->is_archive = false;
+        } else {
+            $query->set_404();
         }
     } else {
         $query->set_404();
     }
 }
 add_action('pre_get_posts', 'hbc_handle_event_query');
+
+/**
+ * Prevent WordPress canonical redirect from redirecting event URLs
+ *
+ * When we serve a page (e.g. the calendar page) at a custom URL like /events/...
+ * WordPress detects the URL doesn't match the page's real permalink and tries to
+ * redirect. This filter disables that redirect for our custom event URLs.
+ *
+ * @since 1.10.1
+ * @param string $redirect_url The URL WordPress wants to redirect to
+ * @return string|false The redirect URL or false to cancel
+ */
+function hbc_disable_canonical_redirect_for_events($redirect_url) {
+    if (get_query_var('hbc_event_date')) {
+        return false;
+    }
+    return $redirect_url;
+}
+add_filter('redirect_canonical', 'hbc_disable_canonical_redirect_for_events');
 
 /**
  * Find the page ID that contains the calendar or booking form shortcode

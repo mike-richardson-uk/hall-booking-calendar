@@ -2,6 +2,10 @@
 
 All notable changes to the Hall Booking Calendar plugin will be documented in this file.
 
+## 1.10.1
+- **Fix pretty event URLs**: Prevent WordPress canonical redirect from redirecting `/events/...` URLs to the home page. The custom rewrite rules now correctly serve event detail pages at their SEO-friendly URLs
+- **Fallback for missing calendar page**: Event URL handler now properly returns a 404 if no calendar page is found, instead of silently falling through to the home page
+
 ## 1.10.0
 - **Event categories**: New `hbc_categories` table with admin CRUD interface (Hall Booking > Categories). Categories like Rehearsal, Social Event, Meeting, etc. are required when booking
 - **Category on booking form**: Event Category is a required dropdown field; validated on both client and server side
