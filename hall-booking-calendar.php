@@ -3,7 +3,7 @@
  * Plugin Name: Hall Booking Calendar
  * Plugin URI: https://github.com/slashzero/hall-calendar
  * Description: A WordPress plugin to manage a hall calendar with 3 rooms, recurring bookings, and calendar subscriptions.
- * Version: 1.9.1
+ * Version: 1.10.0
  * Author: Hall Calendar Team
  * Author URI: https://github.com/slashzero
  * License: GPL-2.0+
@@ -18,7 +18,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('HBC_VERSION', '1.9.1');
+define('HBC_VERSION', '1.10.0');
 define('HBC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HBC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('HBC_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -67,6 +67,7 @@ function hbc_activate() {
         id mediumint(9) NOT NULL AUTO_INCREMENT,
         room_id mediumint(9) NOT NULL,
         group_id mediumint(9),
+        category_id mediumint(9),
         user_id bigint(20) UNSIGNED,
         user_name varchar(100) NOT NULL,
         user_email varchar(100) NOT NULL,
@@ -103,6 +104,17 @@ function hbc_activate() {
         KEY room_id (room_id)
     ) $charset_collate;";
 
+    // Create event categories table
+    $categories_table = $wpdb->prefix . 'hbc_categories';
+    $sql_categories = "CREATE TABLE IF NOT EXISTS $categories_table (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        name varchar(100) NOT NULL,
+        description text,
+        status enum('active','inactive') DEFAULT 'active',
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY  (id)
+    ) $charset_collate;";
+
     // Create calendar subscriptions table
     $subscriptions_table = $wpdb->prefix . 'hbc_subscriptions';
     $sql_subscriptions = "CREATE TABLE IF NOT EXISTS $subscriptions_table (
@@ -124,6 +136,7 @@ function hbc_activate() {
     dbDelta($sql_groups);
     dbDelta($sql_bookings);
     dbDelta($sql_booking_rooms);
+    dbDelta($sql_categories);
     dbDelta($sql_subscriptions);
 
     // Insert default 3 rooms if none exist
@@ -165,6 +178,36 @@ function hbc_activate() {
         $wpdb->insert($groups_table, array(
             'name' => 'Client Meetings',
             'description' => 'External client meetings and presentations',
+            'status' => 'active'
+        ));
+    }
+
+    // Insert default categories if none exist
+    $existing_categories = $wpdb->get_var("SELECT COUNT(*) FROM $categories_table");
+    if ($existing_categories == 0) {
+        $wpdb->insert($categories_table, array(
+            'name' => 'Rehearsal',
+            'description' => 'Music, drama, or dance rehearsals',
+            'status' => 'active'
+        ));
+        $wpdb->insert($categories_table, array(
+            'name' => 'Social Event',
+            'description' => 'Parties, gatherings, and social occasions',
+            'status' => 'active'
+        ));
+        $wpdb->insert($categories_table, array(
+            'name' => 'Meeting',
+            'description' => 'Business or committee meetings',
+            'status' => 'active'
+        ));
+        $wpdb->insert($categories_table, array(
+            'name' => 'Class / Workshop',
+            'description' => 'Educational classes and workshops',
+            'status' => 'active'
+        ));
+        $wpdb->insert($categories_table, array(
+            'name' => 'Private Hire',
+            'description' => 'Private bookings and functions',
             'status' => 'active'
         ));
     }
@@ -211,6 +254,17 @@ function hbc_flush_rewrite_rules_on_activation() {
 }
 register_activation_hook(__FILE__, 'hbc_flush_rewrite_rules_on_activation');
 
+// Flush rewrite rules when plugin version changes (e.g. after update)
+function hbc_maybe_flush_rewrite_rules() {
+    $stored_version = get_option('hbc_version', '0');
+    if (version_compare($stored_version, HBC_VERSION, '<')) {
+        hbc_register_event_rewrite_rules();
+        flush_rewrite_rules();
+        update_option('hbc_version', HBC_VERSION);
+    }
+}
+add_action('init', 'hbc_maybe_flush_rewrite_rules');
+
 /**
  * Check and upgrade database schema if needed
  *
@@ -245,6 +299,14 @@ function hbc_check_database_upgrade() {
     if (!in_array('file_path', $columns)) {
         $wpdb->query("ALTER TABLE $bookings_table ADD COLUMN file_path varchar(255) AFTER description");
     }
+
+    // Check if category_id column exists
+    if (!in_array('category_id', $columns)) {
+        $wpdb->query("ALTER TABLE $bookings_table ADD COLUMN category_id mediumint(9) AFTER group_id");
+    }
+
+    // Categories table upgrade (v1.10.0)
+    hbc_upgrade_categories_table();
 
     // Multi-room upgrade: Create booking_rooms junction table and migrate data (v1.6.0)
     hbc_upgrade_multi_room_support();
@@ -330,6 +392,41 @@ function hbc_upgrade_password_security() {
     // Set flag to prevent running this upgrade again
     update_option('hbc_password_hashed', true);
 }
+
+/**
+ * Upgrade to add categories table for existing installations
+ *
+ * @since 1.10.0
+ * @return void
+ */
+function hbc_upgrade_categories_table() {
+    global $wpdb;
+
+    $categories_table = $wpdb->prefix . 'hbc_categories';
+    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$categories_table'") === $categories_table;
+
+    if (!$table_exists) {
+        $charset_collate = $wpdb->get_charset_collate();
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        $sql = "CREATE TABLE IF NOT EXISTS $categories_table (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            name varchar(100) NOT NULL,
+            description text,
+            status enum('active','inactive') DEFAULT 'active',
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id)
+        ) $charset_collate;";
+        dbDelta($sql);
+
+        // Insert default categories
+        $wpdb->insert($categories_table, array('name' => 'Rehearsal', 'description' => 'Music, drama, or dance rehearsals', 'status' => 'active'));
+        $wpdb->insert($categories_table, array('name' => 'Social Event', 'description' => 'Parties, gatherings, and social occasions', 'status' => 'active'));
+        $wpdb->insert($categories_table, array('name' => 'Meeting', 'description' => 'Business or committee meetings', 'status' => 'active'));
+        $wpdb->insert($categories_table, array('name' => 'Class / Workshop', 'description' => 'Educational classes and workshops', 'status' => 'active'));
+        $wpdb->insert($categories_table, array('name' => 'Private Hire', 'description' => 'Private bookings and functions', 'status' => 'active'));
+    }
+}
+
 add_action('plugins_loaded', 'hbc_check_database_upgrade');
 
 /**
@@ -413,7 +510,7 @@ function hbc_enqueue_elementor_scripts() {
  * Maps /events/YYYY-MM-DD/group-slug/purpose-slug/ to custom query vars
  * so individual bookings can be accessed via SEO-friendly URLs.
  *
- * @since 1.9.1
+ * @since 1.10.0
  * @return void
  */
 function hbc_register_event_rewrite_rules() {
@@ -428,7 +525,7 @@ add_action('init', 'hbc_register_event_rewrite_rules');
 /**
  * Register custom query vars for event URLs
  *
- * @since 1.9.1
+ * @since 1.10.0
  * @param array $vars Existing query vars
  * @return array Modified query vars
  */
@@ -443,7 +540,7 @@ add_filter('query_vars', 'hbc_register_event_query_vars');
 /**
  * Handle event URLs by resolving slug to booking and loading the calendar page
  *
- * @since 1.9.1
+ * @since 1.10.0
  * @param WP_Query $query The main query
  * @return void
  */
@@ -486,7 +583,7 @@ add_action('pre_get_posts', 'hbc_handle_event_query');
  * Checks for [hall_booking_calendar] first, then falls back to the booking
  * form page stored in options.
  *
- * @since 1.9.1
+ * @since 1.10.0
  * @return int|false Page ID or false if not found
  */
 function hbc_find_calendar_page_id() {
@@ -521,7 +618,7 @@ function hbc_find_calendar_page_id() {
 /**
  * Resolve an event URL slug to a booking ID
  *
- * @since 1.9.1
+ * @since 1.10.0
  * @param string $date_str    Date in YYYY-MM-DD format
  * @param string $group_slug  Slugified group name
  * @param string $purpose_slug Slugified booking purpose
@@ -571,7 +668,7 @@ function hbc_resolve_booking_from_slug($date_str, $group_slug, $purpose_slug) {
 /**
  * Generate a pretty event URL for a booking
  *
- * @since 1.9.1
+ * @since 1.10.0
  * @param object $booking Booking object with booking_date, group_name, and purpose
  * @return string The event URL
  */
@@ -587,7 +684,7 @@ function hbc_get_event_url($booking) {
 /**
  * Get the URL of the page containing the calendar shortcode
  *
- * @since 1.9.1
+ * @since 1.10.0
  * @return string Calendar page URL or home URL as fallback
  */
 function hbc_get_calendar_page_url() {
@@ -604,7 +701,9 @@ require_once HBC_PLUGIN_DIR . 'includes/admin-settings.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-rooms.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-groups.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-bookings.php';
+require_once HBC_PLUGIN_DIR . 'includes/admin-categories.php';
 require_once HBC_PLUGIN_DIR . 'includes/admin-bulk-import.php';
+require_once HBC_PLUGIN_DIR . 'includes/admin-export.php';
 require_once HBC_PLUGIN_DIR . 'includes/recurring-bookings.php';
 require_once HBC_PLUGIN_DIR . 'includes/calendar-subscription.php';
 require_once HBC_PLUGIN_DIR . 'includes/frontend-calendar.php';

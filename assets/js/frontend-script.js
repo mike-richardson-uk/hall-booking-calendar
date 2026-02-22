@@ -115,6 +115,20 @@
                 return;
             }
 
+            // Validate category is selected
+            var categorySelect = $('#hbc_category_id');
+            if (categorySelect.length > 0 && !categorySelect.val()) {
+                showMessage('error', 'Please select an event category.');
+                return;
+            }
+
+            // Validate terms acceptance if checkbox exists
+            var termsCheck = $('#hbc_accept_terms');
+            if (termsCheck.length > 0 && !termsCheck.is(':checked')) {
+                showMessage('error', 'You must accept the terms and conditions.');
+                return;
+            }
+
             // Validate time range
             var startTime = $('#hbc_start_time').val();
             var endTime = $('#hbc_end_time').val();
@@ -146,6 +160,7 @@
             });
 
             formData.append('group_id', $('#hbc_group_id').val());
+            formData.append('category_id', $('#hbc_category_id').val());
             formData.append('user_name', $('#hbc_user_name').val());
             formData.append('user_email', $('#hbc_user_email').val());
             formData.append('booking_date', $('#hbc_booking_date').val());
@@ -161,6 +176,12 @@
             var passwordInput = $('#hbc_booking_password_input');
             if (passwordInput.length > 0) {
                 formData.append('booking_password_input', passwordInput.val());
+            }
+
+            // Add terms acceptance
+            var termsCheckbox = $('#hbc_accept_terms');
+            if (termsCheckbox.length > 0) {
+                formData.append('accept_terms', termsCheckbox.is(':checked') ? '1' : '0');
             }
 
             // Add file if uploaded

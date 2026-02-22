@@ -398,6 +398,7 @@ function hbc_render_booking_form($selected_date = '', $preselect_group = '', $pr
     global $wpdb;
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
     $groups_table = $wpdb->prefix . 'hbc_groups';
+    $categories_table = $wpdb->prefix . 'hbc_categories';
 
     // Check if tables exist
     $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$rooms_table'");
@@ -408,6 +409,7 @@ function hbc_render_booking_form($selected_date = '', $preselect_group = '', $pr
 
     $rooms = $wpdb->get_results($wpdb->prepare("SELECT * FROM $rooms_table WHERE status = %s ORDER BY id ASC", 'active'));
     $groups = $wpdb->get_results($wpdb->prepare("SELECT * FROM $groups_table WHERE status = %s ORDER BY name ASC", 'active'));
+    $categories = $wpdb->get_results($wpdb->prepare("SELECT * FROM $categories_table WHERE status = %s ORDER BY name ASC", 'active'));
 
     $current_user = wp_get_current_user();
     $require_password = get_option('hbc_require_password', '0');
@@ -503,6 +505,16 @@ function hbc_render_booking_form($selected_date = '', $preselect_group = '', $pr
                     <?php endforeach; ?>
                 </select>
             </div>
+
+            <div class="hbc-form-row">
+                <label for="hbc_category_id"><?php _e('Event Category:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                <select id="hbc_category_id" name="category_id" required>
+                    <option value=""><?php _e('-- Select a Category --', 'hall-booking-calendar'); ?></option>
+                    <?php foreach ($categories as $category) : ?>
+                        <option value="<?php echo esc_attr($category->id); ?>"><?php echo esc_html($category->name); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
         </div>
 
         <!-- Additional Information -->
@@ -572,6 +584,25 @@ function hbc_render_booking_form($selected_date = '', $preselect_group = '', $pr
                 </div>
             </div>
         </div>
+
+        <!-- Terms and Conditions -->
+        <?php
+        $terms_text = get_option('hbc_terms_conditions', '');
+        if (!empty($terms_text)) :
+        ?>
+        <div class="hbc-form-section">
+            <h3><?php _e('Terms and Conditions', 'hall-booking-calendar'); ?></h3>
+            <div class="hbc-terms-content">
+                <?php echo wp_kses_post($terms_text); ?>
+            </div>
+            <div class="hbc-form-row">
+                <label class="hbc-terms-checkbox-label">
+                    <input type="checkbox" id="hbc_accept_terms" name="accept_terms" value="1" required>
+                    <?php _e('I accept the terms and conditions', 'hall-booking-calendar'); ?> <span class="required">*</span>
+                </label>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- Submit Button -->
         <div class="hbc-form-actions">
@@ -886,11 +917,14 @@ function hbc_display_single_booking($booking_id) {
         return '<div class="hbc-error"><p>' . __('Hall Booking Calendar plugin is not properly activated. Please activate the plugin first.', 'hall-booking-calendar') . '</p></div>';
     }
 
+    $categories_table = $wpdb->prefix . 'hbc_categories';
+
     $booking = $wpdb->get_row($wpdb->prepare(
-        "SELECT b.*, r.name as room_name, r.capacity, r.description as room_description, g.name as group_name, g.id as group_id
+        "SELECT b.*, r.name as room_name, r.capacity, r.description as room_description, g.name as group_name, g.id as group_id, c.name as category_name
         FROM $bookings_table b
         LEFT JOIN $rooms_table r ON b.room_id = r.id
         LEFT JOIN $groups_table g ON b.group_id = g.id
+        LEFT JOIN $categories_table c ON b.category_id = c.id
         WHERE b.id = %d",
         $booking_id
     ));
@@ -948,6 +982,12 @@ function hbc_display_single_booking($booking_id) {
                             <?php echo date('g:i A', strtotime($booking->end_time)); ?>
                         </span>
                     </div>
+                    <?php if (!empty($booking->category_name)) : ?>
+                    <div class="hbc-info-row">
+                        <span class="hbc-info-label"><?php _e('Category:', 'hall-booking-calendar'); ?></span>
+                        <span class="hbc-info-value"><?php echo esc_html($booking->category_name); ?></span>
+                    </div>
+                    <?php endif; ?>
                     <?php if (!empty($booking->description)) : ?>
                     <div class="hbc-info-row">
                         <span class="hbc-info-label"><?php _e('Description:', 'hall-booking-calendar'); ?></span>

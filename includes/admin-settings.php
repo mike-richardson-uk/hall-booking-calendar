@@ -47,6 +47,12 @@ function hbc_handle_settings_save() {
     }
     update_option('hbc_agenda_limit', $agenda_limit);
 
+    // Save terms and conditions (allow HTML for links etc.)
+    if (isset($_POST['hbc_terms_conditions'])) {
+        $terms_text = wp_kses_post($_POST['hbc_terms_conditions']);
+        update_option('hbc_terms_conditions', $terms_text);
+    }
+
     add_settings_error('hbc_settings', 'hbc_settings_updated', __('Settings saved successfully.', 'hall-booking-calendar'), 'updated');
 }
 add_action('admin_init', 'hbc_handle_settings_save');
@@ -60,6 +66,7 @@ function hbc_admin_settings_page() {
     $webmaster_email = get_option('hbc_webmaster_email', get_option('admin_email'));
     $require_password = get_option('hbc_require_password', '0');
     $agenda_limit = get_option('hbc_agenda_limit', 10);
+    $terms_conditions = get_option('hbc_terms_conditions', '');
 
     ?>
     <div class="wrap">
@@ -116,6 +123,16 @@ function hbc_admin_settings_page() {
                     <td>
                         <input type="number" id="hbc_agenda_limit" name="hbc_agenda_limit" value="<?php echo esc_attr($agenda_limit); ?>" class="small-text" min="1" max="100">
                         <p class="description"><?php _e('Number of bookings to display per page in the agenda view. Default: 10.', 'hall-booking-calendar'); ?></p>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">
+                        <label for="hbc_terms_conditions"><?php _e('Terms and Conditions', 'hall-booking-calendar'); ?></label>
+                    </th>
+                    <td>
+                        <textarea id="hbc_terms_conditions" name="hbc_terms_conditions" class="large-text" rows="8"><?php echo esc_textarea($terms_conditions); ?></textarea>
+                        <p class="description"><?php _e('HTML is allowed (links, bold, lists, etc.). This text is displayed above a required checkbox on the booking form. Leave blank to disable the terms and conditions requirement.', 'hall-booking-calendar'); ?></p>
                     </td>
                 </tr>
 

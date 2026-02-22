@@ -63,6 +63,7 @@ function hbc_handle_booking_submission() {
     // Use first room as primary room_id for backward compatibility
     $room_id = !empty($room_ids) ? $room_ids[0] : 0;
     $group_id = isset($_POST['group_id']) && !empty($_POST['group_id']) ? intval($_POST['group_id']) : null;
+    $category_id = isset($_POST['category_id']) && !empty($_POST['category_id']) ? intval($_POST['category_id']) : null;
     $user_name = sanitize_text_field($_POST['user_name']);
     $user_email = sanitize_email($_POST['user_email']);
     $booking_date = sanitize_text_field($_POST['booking_date']);
@@ -121,6 +122,28 @@ function hbc_handle_booking_submission() {
         }
     }
 
+    // Validate category (required)
+    $categories_table = $wpdb->prefix . 'hbc_categories';
+    if (!$category_id) {
+        wp_send_json_error(array('message' => __('Please select an event category.', 'hall-booking-calendar')));
+        return;
+    }
+    $category = $wpdb->get_row($wpdb->prepare("SELECT * FROM $categories_table WHERE id = %d AND status = 'active'", $category_id));
+    if (!$category) {
+        wp_send_json_error(array('message' => __('Invalid category selected.', 'hall-booking-calendar')));
+        return;
+    }
+
+    // Validate terms acceptance if T&C are configured
+    $terms_text = get_option('hbc_terms_conditions', '');
+    if (!empty($terms_text)) {
+        $accept_terms = isset($_POST['accept_terms']) && $_POST['accept_terms'] == '1';
+        if (!$accept_terms) {
+            wp_send_json_error(array('message' => __('You must accept the terms and conditions.', 'hall-booking-calendar')));
+            return;
+        }
+    }
+
     // Validate date is not in the past using DateTime for robustness
     try {
         $booking_datetime = new DateTime($booking_date, wp_timezone());
@@ -163,6 +186,7 @@ function hbc_handle_booking_submission() {
     $booking_data = array(
         'room_id' => $room_id,
         'group_id' => $group_id,
+        'category_id' => $category_id,
         'user_id' => $user_id,
         'user_name' => $user_name,
         'user_email' => $user_email,
@@ -240,7 +264,7 @@ function hbc_handle_booking_submission() {
         $result = $wpdb->insert(
             $bookings_table,
             $booking_data,
-            array('%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+            array('%d', '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
         );
 
         if ($result) {
@@ -481,12 +505,15 @@ function hbc_send_booking_notification($booking_id) {
 
     $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
 
-    // Fetch booking with joined room and group names
+    $categories_table = $wpdb->prefix . 'hbc_categories';
+
+    // Fetch booking with joined room, group, and category names
     $booking = $wpdb->get_row($wpdb->prepare(
-        "SELECT b.*, r.name as room_name, g.name as group_name
+        "SELECT b.*, r.name as room_name, g.name as group_name, c.name as category_name
         FROM $bookings_table b
         LEFT JOIN $rooms_table r ON b.room_id = r.id
         LEFT JOIN $groups_table g ON b.group_id = g.id
+        LEFT JOIN $categories_table c ON b.category_id = c.id
         WHERE b.id = %d",
         $booking_id
     ));
@@ -546,6 +573,9 @@ function hbc_send_booking_notification($booking_id) {
         $booking_details .= sprintf(__("- Time: %s - %s\n", 'hall-booking-calendar'), date('g:i A', strtotime($bk->start_time)), date('g:i A', strtotime($bk->end_time)));
         if (!empty($bk->group_name)) {
             $booking_details .= sprintf(__("- Group: %s\n", 'hall-booking-calendar'), $bk->group_name);
+        }
+        if (!empty($bk->category_name)) {
+            $booking_details .= sprintf(__("- Category: %s\n", 'hall-booking-calendar'), $bk->category_name);
         }
         if (!empty($bk->purpose)) {
             $booking_details .= sprintf(__("- Purpose: %s\n", 'hall-booking-calendar'), $bk->purpose);
@@ -620,11 +650,14 @@ function hbc_send_acceptance_notification($booking_id) {
     $groups_table = $wpdb->prefix . 'hbc_groups';
     $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
 
+    $categories_table = $wpdb->prefix . 'hbc_categories';
+
     $booking = $wpdb->get_row($wpdb->prepare(
-        "SELECT b.*, r.name as room_name, g.name as group_name
+        "SELECT b.*, r.name as room_name, g.name as group_name, c.name as category_name
         FROM $bookings_table b
         LEFT JOIN $rooms_table r ON b.room_id = r.id
         LEFT JOIN $groups_table g ON b.group_id = g.id
+        LEFT JOIN $categories_table c ON b.category_id = c.id
         WHERE b.id = %d",
         $booking_id
     ));
@@ -653,6 +686,9 @@ function hbc_send_acceptance_notification($booking_id) {
     $booking_details .= sprintf(__("- Time: %s - %s\n", 'hall-booking-calendar'), date('g:i A', strtotime($booking->start_time)), date('g:i A', strtotime($booking->end_time)));
     if (!empty($booking->group_name)) {
         $booking_details .= sprintf(__("- Group: %s\n", 'hall-booking-calendar'), $booking->group_name);
+    }
+    if (!empty($booking->category_name)) {
+        $booking_details .= sprintf(__("- Category: %s\n", 'hall-booking-calendar'), $booking->category_name);
     }
     if (!empty($booking->purpose)) {
         $booking_details .= sprintf(__("- Purpose: %s\n", 'hall-booking-calendar'), $booking->purpose);
