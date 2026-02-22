@@ -113,7 +113,6 @@ function hbc_handle_csv_export() {
         'User Name',
         'User Email',
         'Status',
-        'Recurring',
         'Created At'
     ));
 
@@ -136,7 +135,6 @@ function hbc_handle_csv_export() {
             $booking->user_name,
             $booking->user_email,
             ucfirst($booking->status),
-            $booking->is_recurring ? 'Yes' : 'No',
             $booking->created_at
         ));
     }
