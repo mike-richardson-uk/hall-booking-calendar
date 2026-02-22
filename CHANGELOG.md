@@ -2,9 +2,11 @@
 
 All notable changes to the Hall Booking Calendar plugin will be documented in this file.
 
-## 1.10.1
-- **Fix pretty event URLs**: Prevent WordPress canonical redirect from redirecting `/events/...` URLs to the home page. The custom rewrite rules now correctly serve event detail pages at their SEO-friendly URLs
-- **Fallback for missing calendar page**: Event URL handler now properly returns a 404 if no calendar page is found, instead of silently falling through to the home page
+## 1.11.0
+- **New event URL format**: Changed pretty event URLs from `/events/YYYY-MM-DD/group/purpose/` to `/events/group/YYYY-MM-DD/purpose/` (e.g., `/events/scouts/2026-03-15/weekly-meeting/`), putting the group first for better readability
+- **Group agenda pages**: New `/calendar/group-slug/` URLs show an agenda view of upcoming events for a specific group (e.g., `/calendar/scouts/`). Booking detail pages link to the group agenda via "View all upcoming bookings"
+- **Fix pretty event URLs**: Prevent WordPress canonical redirect from redirecting custom URLs to the home page
+- **Fallback for missing calendar page**: Event URL handler now properly returns a 404 if no calendar page is found
 
 ## 1.10.0
 - **Event categories**: New `hbc_categories` table with admin CRUD interface (Hall Booking > Categories). Categories like Rehearsal, Social Event, Meeting, etc. are required when booking
@@ -15,10 +17,10 @@ All notable changes to the Hall Booking Calendar plugin will be documented in th
 - **Auto-flush rewrite rules**: Rewrite rules are now automatically flushed when the plugin version changes
 
 ## 1.9.1
-- **Readable event URL dates**: Changed date format in event URLs from `YYYYMMDD` to `YYYY-MM-DD` for readability (e.g., `/events/2026-03-15/scouts/weekly-meeting/`)
+- **Readable event URL dates**: Changed date format in event URLs from `YYYYMMDD` to `YYYY-MM-DD` for readability (e.g., `/events/scouts/2026-03-15/weekly-meeting/`)
 
 ## 1.9.0
-- **Pretty event URLs**: Individual bookings now use SEO-friendly URLs under `/events/YYYY-MM-DD/group/purpose/` (e.g., `/events/2026-03-15/scouts/weekly-meeting/`) instead of query parameters
+- **Pretty event URLs**: Individual bookings now use SEO-friendly URLs under `/events/group/YYYY-MM-DD/purpose/` (e.g., `/events/scouts/2026-03-15/weekly-meeting/`) instead of query parameters
 - **WordPress rewrite rules**: Registered custom rewrite rules and query vars for the `/events/` URL prefix
 - **Slug resolver**: Booking slugs are automatically generated from date, group name, and purpose; resolved back to booking IDs for display
 
