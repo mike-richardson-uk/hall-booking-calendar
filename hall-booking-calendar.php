@@ -211,6 +211,17 @@ function hbc_flush_rewrite_rules_on_activation() {
 }
 register_activation_hook(__FILE__, 'hbc_flush_rewrite_rules_on_activation');
 
+// Flush rewrite rules when plugin version changes (e.g. after update)
+function hbc_maybe_flush_rewrite_rules() {
+    $stored_version = get_option('hbc_version', '0');
+    if (version_compare($stored_version, HBC_VERSION, '<')) {
+        hbc_register_event_rewrite_rules();
+        flush_rewrite_rules();
+        update_option('hbc_version', HBC_VERSION);
+    }
+}
+add_action('init', 'hbc_maybe_flush_rewrite_rules');
+
 /**
  * Check and upgrade database schema if needed
  *
