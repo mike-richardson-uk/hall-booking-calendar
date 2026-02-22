@@ -6,7 +6,7 @@ All notable changes to the Hall Booking Calendar plugin will be documented in th
 - **Event categories**: New `hbc_categories` table with admin CRUD interface (Hall Booking > Categories). Categories like Rehearsal, Social Event, Meeting, etc. are required when booking
 - **Category on booking form**: Event Category is a required dropdown field; validated on both client and server side
 - **Category in admin**: Category column added to bookings list, editable in booking detail view, included in email notifications and single booking detail pages
-- **CSV export**: New admin page (Hall Booking > Export) to download bookings as CSV filtered by date range and status
+- **CSV export**: New admin page (Hall Booking > Export) to download bookings as CSV filtered by date range and status. Includes group and category names, user details, and booking info
 - **Terms and conditions**: Admin-configurable HTML text area in Settings displayed above a required checkbox on the booking form. Leave blank to disable
 - **Auto-flush rewrite rules**: Rewrite rules are now automatically flushed when the plugin version changes
 
