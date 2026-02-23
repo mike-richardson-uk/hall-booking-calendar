@@ -428,8 +428,24 @@ function hbc_display_calendar($group_filter = 'all', $room_filter = 'all', $layo
                 }
 
                 if (!$past_class) {
-                    $book_url = add_query_arg(array('action' => 'book', 'date' => $date));
-                    echo '<a href="' . esc_url($book_url) . '" class="hbc-book-btn">' . __('Book', 'hall-booking-calendar') . '</a>';
+                    // Determine if at least one displayed room appears free on this date
+                    $has_available_room = true;
+                    if (isset($bookings_by_date[$date]) && !empty($bookings_by_date[$date])) {
+                        $has_available_room = false;
+                        foreach ($display_rooms as $room) {
+                            if (!isset($bookings_by_date[$date][$room->id]) || empty($bookings_by_date[$date][$room->id])) {
+                                $has_available_room = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if ($has_available_room) {
+                        $book_url = add_query_arg(array('action' => 'book', 'date' => $date));
+                        echo '<a href="' . esc_url($book_url) . '" class="hbc-book-btn">' . __('Book', 'hall-booking-calendar') . '</a>';
+                    } else {
+                        echo '<span class="hbc-book-btn hbc-book-btn-disabled">' . esc_html__('Fully booked', 'hall-booking-calendar') . '</span>';
+                    }
                 }
 
                 echo '</div>';

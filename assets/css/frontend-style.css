@@ -159,7 +159,7 @@
 
 .hbc-calendar-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 2px;
     background: #e0e0e0;
     border: 2px solid #e0e0e0;
@@ -302,6 +302,13 @@
 .hbc-book-btn:hover {
     background: #135e96;
     color: #fff;
+}
+
+.hbc-book-btn.hbc-book-btn-disabled {
+    background: #e5e7eb;
+    color: #9ca3af;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 /* Booking Form Modal */
