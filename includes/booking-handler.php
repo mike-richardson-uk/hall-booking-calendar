@@ -64,13 +64,13 @@ function hbc_handle_booking_submission() {
     $room_id = !empty($room_ids) ? $room_ids[0] : 0;
     $group_id = isset($_POST['group_id']) && !empty($_POST['group_id']) ? intval($_POST['group_id']) : null;
     $category_id = isset($_POST['category_id']) && !empty($_POST['category_id']) ? intval($_POST['category_id']) : null;
-    $user_name = sanitize_text_field($_POST['user_name']);
+    $user_name = sanitize_text_field(wp_unslash($_POST['user_name']));
     $user_email = sanitize_email($_POST['user_email']);
     $booking_date = sanitize_text_field($_POST['booking_date']);
     $start_time = sanitize_text_field($_POST['start_time']);
     $end_time = sanitize_text_field($_POST['end_time']);
-    $purpose = sanitize_textarea_field($_POST['purpose']);
-    $description = isset($_POST['description']) ? sanitize_textarea_field($_POST['description']) : '';
+    $purpose = sanitize_textarea_field(wp_unslash($_POST['purpose']));
+    $description = isset($_POST['description']) ? sanitize_textarea_field(wp_unslash($_POST['description'])) : '';
 
     // Recurring booking options
     $is_recurring = isset($_POST['is_recurring']) && $_POST['is_recurring'] == '1';

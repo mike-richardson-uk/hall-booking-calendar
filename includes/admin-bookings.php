@@ -72,9 +72,9 @@ function hbc_handle_booking_operations() {
         }
 
         // Collect all editable fields
-        $purpose = isset($_POST['booking_purpose']) ? sanitize_text_field($_POST['booking_purpose']) : '';
-        $description = isset($_POST['booking_description']) ? sanitize_textarea_field($_POST['booking_description']) : '';
-        $user_name = isset($_POST['booking_user_name']) ? sanitize_text_field($_POST['booking_user_name']) : '';
+        $purpose = isset($_POST['booking_purpose']) ? sanitize_text_field(wp_unslash($_POST['booking_purpose'])) : '';
+        $description = isset($_POST['booking_description']) ? sanitize_textarea_field(wp_unslash($_POST['booking_description'])) : '';
+        $user_name = isset($_POST['booking_user_name']) ? sanitize_text_field(wp_unslash($_POST['booking_user_name'])) : '';
         $user_email = isset($_POST['booking_user_email']) ? sanitize_email($_POST['booking_user_email']) : '';
         $booking_date = isset($_POST['booking_date']) ? sanitize_text_field($_POST['booking_date']) : '';
         $start_time = isset($_POST['booking_start_time']) ? sanitize_text_field($_POST['booking_start_time']) : '';
