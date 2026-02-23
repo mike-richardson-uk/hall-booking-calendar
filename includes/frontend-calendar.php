@@ -13,7 +13,7 @@ if (!defined('WPINC')) {
  *
  * Main shortcode handler that routes to different views based on parameters and URL args.
  *
- * Shortcode: [hall_booking_calendar view="calendar|agenda" group="all|{group_id}"]
+ * Shortcode: [hall_booking_calendar view="calendar|agenda" group="all|{group_id}" layout="simple|detailed"]
  *
  * Views:
  * - calendar: Monthly calendar grid showing room availability (default)
@@ -27,22 +27,30 @@ if (!defined('WPINC')) {
  *
  * @since 1.0.0
  * @param array $atts Shortcode attributes {
- *     @type string $view  View type: 'calendar' or 'agenda'. Default 'calendar'.
- *     @type string $group Group filter: 'all' or group ID. Default 'all'.
+ *     @type string $view   View type: 'calendar', 'agenda', or 'compact'. Default 'calendar'.
+ *     @type string $group  Group filter: 'all' or group ID. Default 'all'.
+ *     @type string $room   Room filter: 'all' or room ID. Default 'all'.
+ *     @type string $layout Calendar layout: 'simple' (room indicators) or 'detailed' (Google Calendar style). Default 'detailed'.
  * }
  * @return string HTML output for the requested view
  */
 function hbc_calendar_shortcode($atts) {
     $atts = shortcode_atts(array(
-        'view' => 'calendar',
-        'group' => 'all',
-        'room' => 'all',
-        'items' => ''
+        'view'   => 'calendar',
+        'group'  => 'all',
+        'room'   => 'all',
+        'items'  => '',
+        'layout' => 'detailed',
     ), $atts);
 
     // Allow URL-driven view override (used by /calendar/group-slug/ route)
     if (isset($_GET['view']) && in_array($_GET['view'], array('agenda', 'calendar', 'compact'), true)) {
         $atts['view'] = sanitize_text_field($_GET['view']);
+    }
+
+    // Allow URL-driven layout override: ?layout=simple|detailed
+    if (isset($_GET['layout']) && in_array($_GET['layout'], array('simple', 'detailed'), true)) {
+        $atts['layout'] = sanitize_text_field($_GET['layout']);
     }
 
     ob_start();
@@ -66,7 +74,7 @@ function hbc_calendar_shortcode($atts) {
     }
     // Calendar view (default) - monthly grid
     elseif ($atts['view'] == 'calendar') {
-        hbc_display_calendar($atts['group'], $atts['room']);
+        hbc_display_calendar($atts['group'], $atts['room'], $atts['layout']);
     }
     // Standalone booking form (fallback, rarely used)
     else {
@@ -141,9 +149,11 @@ add_shortcode('hall_booking_form', 'hbc_booking_form_shortcode');
  *
  * @since 1.0.0
  * @param string $group_filter Group ID to filter by, or 'all' for no filter. Default 'all'.
+ * @param string $room_filter  Room ID to filter by, or 'all' for no filter. Default 'all'.
+ * @param string $layout       Calendar layout: 'simple' or 'detailed'. Default 'detailed'.
  * @return void Outputs HTML directly
  */
-function hbc_display_calendar($group_filter = 'all', $room_filter = 'all') {
+function hbc_display_calendar($group_filter = 'all', $room_filter = 'all', $layout = 'detailed') {
     global $wpdb;
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
     $groups_table = $wpdb->prefix . 'hbc_groups';
@@ -154,6 +164,9 @@ function hbc_display_calendar($group_filter = 'all', $room_filter = 'all') {
     if (!$table_exists) {
         return '<div class="hbc-error"><p>' . __('Hall Booking Calendar plugin is not properly activated. Please activate the plugin first.', 'hall-booking-calendar') . '</p></div>';
     }
+
+    // Normalize layout value
+    $layout = in_array($layout, array('simple', 'detailed'), true) ? $layout : 'detailed';
 
     // Get current month and year from URL or use current date
     $current_month = isset($_GET['month']) ? intval($_GET['month']) : date('n');
@@ -343,39 +356,74 @@ function hbc_display_calendar($group_filter = 'all', $room_filter = 'all') {
                 echo '<div class="hbc-calendar-day ' . $today_class . ' ' . $past_class . '">';
                 echo '<div class="hbc-day-number">' . $day . '</div>';
 
-                if (isset($detailed_bookings_by_date[$date])) {
-                    echo '<div class="hbc-day-bookings hbc-day-bookings-detailed">';
+                // Choose layout: detailed (Google Calendar style) or simple (room indicators)
+                if ($layout === 'detailed') {
+                    if (isset($detailed_bookings_by_date[$date])) {
+                        echo '<div class="hbc-day-bookings hbc-day-bookings-detailed">';
 
-                    foreach ($detailed_bookings_by_date[$date] as $booking_entry) {
-                        $booking      = $booking_entry['booking'];
-                        $rooms_list   = !empty($booking_entry['rooms']) ? implode(', ', $booking_entry['rooms']) : '';
-                        $booking_url  = hbc_get_event_url($booking);
-                        $purpose_text = $booking->purpose ? $booking->purpose : __('Booking', 'hall-booking-calendar');
+                        foreach ($detailed_bookings_by_date[$date] as $booking_entry) {
+                            $booking      = $booking_entry['booking'];
+                            $rooms_list   = !empty($booking_entry['rooms']) ? implode(', ', $booking_entry['rooms']) : '';
+                            $booking_url  = hbc_get_event_url($booking);
+                            $purpose_text = $booking->purpose ? $booking->purpose : __('Booking', 'hall-booking-calendar');
 
-                        $time_range = '';
-                        if (!empty($booking->start_time) && !empty($booking->end_time)) {
-                            $time_range = date('g:i A', strtotime($booking->start_time)) . ' - ' . date('g:i A', strtotime($booking->end_time));
+                            $time_range = '';
+                            if (!empty($booking->start_time) && !empty($booking->end_time)) {
+                                $time_range = date('g:i A', strtotime($booking->start_time)) . ' - ' . date('g:i A', strtotime($booking->end_time));
+                            }
+
+                            echo '<a href="' . esc_url($booking_url) . '" class="hbc-day-booking-pill hbc-status-' . esc_attr($booking->status) . '">';
+
+                            if ($time_range) {
+                                echo '<span class="hbc-pill-time">' . esc_html($time_range) . '</span>';
+                            }
+
+                            echo '<span class="hbc-pill-title">' . esc_html(wp_trim_words($purpose_text, 6, '&hellip;')) . '</span>';
+
+                            if ($rooms_list) {
+                                echo '<span class="hbc-pill-room">' . esc_html($rooms_list) . '</span>';
+                            }
+
+                            echo '</a>';
                         }
 
-                        echo '<a href="' . esc_url($booking_url) . '" class="hbc-day-booking-pill hbc-status-' . esc_attr($booking->status) . '">';
+                        echo '</div>';
+                    } else {
+                        echo '<div class="hbc-day-bookings hbc-day-bookings-empty">';
+                        echo '<span class="hbc-no-bookings">' . esc_html__('No bookings', 'hall-booking-calendar') . '</span>';
+                        echo '</div>';
+                    }
+                } else {
+                    // Simple layout: per-room availability indicators and summary link
+                    echo '<div class="hbc-day-bookings">';
 
-                        if ($time_range) {
-                            echo '<span class="hbc-pill-time">' . esc_html($time_range) . '</span>';
+                    if (isset($bookings_by_date[$date])) {
+                        foreach ($display_rooms as $room) {
+                            if (isset($bookings_by_date[$date][$room->id])) {
+                                $count         = count($bookings_by_date[$date][$room->id]);
+                                $first_booking = $bookings_by_date[$date][$room->id][0];
+                                $booking_url   = hbc_get_event_url($first_booking);
+                                echo '<a href="' . esc_url($booking_url) . '" class="hbc-booking-indicator hbc-room-' . esc_attr($room->id) . '" title="' . esc_attr($room->name . ': ' . $count . ' booking(s) - ' . __('Click to view', 'hall-booking-calendar')) . '"></a>';
+                            } else {
+                                echo '<div class="hbc-booking-indicator hbc-available" title="' . esc_attr($room->name . ': ' . __('Available', 'hall-booking-calendar')) . '"></div>';
+                            }
                         }
 
-                        echo '<span class="hbc-pill-title">' . esc_html(wp_trim_words($purpose_text, 6, '&hellip;')) . '</span>';
-
-                        if ($rooms_list) {
-                            echo '<span class="hbc-pill-room">' . esc_html($rooms_list) . '</span>';
+                        // Add view bookings link for days with bookings
+                        $day_bookings_count = 0;
+                        foreach ($bookings_by_date[$date] as $room_bookings) {
+                            $day_bookings_count += count($room_bookings);
                         }
-
-                        echo '</a>';
+                        if ($day_bookings_count > 0) {
+                            $first_booking_obj = $bookings_by_date[$date][array_key_first($bookings_by_date[$date])][0];
+                            echo '<a href="' . esc_url(hbc_get_event_url($first_booking_obj)) . '" class="hbc-view-bookings-link" title="' . esc_attr(sprintf(__('%d booking(s) on this day', 'hall-booking-calendar'), $day_bookings_count)) . '">' . esc_html__('View', 'hall-booking-calendar') . '</a>';
+                        }
+                    } else {
+                        foreach ($display_rooms as $room) {
+                            echo '<div class="hbc-booking-indicator hbc-available" title="' . esc_attr($room->name . ': ' . __('Available', 'hall-booking-calendar')) . '"></div>';
+                        }
                     }
 
-                    echo '</div>';
-                } else {
-                    echo '<div class="hbc-day-bookings hbc-day-bookings-empty">';
-                    echo '<span class="hbc-no-bookings">' . esc_html__('No bookings', 'hall-booking-calendar') . '</span>';
                     echo '</div>';
                 }
 

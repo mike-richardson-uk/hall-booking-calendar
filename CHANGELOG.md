@@ -2,6 +2,11 @@
 
 All notable changes to the Hall Booking Calendar plugin will be documented in this file.
 
+## 1.12.0
+- **Detailed calendar layout**: New Google Calendar–style day cells that show one pill per booking with time, purpose, and room list for quick visual scanning
+- **Layout toggle option**: Added `layout` shortcode attribute for the calendar view (`layout="detailed"` for the new pills view, `layout="simple"` for the original room-availability indicators). Layout can also be switched per-request via `?layout=simple` or `?layout=detailed`
+- **Shortcode documentation updates**: Updated the Settings → Usage Instructions panel to document the new `layout` attribute alongside existing `view`, `group`, `room`, and `items` options
+
 ## 1.11.0
 - **New event URL format**: Changed pretty event URLs from `/events/YYYY-MM-DD/group/purpose/` to `/events/group/YYYY-MM-DD/purpose/` (e.g., `/events/scouts/2026-03-15/weekly-meeting/`), putting the group first for better readability
 - **Group agenda pages**: New `/calendar/group-slug/` URLs show an agenda view of upcoming events for a specific group (e.g., `/calendar/scouts/`). Booking detail pages link to the group agenda via "View all upcoming bookings"

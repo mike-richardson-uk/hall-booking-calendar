@@ -171,7 +171,15 @@ function hbc_admin_settings_page() {
                     </th>
                     <td>
                         <code>[hall_booking_calendar]</code>
-                        <p class="description"><?php _e('Displays the full calendar with booking links. Attributes: <code>view="calendar|agenda|compact"</code>, <code>group="all|{id}"</code>, <code>items="{count}"</code> (compact view only)', 'hall-booking-calendar'); ?></p>
+                        <p class="description">
+                            <?php _e('Displays the full calendar with booking links.', 'hall-booking-calendar'); ?>
+                            <?php _e('Attributes:', 'hall-booking-calendar'); ?>
+                            <code>view="calendar|agenda|compact"</code>,
+                            <code>group="all|{id}"</code>,
+                            <code>room="all|{id}"</code>,
+                            <code>layout="simple|detailed"</code>,
+                            <code>items="{count}"</code> (<?php _e('compact view only', 'hall-booking-calendar'); ?>)
+                        </p>
                         <br>
                         <code>[hall_booking_form]</code>
                         <p class="description"><?php _e('Displays the booking form directly. Attributes: <code>group="{id}"</code>, <code>room="{id}"</code>', 'hall-booking-calendar'); ?></p>
@@ -227,13 +235,16 @@ function hbc_admin_settings_page() {
                     <tr>
                         <th><code>[hall_booking_calendar]</code></th>
                         <td>
-                            <p><?php _e('Displays the monthly calendar grid with room availability and booking links.', 'hall-booking-calendar'); ?></p>
+                            <p><?php _e('Displays the monthly calendar grid with booking details and booking links.', 'hall-booking-calendar'); ?></p>
                             <p><strong><?php _e('Attributes:', 'hall-booking-calendar'); ?></strong></p>
                             <ul style="list-style: disc; margin-left: 20px;">
                                 <li><code>view="calendar"</code> &mdash; <?php _e('Monthly calendar grid (default).', 'hall-booking-calendar'); ?></li>
                                 <li><code>view="agenda"</code> &mdash; <?php _e('Paginated list of upcoming bookings with group and room filters.', 'hall-booking-calendar'); ?></li>
                                 <li><code>view="compact"</code> &mdash; <?php _e('Abbreviated single-line-per-event list. Great for sidebars and summary pages.', 'hall-booking-calendar'); ?></li>
                                 <li><code>group="all"</code> &mdash; <?php _e('Show all groups (default). Use a group ID to restrict to one group.', 'hall-booking-calendar'); ?></li>
+                                <li><code>room="all"</code> &mdash; <?php _e('Show all rooms (default). Use a room ID to restrict to one room.', 'hall-booking-calendar'); ?></li>
+                                <li><code>layout="detailed"</code> &mdash; <?php _e('Show one detailed pill per booking (time, purpose, rooms) in each day cell (default).', 'hall-booking-calendar'); ?></li>
+                                <li><code>layout="simple"</code> &mdash; <?php _e('Use the original room-availability indicators layout with coloured bars per room.', 'hall-booking-calendar'); ?></li>
                                 <li><code>items="{count}"</code> &mdash; <?php _e('Number of events to show in compact view. Defaults to Agenda View Limit setting.', 'hall-booking-calendar'); ?></li>
                             </ul>
                         </td>
@@ -254,17 +265,19 @@ function hbc_admin_settings_page() {
 
             <div id="hbc-tab-views" class="hbc-tab-panel">
                 <h3><?php _e('Calendar View', 'hall-booking-calendar'); ?></h3>
-                <p><?php _e('The default calendar view displays a monthly grid showing room availability at a glance. Each day cell shows colour-coded indicators for each room &mdash; coloured when booked, grey when available. Use the shortcode:', 'hall-booking-calendar'); ?></p>
+                <p><?php _e('The default calendar view displays a monthly grid of bookings. Each day cell shows one pill per booking with the time, purpose, and rooms, similar to Google Calendar. Use the shortcode:', 'hall-booking-calendar'); ?></p>
                 <p><code>[hall_booking_calendar]</code></p>
                 <ul style="list-style: disc; margin-left: 20px;">
                     <li><?php _e('<strong>Navigation</strong> &mdash; Use the Previous/Next arrows to move between months.', 'hall-booking-calendar'); ?></li>
                     <li><?php _e('<strong>Room legend</strong> &mdash; A colour key below the navigation shows each room name and capacity.', 'hall-booking-calendar'); ?></li>
                     <li><?php _e('<strong>Filters</strong> &mdash; Dropdown menus let visitors filter by Group or Room.', 'hall-booking-calendar'); ?></li>
-                    <li><?php _e('<strong>Booking indicators</strong> &mdash; Click a coloured indicator to view that booking&rsquo;s detail page. Days with multiple bookings also show a &ldquo;View&rdquo; link.', 'hall-booking-calendar'); ?></li>
+                    <li><?php _e('<strong>Booking pills</strong> &mdash; Click a booking pill to view that booking&rsquo;s detail page. Each pill shows the time, purpose, and rooms.', 'hall-booking-calendar'); ?></li>
                     <li><?php _e('<strong>Book button</strong> &mdash; Future available dates show a &ldquo;Book&rdquo; button that opens the booking form with the date pre-filled.', 'hall-booking-calendar'); ?></li>
                 </ul>
                 <p><?php _e('To restrict the calendar to a specific group, pass the group ID:', 'hall-booking-calendar'); ?></p>
                 <p><code>[hall_booking_calendar group="1"]</code></p>
+                <p><?php _e('To restore the original simple room-availability indicators instead of detailed pills, use the simple layout:', 'hall-booking-calendar'); ?></p>
+                <p><code>[hall_booking_calendar layout="simple"]</code></p>
 
                 <hr>
 
