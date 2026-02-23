@@ -175,6 +175,12 @@ function hbc_display_calendar($group_filter = 'all', $room_filter = 'all') {
     // Get all active groups for the filter dropdown
     $groups = $wpdb->get_results("SELECT * FROM $groups_table WHERE status = 'active' ORDER BY name ASC");
 
+    // Map rooms by ID for quick lookup when building detailed booking summaries
+    $rooms_by_id = array();
+    foreach ($rooms as $room) {
+        $rooms_by_id[$room->id] = $room;
+    }
+
     // Determine which rooms to display in the calendar grid
     $display_rooms = $rooms;
     if ($room_filter !== 'all' && is_numeric($room_filter)) {
@@ -212,11 +218,16 @@ function hbc_display_calendar($group_filter = 'all', $room_filter = 'all') {
         $params
     ));
 
-    // Organize bookings by date and room (using junction table room_id)
+    // Organize bookings by date/room for availability checks
+    // and additionally by date/booking for a richer, Google Calendar-style view
     $bookings_by_date = array();
+    $detailed_bookings_by_date = array();
+
     foreach ($bookings as $booking) {
         $date_key = $booking->booking_date;
         $room_key = $booking->br_room_id;
+
+        // Legacy per-room availability structure
         if (!isset($bookings_by_date[$date_key])) {
             $bookings_by_date[$date_key] = array();
         }
@@ -233,6 +244,23 @@ function hbc_display_calendar($group_filter = 'all', $room_filter = 'all') {
         }
         if (!$already_added) {
             $bookings_by_date[$date_key][$room_key][] = $booking;
+        }
+
+        // Detailed structure: group unique bookings per day and collect their rooms
+        if (!isset($detailed_bookings_by_date[$date_key])) {
+            $detailed_bookings_by_date[$date_key] = array();
+        }
+
+        if (!isset($detailed_bookings_by_date[$date_key][$booking->id])) {
+            $detailed_bookings_by_date[$date_key][$booking->id] = array(
+                'booking' => $booking,
+                'rooms'   => array(),
+            );
+        }
+
+        if (!empty($room_key) && isset($rooms_by_id[$room_key])) {
+            // Use room ID as key to avoid duplicates in the list
+            $detailed_bookings_by_date[$date_key][$booking->id]['rooms'][$room_key] = $rooms_by_id[$room_key]->name;
         }
     }
 
@@ -315,34 +343,39 @@ function hbc_display_calendar($group_filter = 'all', $room_filter = 'all') {
                 echo '<div class="hbc-calendar-day ' . $today_class . ' ' . $past_class . '">';
                 echo '<div class="hbc-day-number">' . $day . '</div>';
 
-                if (isset($bookings_by_date[$date])) {
-                    echo '<div class="hbc-day-bookings">';
-                    foreach ($display_rooms as $room) {
-                        if (isset($bookings_by_date[$date][$room->id])) {
-                            $count = count($bookings_by_date[$date][$room->id]);
-                            $first_booking = $bookings_by_date[$date][$room->id][0];
-                            $booking_url = hbc_get_event_url($first_booking);
-                            echo '<a href="' . esc_url($booking_url) . '" class="hbc-booking-indicator hbc-room-' . esc_attr($room->id) . '" title="' . esc_attr($room->name . ': ' . $count . ' booking(s) - Click to view') . '"></a>';
-                        } else {
-                            echo '<div class="hbc-booking-indicator hbc-available" title="' . esc_attr($room->name . ': Available') . '"></div>';
-                        }
-                    }
-                    echo '</div>';
+                if (isset($detailed_bookings_by_date[$date])) {
+                    echo '<div class="hbc-day-bookings hbc-day-bookings-detailed">';
 
-                    // Add view bookings link for days with bookings
-                    $day_bookings_count = 0;
-                    foreach ($bookings_by_date[$date] as $room_bookings) {
-                        $day_bookings_count += count($room_bookings);
+                    foreach ($detailed_bookings_by_date[$date] as $booking_entry) {
+                        $booking      = $booking_entry['booking'];
+                        $rooms_list   = !empty($booking_entry['rooms']) ? implode(', ', $booking_entry['rooms']) : '';
+                        $booking_url  = hbc_get_event_url($booking);
+                        $purpose_text = $booking->purpose ? $booking->purpose : __('Booking', 'hall-booking-calendar');
+
+                        $time_range = '';
+                        if (!empty($booking->start_time) && !empty($booking->end_time)) {
+                            $time_range = date('g:i A', strtotime($booking->start_time)) . ' - ' . date('g:i A', strtotime($booking->end_time));
+                        }
+
+                        echo '<a href="' . esc_url($booking_url) . '" class="hbc-day-booking-pill hbc-status-' . esc_attr($booking->status) . '">';
+
+                        if ($time_range) {
+                            echo '<span class="hbc-pill-time">' . esc_html($time_range) . '</span>';
+                        }
+
+                        echo '<span class="hbc-pill-title">' . esc_html(wp_trim_words($purpose_text, 6, '&hellip;')) . '</span>';
+
+                        if ($rooms_list) {
+                            echo '<span class="hbc-pill-room">' . esc_html($rooms_list) . '</span>';
+                        }
+
+                        echo '</a>';
                     }
-                    if ($day_bookings_count > 0) {
-                        $first_booking_obj = $bookings_by_date[$date][array_key_first($bookings_by_date[$date])][0];
-                        echo '<a href="' . esc_url(hbc_get_event_url($first_booking_obj)) . '" class="hbc-view-bookings-link" title="' . sprintf(__('%d booking(s) on this day', 'hall-booking-calendar'), $day_bookings_count) . '">' . __('View', 'hall-booking-calendar') . '</a>';
-                    }
+
+                    echo '</div>';
                 } else {
-                    echo '<div class="hbc-day-bookings">';
-                    foreach ($display_rooms as $room) {
-                        echo '<div class="hbc-booking-indicator hbc-available" title="' . esc_attr($room->name . ': Available') . '"></div>';
-                    }
+                    echo '<div class="hbc-day-bookings hbc-day-bookings-empty">';
+                    echo '<span class="hbc-no-bookings">' . esc_html__('No bookings', 'hall-booking-calendar') . '</span>';
                     echo '</div>';
                 }
 
