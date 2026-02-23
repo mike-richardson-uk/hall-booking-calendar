@@ -4,7 +4,7 @@
   "description": "A WordPress plugin to manage a hall calendar with 3 rooms, recurring bookings, and calendar subscriptions.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/slashzero/hall-calendar.git"
+    "url": "https://github.com/mike-richardson-uk/hall-booking-calendar.git"
   },
   "keywords": [
     "wordpress",
@@ -13,7 +13,7 @@
     "calendar",
     "hall-booking"
   ],
-  "author": "Hall Calendar Team",
+  "author": "Mike Richardson <iam@mike-richardson.com>",
   "license": "GPL-2.0+",
   "devDependencies": {
     "@wordpress/eslint-plugin": "^19.0.0",

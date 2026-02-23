@@ -2,6 +2,11 @@
 
 All notable changes to the Hall Booking Calendar plugin will be documented in this file.
 
+## 1.12.1
+- **Calendar UX tweaks**: Ensured all day cells in the detailed calendar grid are equal-width and scroll correctly when many bookings are present
+- **Booking availability button**: The calendar “Book” button is now disabled and replaced with a “Fully booked” label on days where every visible room is already booked
+- **Group description display**: Fixed double-escaped apostrophes and other characters in group names/descriptions so text like “group's meeting” renders correctly in the Groups admin screen
+
 ## 1.12.0
 - **Detailed calendar layout**: New Google Calendar–style day cells that show one pill per booking with time, purpose, and room list for quick visual scanning
 - **Layout toggle option**: Added `layout` shortcode attribute for the calendar view (`layout="detailed"` for the new pills view, `layout="simple"` for the original room-availability indicators). Layout can also be switched per-request via `?layout=simple` or `?layout=detailed`

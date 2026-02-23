@@ -18,9 +18,9 @@ function hbc_handle_group_operations() {
     // Add group
     if (isset($_POST['hbc_add_group']) && check_admin_referer('hbc_add_group', 'hbc_group_nonce')) {
         $wpdb->insert($groups_table, array(
-            'name' => sanitize_text_field($_POST['group_name']),
-            'description' => sanitize_textarea_field($_POST['group_description']),
-            'status' => sanitize_text_field($_POST['group_status'])
+            'name' => sanitize_text_field(wp_unslash($_POST['group_name'])),
+            'description' => sanitize_textarea_field(wp_unslash($_POST['group_description'])),
+            'status' => sanitize_text_field(wp_unslash($_POST['group_status']))
         ));
 
         if ($wpdb->insert_id) {
@@ -34,9 +34,9 @@ function hbc_handle_group_operations() {
         $wpdb->update(
             $groups_table,
             array(
-                'name' => sanitize_text_field($_POST['group_name']),
-                'description' => sanitize_textarea_field($_POST['group_description']),
-                'status' => sanitize_text_field($_POST['group_status'])
+                'name' => sanitize_text_field(wp_unslash($_POST['group_name'])),
+                'description' => sanitize_textarea_field(wp_unslash($_POST['group_description'])),
+                'status' => sanitize_text_field(wp_unslash($_POST['group_status']))
             ),
             array('id' => $group_id)
         );
@@ -118,8 +118,8 @@ function hbc_display_groups_list() {
                 ?>
                 <tr>
                     <td><?php echo esc_html($group->id); ?></td>
-                    <td><strong><a href="<?php echo esc_url(admin_url('admin.php?page=hall-booking-bookings&group=' . $group->id)); ?>"><?php echo esc_html($group->name); ?></a></strong></td>
-                    <td><?php echo esc_html($group->description); ?></td>
+                    <td><strong><a href="<?php echo esc_url(admin_url('admin.php?page=hall-booking-bookings&group=' . $group->id)); ?>"><?php echo esc_html(wp_unslash($group->name)); ?></a></strong></td>
+                    <td><?php echo esc_html(wp_unslash($group->description)); ?></td>
                     <td><?php echo esc_html($booking_count); ?></td>
                     <td><span class="hbc-status hbc-status-<?php echo esc_attr($group->status); ?>"><?php echo esc_html(ucfirst($group->status)); ?></span></td>
                     <td>
@@ -163,13 +163,13 @@ function hbc_display_group_form($group_id = 0) {
             <tr>
                 <th scope="row"><label for="group_name"><?php _e('Group Name', 'hall-booking-calendar'); ?></label></th>
                 <td>
-                    <input type="text" id="group_name" name="group_name" class="regular-text" value="<?php echo $group ? esc_attr($group->name) : ''; ?>" required>
+                    <input type="text" id="group_name" name="group_name" class="regular-text" value="<?php echo $group ? esc_attr(wp_unslash($group->name)) : ''; ?>" required>
                 </td>
             </tr>
             <tr>
                 <th scope="row"><label for="group_description"><?php _e('Description', 'hall-booking-calendar'); ?></label></th>
                 <td>
-                    <textarea id="group_description" name="group_description" class="large-text" rows="4"><?php echo $group ? esc_textarea($group->description) : ''; ?></textarea>
+                    <textarea id="group_description" name="group_description" class="large-text" rows="4"><?php echo $group ? esc_textarea(wp_unslash($group->description)) : ''; ?></textarea>
                 </td>
             </tr>
             <tr>

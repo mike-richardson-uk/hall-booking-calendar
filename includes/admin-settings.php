@@ -332,6 +332,18 @@ function hbc_admin_settings_page() {
             </div>
 
         </div>
+
+        <p style="margin-top: 1.5em; color: #555;">
+            <?php
+            /* Translators: 1: author name, 2: author email, 3: repository URL */
+            printf(
+                wp_kses_post(__('Plugin author: %1$s &lt;%2$s&gt;. Project repository: <a href="%3$s" target="_blank" rel="noopener noreferrer">%3$s</a>', 'hall-booking-calendar')),
+                'Mike Richardson',
+                'iam@mike-richardson.com',
+                esc_url('https://github.com/mike-richardson-uk/hall-booking-calendar')
+            );
+            ?>
+        </p>
     </div>
 
     <style>

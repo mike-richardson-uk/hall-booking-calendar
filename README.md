@@ -388,7 +388,7 @@ composer run lint:fix
 ## Support
 
 For issues, questions, or contributions, please visit:
-https://github.com/slashzero/hall-calendar
+https://github.com/mike-richardson-uk/hall-booking-calendar
 
 ## License
 
