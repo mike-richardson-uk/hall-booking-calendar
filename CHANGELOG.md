@@ -2,6 +2,9 @@
 
 All notable changes to the Hall Booking Calendar plugin will be documented in this file.
 
+## 1.13.0
+- **Per-page theme templates**: Admins can now choose a WordPress theme template for each type of plugin-generated URL — individual event pages (`/events/group/date/purpose/`) and group agenda pages (`/calendar/group-name/`) — via two new dropdowns in Hall Booking → Settings. Leaving either dropdown on Default continues to use the calendar page's own template
+
 ## 1.12.1
 - **Calendar UX tweaks**: Ensured all day cells in the detailed calendar grid are equal-width and scroll correctly when many bookings are present
 - **Booking availability button**: The calendar “Book” button is now disabled and replaced with a “Fully booked” label on days where every visible room is already booked
