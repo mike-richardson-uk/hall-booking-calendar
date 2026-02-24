@@ -53,6 +53,13 @@ function hbc_handle_settings_save() {
         update_option('hbc_terms_conditions', $terms_text);
     }
 
+    // Save page template selections for plugin-generated URLs
+    $event_page_template = isset($_POST['hbc_event_page_template']) ? sanitize_text_field($_POST['hbc_event_page_template']) : '';
+    update_option('hbc_event_page_template', $event_page_template);
+
+    $group_agenda_template = isset($_POST['hbc_group_agenda_template']) ? sanitize_text_field($_POST['hbc_group_agenda_template']) : '';
+    update_option('hbc_group_agenda_template', $group_agenda_template);
+
     add_settings_error('hbc_settings', 'hbc_settings_updated', __('Settings saved successfully.', 'hall-booking-calendar'), 'updated');
 }
 add_action('admin_init', 'hbc_handle_settings_save');
@@ -67,6 +74,9 @@ function hbc_admin_settings_page() {
     $require_password = get_option('hbc_require_password', '0');
     $agenda_limit = get_option('hbc_agenda_limit', 10);
     $terms_conditions = get_option('hbc_terms_conditions', '');
+    $event_page_template = get_option('hbc_event_page_template', '');
+    $group_agenda_template = get_option('hbc_group_agenda_template', '');
+    $page_templates = wp_get_theme()->get_page_templates();
 
     ?>
     <div class="wrap">
@@ -141,6 +151,42 @@ function hbc_admin_settings_page() {
                         ));
                         ?>
                         <p class="description"><?php _e('This text is displayed above a required checkbox on the booking form. Leave blank to disable the terms and conditions requirement.', 'hall-booking-calendar'); ?></p>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">
+                        <label for="hbc_event_page_template"><?php _e('Event Page Template', 'hall-booking-calendar'); ?></label>
+                    </th>
+                    <td>
+                        <select id="hbc_event_page_template" name="hbc_event_page_template">
+                            <option value=""><?php _e('— Default (use calendar page template) —', 'hall-booking-calendar'); ?></option>
+                            <?php foreach ($page_templates as $filename => $name) : ?>
+                                <option value="<?php echo esc_attr($filename); ?>" <?php selected($event_page_template, $filename); ?>><?php echo esc_html($name); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="description"><?php _e('Theme template to use for individual event pages (<code>/events/group/date/purpose/</code>). Leave as Default to inherit the calendar page\'s template.', 'hall-booking-calendar'); ?></p>
+                        <?php if (empty($page_templates)) : ?>
+                            <p class="description" style="color:#666;"><?php _e('No page templates found in the active theme.', 'hall-booking-calendar'); ?></p>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">
+                        <label for="hbc_group_agenda_template"><?php _e('Group Agenda Template', 'hall-booking-calendar'); ?></label>
+                    </th>
+                    <td>
+                        <select id="hbc_group_agenda_template" name="hbc_group_agenda_template">
+                            <option value=""><?php _e('— Default (use calendar page template) —', 'hall-booking-calendar'); ?></option>
+                            <?php foreach ($page_templates as $filename => $name) : ?>
+                                <option value="<?php echo esc_attr($filename); ?>" <?php selected($group_agenda_template, $filename); ?>><?php echo esc_html($name); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="description"><?php _e('Theme template to use for group agenda pages (<code>/calendar/group-name/</code>). Leave as Default to inherit the calendar page\'s template.', 'hall-booking-calendar'); ?></p>
+                        <?php if (empty($page_templates)) : ?>
+                            <p class="description" style="color:#666;"><?php _e('No page templates found in the active theme.', 'hall-booking-calendar'); ?></p>
+                        <?php endif; ?>
                     </td>
                 </tr>
 

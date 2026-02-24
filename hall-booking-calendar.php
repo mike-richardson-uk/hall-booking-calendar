@@ -667,6 +667,41 @@ function hbc_disable_canonical_redirect_for_events($redirect_url) {
 add_filter('redirect_canonical', 'hbc_disable_canonical_redirect_for_events');
 
 /**
+ * Apply configured page template for plugin-generated URLs
+ *
+ * When a visitor accesses /events/... or /calendar/group-slug/, allows the
+ * admin-configured theme template to be used instead of the calendar page's
+ * own template.
+ *
+ * @since 1.12.0
+ * @param string $template The resolved template file path
+ * @return string The template file path to use
+ */
+function hbc_apply_page_template($template) {
+    if (is_admin()) {
+        return $template;
+    }
+
+    $chosen = '';
+
+    if (get_query_var('hbc_event_date')) {
+        $chosen = get_option('hbc_event_page_template', '');
+    } elseif (get_query_var('hbc_group_agenda')) {
+        $chosen = get_option('hbc_group_agenda_template', '');
+    }
+
+    if (!empty($chosen)) {
+        $located = locate_template($chosen);
+        if ($located) {
+            return $located;
+        }
+    }
+
+    return $template;
+}
+add_filter('template_include', 'hbc_apply_page_template');
+
+/**
  * Find the page ID that contains the calendar or booking form shortcode
  *
  * Checks for [hall_booking_calendar] first, then falls back to the booking
