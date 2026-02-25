@@ -392,6 +392,25 @@ function hbc_save_book_in_form_config($booking_id) {
         }
     }
 
+    // Preserve existing token so the short URL stays stable across edits
+    $existing_token = $wpdb->get_var($wpdb->prepare(
+        "SELECT book_in_token FROM $table WHERE booking_id = %d",
+        $booking_id
+    ));
+
+    if (empty($existing_token)) {
+        // Generate a unique 8-character alphanumeric token
+        do {
+            $token = wp_generate_password(8, false);
+            $taken = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM $table WHERE book_in_token = %s",
+                $token
+            ));
+        } while ($taken > 0);
+    } else {
+        $token = $existing_token;
+    }
+
     $wpdb->replace(
         $table,
         array(
@@ -406,8 +425,9 @@ function hbc_save_book_in_form_config($booking_id) {
             'payment_reference_prefix' => sanitize_text_field(isset($_POST['payment_reference_prefix']) ? wp_unslash($_POST['payment_reference_prefix']) : ''),
             'payment_cheque_payable'   => sanitize_text_field(isset($_POST['payment_cheque_payable']) ? wp_unslash($_POST['payment_cheque_payable']) : ''),
             'payment_deadline'         => sanitize_text_field(isset($_POST['payment_deadline']) ? wp_unslash($_POST['payment_deadline']) : ''),
+            'book_in_token'            => $token,
         ),
-        array('%d', '%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+        array('%d', '%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
     );
 }
 
@@ -869,6 +889,13 @@ function hbc_send_booking_notification($booking_id) {
         $booking_details,
         $booking_count > 1 ? 's are' : ' is'
     );
+
+    // Append the short booking-in URL if one has been configured for this booking
+    $form_config = hbc_get_book_in_form($booking_id);
+    if ($form_config && !empty($form_config->book_in_token)) {
+        $book_in_url = home_url('book/' . $form_config->book_in_token . '/');
+        $message .= "\n\n" . __("Members can book in for this event using the following link:", 'hall-booking-calendar') . "\n" . $book_in_url;
+    }
 
     wp_mail($to, $subject, $message);
 

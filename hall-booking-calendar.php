@@ -3,7 +3,7 @@
  * Plugin Name: Hall Booking Calendar
  * Plugin URI: https://github.com/mike-richardson-uk/hall-booking-calendar
  * Description: A WordPress plugin to manage a hall calendar with 3 rooms, recurring bookings, and calendar subscriptions.
- * Version: 1.14.0
+ * Version: 1.15.0
  * Author: Mike Richardson
  * Author URI: https://github.com/mike-richardson-uk/hall-booking-calendar
  * License: GPL-2.0+
@@ -18,7 +18,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('HBC_VERSION', '1.14.0');
+define('HBC_VERSION', '1.15.0');
 define('HBC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HBC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('HBC_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -146,9 +146,11 @@ function hbc_activate() {
         payment_reference_prefix varchar(100),
         payment_cheque_payable varchar(255),
         payment_deadline date,
+        book_in_token varchar(12),
         created_at datetime DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY  (id),
-        UNIQUE KEY booking_id (booking_id)
+        UNIQUE KEY booking_id (booking_id),
+        UNIQUE KEY book_in_token (book_in_token)
     ) $charset_collate;";
 
     // Create member booking-in submissions table
@@ -371,56 +373,67 @@ function hbc_upgrade_book_in_tables() {
 
     $charset_collate = $wpdb->get_charset_collate();
 
-    $booking_forms_table   = $wpdb->prefix . 'hbc_booking_forms';
+    $booking_forms_table    = $wpdb->prefix . 'hbc_booking_forms';
     $form_submissions_table = $wpdb->prefix . 'hbc_form_submissions';
 
-    // Only run if either table is missing
     $forms_exists       = $wpdb->get_var("SHOW TABLES LIKE '$booking_forms_table'") === $booking_forms_table;
     $submissions_exists = $wpdb->get_var("SHOW TABLES LIKE '$form_submissions_table'") === $form_submissions_table;
 
-    if ($forms_exists && $submissions_exists) {
-        return;
+    if (!$forms_exists || !$submissions_exists) {
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+
+        if (!$forms_exists) {
+            $sql_booking_forms = "CREATE TABLE IF NOT EXISTS $booking_forms_table (
+                id mediumint(9) NOT NULL AUTO_INCREMENT,
+                booking_id mediumint(9) NOT NULL,
+                enabled tinyint(1) DEFAULT 1,
+                submission_emails text,
+                include_meal_menu tinyint(1) DEFAULT 0,
+                meal_options text,
+                payment_bank_name varchar(255),
+                payment_sort_code varchar(50),
+                payment_account_number varchar(50),
+                payment_reference_prefix varchar(100),
+                payment_cheque_payable varchar(255),
+                payment_deadline date,
+                book_in_token varchar(12),
+                created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY  (id),
+                UNIQUE KEY booking_id (booking_id),
+                UNIQUE KEY book_in_token (book_in_token)
+            ) $charset_collate;";
+            dbDelta($sql_booking_forms);
+        }
+
+        if (!$submissions_exists) {
+            $sql_form_submissions = "CREATE TABLE IF NOT EXISTS $form_submissions_table (
+                id mediumint(9) NOT NULL AUTO_INCREMENT,
+                booking_id mediumint(9) NOT NULL,
+                full_name varchar(255) NOT NULL,
+                email varchar(255) NOT NULL,
+                phone varchar(100),
+                masonic_rank varchar(100),
+                attendance_type varchar(50),
+                membership_type varchar(50),
+                lodge_name varchar(255),
+                meal_choice varchar(255),
+                dietary_requirements text,
+                additional_comments text,
+                submitted_at datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY  (id),
+                KEY booking_id (booking_id)
+            ) $charset_collate;";
+            dbDelta($sql_form_submissions);
+        }
     }
 
-    $sql_booking_forms = "CREATE TABLE IF NOT EXISTS $booking_forms_table (
-        id mediumint(9) NOT NULL AUTO_INCREMENT,
-        booking_id mediumint(9) NOT NULL,
-        enabled tinyint(1) DEFAULT 1,
-        submission_emails text,
-        include_meal_menu tinyint(1) DEFAULT 0,
-        meal_options text,
-        payment_bank_name varchar(255),
-        payment_sort_code varchar(50),
-        payment_account_number varchar(50),
-        payment_reference_prefix varchar(100),
-        payment_cheque_payable varchar(255),
-        payment_deadline date,
-        created_at datetime DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY  (id),
-        UNIQUE KEY booking_id (booking_id)
-    ) $charset_collate;";
-
-    $sql_form_submissions = "CREATE TABLE IF NOT EXISTS $form_submissions_table (
-        id mediumint(9) NOT NULL AUTO_INCREMENT,
-        booking_id mediumint(9) NOT NULL,
-        full_name varchar(255) NOT NULL,
-        email varchar(255) NOT NULL,
-        phone varchar(100),
-        masonic_rank varchar(100),
-        attendance_type varchar(50),
-        membership_type varchar(50),
-        lodge_name varchar(255),
-        meal_choice varchar(255),
-        dietary_requirements text,
-        additional_comments text,
-        submitted_at datetime DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY  (id),
-        KEY booking_id (booking_id)
-    ) $charset_collate;";
-
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-    dbDelta($sql_booking_forms);
-    dbDelta($sql_form_submissions);
+    // Add book_in_token column to existing tables that pre-date v1.15.0
+    if ($forms_exists) {
+        $columns = $wpdb->get_col("DESCRIBE $booking_forms_table", 0);
+        if (!in_array('book_in_token', $columns)) {
+            $wpdb->query("ALTER TABLE $booking_forms_table ADD COLUMN book_in_token varchar(12) NULL UNIQUE AFTER payment_deadline");
+        }
+    }
 }
 
 /**
@@ -636,6 +649,13 @@ function hbc_register_event_rewrite_rules() {
         'index.php?hbc_group_agenda=$matches[1]',
         'top'
     );
+
+    // Short booking-in URL: /book/{token}/
+    add_rewrite_rule(
+        'book/([^/]+)/?$',
+        'index.php?hbc_book_in_token=$matches[1]',
+        'top'
+    );
 }
 add_action('init', 'hbc_register_event_rewrite_rules');
 
@@ -651,6 +671,7 @@ function hbc_register_event_query_vars($vars) {
     $vars[] = 'hbc_event_group';
     $vars[] = 'hbc_event_purpose';
     $vars[] = 'hbc_group_agenda';
+    $vars[] = 'hbc_book_in_token';
     return $vars;
 }
 add_filter('query_vars', 'hbc_register_event_query_vars');
@@ -756,6 +777,60 @@ function hbc_handle_group_agenda_query($query) {
 add_action('pre_get_posts', 'hbc_handle_group_agenda_query');
 
 /**
+ * Handle short booking-in URLs (/book/{token}/)
+ *
+ * Resolves the token stored in hbc_booking_forms to the corresponding
+ * booking ID, then loads the calendar page with the booking-in form displayed.
+ *
+ * @since 1.15.0
+ * @param WP_Query $query The main query
+ * @return void
+ */
+function hbc_handle_book_in_token_query($query) {
+    if (!$query->is_main_query() || is_admin()) {
+        return;
+    }
+
+    $token = $query->get('hbc_book_in_token');
+    if (empty($token)) {
+        return;
+    }
+
+    global $wpdb;
+    $table = $wpdb->prefix . 'hbc_booking_forms';
+
+    if ($wpdb->get_var("SHOW TABLES LIKE '$table'") !== $table) {
+        $query->set_404();
+        return;
+    }
+
+    $booking_id = $wpdb->get_var($wpdb->prepare(
+        "SELECT booking_id FROM $table WHERE book_in_token = %s AND enabled = 1",
+        sanitize_text_field(wp_unslash($token))
+    ));
+
+    if (!$booking_id) {
+        $query->set_404();
+        return;
+    }
+
+    $_GET['hbc_book_in'] = '1';
+    $_GET['booking_id']  = intval($booking_id);
+
+    $page_id = hbc_find_calendar_page_id();
+    if ($page_id) {
+        $query->set('page_id', $page_id);
+        $query->is_page     = true;
+        $query->is_singular = true;
+        $query->is_home     = false;
+        $query->is_archive  = false;
+    } else {
+        $query->set_404();
+    }
+}
+add_action('pre_get_posts', 'hbc_handle_book_in_token_query');
+
+/**
  * Prevent WordPress canonical redirect from redirecting custom URLs
  *
  * When we serve a page (e.g. the calendar page) at a custom URL like /events/...
@@ -767,7 +842,7 @@ add_action('pre_get_posts', 'hbc_handle_group_agenda_query');
  * @return string|false The redirect URL or false to cancel
  */
 function hbc_disable_canonical_redirect_for_events($redirect_url) {
-    if (get_query_var('hbc_event_date') || get_query_var('hbc_group_agenda')) {
+    if (get_query_var('hbc_event_date') || get_query_var('hbc_group_agenda') || get_query_var('hbc_book_in_token')) {
         return false;
     }
     return $redirect_url;
