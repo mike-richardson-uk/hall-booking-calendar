@@ -108,6 +108,16 @@ function hbc_handle_booking_operations() {
         }
 
         add_settings_error('hbc_messages', 'hbc_message', __('Booking updated successfully.', 'hall-booking-calendar'), 'updated');
+
+        // Save booking-in form configuration
+        if (!empty($_POST['enable_book_in']) && '1' === $_POST['enable_book_in']) {
+            hbc_save_book_in_form_config($booking_id);
+        } else {
+            $bif_table = $wpdb->prefix . 'hbc_booking_forms';
+            if ($wpdb->get_var("SHOW TABLES LIKE '$bif_table'") === $bif_table) {
+                $wpdb->update($bif_table, array('enabled' => 0), array('booking_id' => $booking_id));
+            }
+        }
     }
 
     // Delete booking
@@ -390,11 +400,37 @@ function hbc_display_booking_details($booking_id) {
     $all_groups = $wpdb->get_results("SELECT * FROM $groups_table WHERE status = 'active' ORDER BY name ASC");
     $all_categories = $wpdb->get_results("SELECT * FROM $categories_table WHERE status = 'active' ORDER BY name ASC");
 
+    // Fetch existing booking-in form config for this booking (own config only, not inherited)
+    $booking_forms_table = $wpdb->prefix . 'hbc_booking_forms';
+    $existing_bi_config  = null;
+    if ($wpdb->get_var("SHOW TABLES LIKE '$booking_forms_table'") === $booking_forms_table) {
+        $existing_bi_config = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $booking_forms_table WHERE booking_id = %d",
+            $booking_id
+        ));
+    }
+
+    $bi_enabled          = $existing_bi_config && $existing_bi_config->enabled;
+    $bi_emails           = ($existing_bi_config && $existing_bi_config->submission_emails)
+                            ? (array) json_decode($existing_bi_config->submission_emails, true)
+                            : array();
+    $bi_include_meal     = $existing_bi_config && $existing_bi_config->include_meal_menu;
+    $bi_meals            = ($existing_bi_config && $existing_bi_config->meal_options)
+                            ? (array) json_decode($existing_bi_config->meal_options, true)
+                            : array();
+    $bi_token            = $existing_bi_config ? $existing_bi_config->book_in_token : '';
+    $bi_bank_name        = $existing_bi_config ? $existing_bi_config->payment_bank_name        : '';
+    $bi_sort_code        = $existing_bi_config ? $existing_bi_config->payment_sort_code        : '';
+    $bi_account_number   = $existing_bi_config ? $existing_bi_config->payment_account_number   : '';
+    $bi_ref_prefix       = $existing_bi_config ? $existing_bi_config->payment_reference_prefix : '';
+    $bi_cheque_payable   = $existing_bi_config ? $existing_bi_config->payment_cheque_payable   : '';
+    $bi_deadline         = $existing_bi_config ? $existing_bi_config->payment_deadline         : '';
+
     ?>
     <div class="hbc-booking-details">
         <h2><?php _e('Booking Details', 'hall-booking-calendar'); ?> #<?php echo esc_html($booking->id); ?></h2>
 
-        <form method="post" action="<?php echo admin_url('admin.php?page=hall-booking-bookings&action=view&booking_id=' . $booking_id); ?>">
+        <form method="post" id="hbc-edit-booking-form" action="<?php echo admin_url('admin.php?page=hall-booking-bookings&action=view&booking_id=' . $booking_id); ?>">
             <?php wp_nonce_field('hbc_update_booking_status', 'hbc_booking_nonce'); ?>
             <input type="hidden" name="booking_id" value="<?php echo esc_attr($booking->id); ?>">
 
@@ -491,6 +527,115 @@ function hbc_display_booking_details($booking_id) {
                 </tr>
             </table>
 
+            <hr style="margin: 24px 0;">
+            <h2><?php _e('Member Booking-In Form', 'hall-booking-calendar'); ?></h2>
+
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><?php _e('Enable:', 'hall-booking-calendar'); ?></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" id="hbc-admin-enable-book-in" name="enable_book_in" value="1" <?php checked($bi_enabled); ?>>
+                            <?php _e('Enable member booking-in form for this event', 'hall-booking-calendar'); ?>
+                        </label>
+                        <p class="description"><?php _e('Allows members to book in via a dedicated URL. A "Book In" button will appear on the event detail page.', 'hall-booking-calendar'); ?></p>
+                    </td>
+                </tr>
+                <?php if (!empty($bi_token)) : ?>
+                <tr>
+                    <th scope="row"><?php _e('Short URL:', 'hall-booking-calendar'); ?></th>
+                    <td>
+                        <code><?php echo esc_url(home_url('book/' . $bi_token . '/')); ?></code>
+                        <p class="description"><?php _e('Share this link with members so they can book in directly.', 'hall-booking-calendar'); ?></p>
+                    </td>
+                </tr>
+                <?php endif; ?>
+            </table>
+
+            <div id="hbc-admin-book-in-options" <?php echo $bi_enabled ? '' : 'style="display:none;"'; ?>>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><?php _e('Send submissions to:', 'hall-booking-calendar'); ?></th>
+                        <td>
+                            <div id="hbc-admin-book-in-emails">
+                                <?php
+                                $emails_to_render = !empty($bi_emails) ? $bi_emails : array('');
+                                $first_only = count($emails_to_render) === 1;
+                                foreach ($emails_to_render as $email) :
+                                ?>
+                                <div class="hbc-admin-email-entry" style="display:flex;gap:6px;margin-bottom:4px;">
+                                    <input type="email" name="book_in_emails[]" class="regular-text" value="<?php echo esc_attr($email); ?>" placeholder="email@example.com">
+                                    <button type="button" class="button hbc-admin-remove-email" <?php echo $first_only ? 'style="display:none;"' : ''; ?>>&times;</button>
+                                </div>
+                                <?php $first_only = false; endforeach; ?>
+                            </div>
+                            <button type="button" id="hbc-admin-add-email-btn" class="button"><?php _e('+ Add Another Email', 'hall-booking-calendar'); ?></button>
+                            <p class="description"><?php _e('Completed booking-in forms will be emailed to these addresses.', 'hall-booking-calendar'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php _e('Meal Menu:', 'hall-booking-calendar'); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox" id="hbc-admin-include-meal-menu" name="include_meal_menu" value="1" <?php checked($bi_include_meal); ?>>
+                                <?php _e('Include meal menu selection', 'hall-booking-calendar'); ?>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr id="hbc-admin-meal-builder-row" <?php echo $bi_include_meal ? '' : 'style="display:none;"'; ?>>
+                        <th scope="row"><?php _e('Meal Options:', 'hall-booking-calendar'); ?></th>
+                        <td>
+                            <div id="hbc-admin-meal-items-list">
+                                <?php foreach ($bi_meals as $meal) : ?>
+                                <div class="hbc-admin-meal-item" style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
+                                    <input type="text" class="hbc-admin-meal-name" style="width:160px;" placeholder="<?php esc_attr_e('Meal name', 'hall-booking-calendar'); ?>" value="<?php echo esc_attr($meal['name']); ?>">
+                                    <input type="text" class="hbc-admin-meal-desc" style="width:200px;" placeholder="<?php esc_attr_e('Description', 'hall-booking-calendar'); ?>" value="<?php echo esc_attr(isset($meal['description']) ? $meal['description'] : ''); ?>">
+                                    <input type="number" class="hbc-admin-meal-price small-text" placeholder="<?php esc_attr_e('£ Price', 'hall-booking-calendar'); ?>" min="0" step="0.01" value="<?php echo esc_attr(isset($meal['price']) ? $meal['price'] : ''); ?>">
+                                    <button type="button" class="button hbc-admin-remove-meal">&times;</button>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <input type="hidden" name="book_in_meals_json" id="hbc-admin-meals-json" value="<?php echo esc_attr(wp_json_encode(!empty($bi_meals) ? $bi_meals : array())); ?>">
+                            <button type="button" id="hbc-admin-add-meal-btn" class="button"><?php _e('+ Add Meal Option', 'hall-booking-calendar'); ?></button>
+                            <p class="description"><?php _e('Name is required; description and price are optional.', 'hall-booking-calendar'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row" colspan="2"><h3 style="margin:0;"><?php _e('Payment Information', 'hall-booking-calendar'); ?></h3>
+                            <p class="description" style="font-weight:normal;"><?php _e('Displayed on the booking-in form. Leave blank to omit.', 'hall-booking-calendar'); ?></p>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="hbc-admin-bank-name"><?php _e('Bank Name:', 'hall-booking-calendar'); ?></label></th>
+                        <td><input type="text" id="hbc-admin-bank-name" name="payment_bank_name" class="regular-text" value="<?php echo esc_attr($bi_bank_name); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="hbc-admin-sort-code"><?php _e('Sort Code:', 'hall-booking-calendar'); ?></label></th>
+                        <td><input type="text" id="hbc-admin-sort-code" name="payment_sort_code" class="regular-text" value="<?php echo esc_attr($bi_sort_code); ?>" placeholder="00-00-00"></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="hbc-admin-account-number"><?php _e('Account Number:', 'hall-booking-calendar'); ?></label></th>
+                        <td><input type="text" id="hbc-admin-account-number" name="payment_account_number" class="regular-text" value="<?php echo esc_attr($bi_account_number); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="hbc-admin-ref-prefix"><?php _e('Reference Prefix:', 'hall-booking-calendar'); ?></label></th>
+                        <td>
+                            <input type="text" id="hbc-admin-ref-prefix" name="payment_reference_prefix" class="regular-text" value="<?php echo esc_attr($bi_ref_prefix); ?>" placeholder="<?php esc_attr_e('e.g. DINNER', 'hall-booking-calendar'); ?>">
+                            <p class="description"><?php _e('Members will be asked to use this followed by their name as their payment reference.', 'hall-booking-calendar'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="hbc-admin-cheque-payable"><?php _e('Cheques Payable To:', 'hall-booking-calendar'); ?></label></th>
+                        <td><input type="text" id="hbc-admin-cheque-payable" name="payment_cheque_payable" class="regular-text" value="<?php echo esc_attr($bi_cheque_payable); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="hbc-admin-payment-deadline"><?php _e('Payment Deadline:', 'hall-booking-calendar'); ?></label></th>
+                        <td><input type="date" id="hbc-admin-payment-deadline" name="payment_deadline" value="<?php echo esc_attr($bi_deadline); ?>"></td>
+                    </tr>
+                </table>
+            </div><!-- /#hbc-admin-book-in-options -->
+
+            <br>
             <input type="submit" name="hbc_update_booking_status" class="button button-primary" value="<?php _e('Update Booking', 'hall-booking-calendar'); ?>">
         </form>
 
@@ -498,5 +643,84 @@ function hbc_display_booking_details($booking_id) {
             <a href="<?php echo admin_url('admin.php?page=hall-booking-bookings'); ?>" class="button"><?php _e('Back to Bookings', 'hall-booking-calendar'); ?></a>
         </p>
     </div>
+
+    <script>
+    jQuery(document).ready(function($) {
+
+        // Enable/disable booking-in options section
+        $('#hbc-admin-enable-book-in').on('change', function() {
+            if ($(this).is(':checked')) {
+                $('#hbc-admin-book-in-options').slideDown(200);
+            } else {
+                $('#hbc-admin-book-in-options').slideUp(200);
+            }
+        });
+
+        // Show/hide meal builder row
+        $('#hbc-admin-include-meal-menu').on('change', function() {
+            if ($(this).is(':checked')) {
+                $('#hbc-admin-meal-builder-row').show();
+            } else {
+                $('#hbc-admin-meal-builder-row').hide();
+            }
+        });
+
+        // Add email recipient row
+        $('#hbc-admin-add-email-btn').on('click', function() {
+            var row = '<div class="hbc-admin-email-entry" style="display:flex;gap:6px;margin-bottom:4px;">' +
+                '<input type="email" name="book_in_emails[]" class="regular-text" placeholder="email@example.com">' +
+                '<button type="button" class="button hbc-admin-remove-email">&times;</button>' +
+                '</div>';
+            $('#hbc-admin-book-in-emails').append(row);
+            updateRemoveEmailButtons();
+        });
+
+        // Remove email recipient row
+        $(document).on('click', '.hbc-admin-remove-email', function() {
+            $(this).closest('.hbc-admin-email-entry').remove();
+            updateRemoveEmailButtons();
+        });
+
+        function updateRemoveEmailButtons() {
+            var rows = $('#hbc-admin-book-in-emails .hbc-admin-email-entry');
+            rows.find('.hbc-admin-remove-email').show();
+            if (rows.length === 1) {
+                rows.find('.hbc-admin-remove-email').hide();
+            }
+        }
+
+        // Add meal option row
+        $('#hbc-admin-add-meal-btn').on('click', function() {
+            var row = '<div class="hbc-admin-meal-item" style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">' +
+                '<input type="text" class="hbc-admin-meal-name" style="width:160px;" placeholder="<?php echo esc_js(__('Meal name', 'hall-booking-calendar')); ?>">' +
+                '<input type="text" class="hbc-admin-meal-desc" style="width:200px;" placeholder="<?php echo esc_js(__('Description', 'hall-booking-calendar')); ?>">' +
+                '<input type="number" class="hbc-admin-meal-price small-text" placeholder="<?php echo esc_js(__('£ Price', 'hall-booking-calendar')); ?>" min="0" step="0.01">' +
+                '<button type="button" class="button hbc-admin-remove-meal">&times;</button>' +
+                '</div>';
+            $('#hbc-admin-meal-items-list').append(row);
+        });
+
+        // Remove meal option row
+        $(document).on('click', '.hbc-admin-remove-meal', function() {
+            $(this).closest('.hbc-admin-meal-item').remove();
+        });
+
+        // Serialize meal rows to JSON hidden field before form submits
+        $('#hbc-edit-booking-form').on('submit', function() {
+            var meals = [];
+            $('#hbc-admin-meal-items-list .hbc-admin-meal-item').each(function() {
+                var name = $(this).find('.hbc-admin-meal-name').val().trim();
+                if (name) {
+                    meals.push({
+                        name:        name,
+                        description: $(this).find('.hbc-admin-meal-desc').val().trim(),
+                        price:       parseFloat($(this).find('.hbc-admin-meal-price').val()) || 0
+                    });
+                }
+            });
+            $('#hbc-admin-meals-json').val(JSON.stringify(meals));
+        });
+    });
+    </script>
     <?php
 }
