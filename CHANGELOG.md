@@ -2,6 +2,9 @@
 
 All notable changes to the Hall Booking Calendar plugin will be documented in this file.
 
+## 1.16.0
+- **Admin booking-in form editing**: The booking detail/edit page in Hall Booking → Bookings now includes a full "Member Booking-In Form" section. Admins can enable the form, manage notification email recipients, configure the meal menu, set payment information, and view the generated short URL — all from the same page without needing to go back through the original booking form
+
 ## 1.15.0
 - **Short booking-in URL**: When a booking-in form is enabled, a unique short URL (e.g. `/book/X6fGh/`) is automatically generated and stored. The short URL is included in the confirmation email sent to the original hall booking submitter so they can share it directly with members
 - **Token routing**: The `/book/{token}/` URL resolves to the member-facing booking-in form for the associated event, with canonical redirect suppression so WordPress does not redirect the URL away
