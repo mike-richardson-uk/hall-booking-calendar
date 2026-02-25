@@ -77,7 +77,7 @@ Both routes resolve to the page containing `[hall_booking_calendar]` (found via 
 
 ## Database tables
 
-All tables are created on plugin activation via `dbDelta()`.
+All tables are created on plugin activation via `dbDelta()`. Upgrade additions run through `hbc_check_database_upgrade()` on `init`.
 
 - `{prefix}hbc_rooms`
 - `{prefix}hbc_groups`
@@ -85,6 +85,8 @@ All tables are created on plugin activation via `dbDelta()`.
 - `{prefix}hbc_bookings`
 - `{prefix}hbc_booking_rooms` (multi-room junction, added v1.6.0)
 - `{prefix}hbc_subscriptions`
+- `{prefix}hbc_booking_forms` (member booking-in form config per booking, added v1.14.0)
+- `{prefix}hbc_form_submissions` (member booking-in form submissions, added v1.14.0)
 
 ## Coding conventions
 
