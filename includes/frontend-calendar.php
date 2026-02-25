@@ -55,8 +55,12 @@ function hbc_calendar_shortcode($atts) {
 
     ob_start();
 
+    // Check if showing member booking-in form
+    if (isset($_GET['hbc_book_in']) && isset($_GET['booking_id']) && is_numeric($_GET['booking_id'])) {
+        echo hbc_display_booking_in_form(intval($_GET['booking_id']));
+    }
     // Check if viewing single booking detail page
-    if (isset($_GET['booking_id']) && is_numeric($_GET['booking_id'])) {
+    elseif (isset($_GET['booking_id']) && is_numeric($_GET['booking_id'])) {
         echo hbc_display_single_booking(intval($_GET['booking_id']));
     }
     // Check if showing full-page booking form
@@ -687,6 +691,76 @@ function hbc_render_booking_form($selected_date = '', $preselect_group = '', $pr
             </div>
         </div>
 
+        <!-- Member Booking-In Form -->
+        <div class="hbc-form-section">
+            <h3><?php _e('Member Booking-In Form', 'hall-booking-calendar'); ?></h3>
+            <div class="hbc-form-row">
+                <label>
+                    <input type="checkbox" id="hbc_enable_book_in" name="enable_book_in" value="1">
+                    <?php _e('Enable member booking-in form for this event', 'hall-booking-calendar'); ?>
+                </label>
+                <p class="description"><?php _e('Allows members to book in for this event, with optional dinner selection. A "Book In" button will appear on the event detail page.', 'hall-booking-calendar'); ?></p>
+            </div>
+
+            <div id="hbc-book-in-options" style="display: none;">
+                <div class="hbc-form-row">
+                    <label><?php _e('Send submissions to:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                    <div id="hbc-book-in-emails">
+                        <div class="hbc-email-entry" style="display:flex;gap:6px;margin-bottom:4px;">
+                            <input type="email" name="book_in_emails[]" class="regular-text" placeholder="<?php esc_attr_e('email@example.com', 'hall-booking-calendar'); ?>">
+                            <button type="button" class="button hbc-remove-email" style="display:none;">&times;</button>
+                        </div>
+                    </div>
+                    <button type="button" id="hbc-add-email-btn" class="button"><?php _e('+ Add Another Email', 'hall-booking-calendar'); ?></button>
+                    <p class="description"><?php _e('Completed booking-in forms will be emailed to these addresses.', 'hall-booking-calendar'); ?></p>
+                </div>
+
+                <div class="hbc-form-row">
+                    <label>
+                        <input type="checkbox" id="hbc_include_meal_menu" name="include_meal_menu" value="1">
+                        <?php _e('Include meal menu selection', 'hall-booking-calendar'); ?>
+                    </label>
+                </div>
+
+                <div id="hbc-meal-menu-builder" style="display: none;">
+                    <label><?php _e('Meal Options:', 'hall-booking-calendar'); ?></label>
+                    <div id="hbc-meal-items-list" style="margin-bottom:6px;"></div>
+                    <button type="button" id="hbc-add-meal-btn" class="button"><?php _e('+ Add Meal Option', 'hall-booking-calendar'); ?></button>
+                    <p class="description"><?php _e('Name is required; description and price are optional.', 'hall-booking-calendar'); ?></p>
+                </div>
+
+                <div class="hbc-book-in-payment" style="margin-top:16px;">
+                    <h4 style="margin-bottom:4px;"><?php _e('Payment Information', 'hall-booking-calendar'); ?></h4>
+                    <p class="description"><?php _e('Shown on the booking-in form. Leave blank to omit.', 'hall-booking-calendar'); ?></p>
+                    <div class="hbc-form-row">
+                        <label for="hbc_payment_bank_name"><?php _e('Bank Name:', 'hall-booking-calendar'); ?></label>
+                        <input type="text" id="hbc_payment_bank_name" name="payment_bank_name" class="regular-text">
+                    </div>
+                    <div class="hbc-form-row">
+                        <label for="hbc_payment_sort_code"><?php _e('Sort Code:', 'hall-booking-calendar'); ?></label>
+                        <input type="text" id="hbc_payment_sort_code" name="payment_sort_code" class="regular-text" placeholder="00-00-00">
+                    </div>
+                    <div class="hbc-form-row">
+                        <label for="hbc_payment_account_number"><?php _e('Account Number:', 'hall-booking-calendar'); ?></label>
+                        <input type="text" id="hbc_payment_account_number" name="payment_account_number" class="regular-text">
+                    </div>
+                    <div class="hbc-form-row">
+                        <label for="hbc_payment_reference_prefix"><?php _e('Reference Prefix:', 'hall-booking-calendar'); ?></label>
+                        <input type="text" id="hbc_payment_reference_prefix" name="payment_reference_prefix" class="regular-text" placeholder="<?php esc_attr_e('e.g. DINNER', 'hall-booking-calendar'); ?>">
+                        <p class="description"><?php _e('Members will be asked to use this followed by their name as their payment reference.', 'hall-booking-calendar'); ?></p>
+                    </div>
+                    <div class="hbc-form-row">
+                        <label for="hbc_payment_cheque_payable"><?php _e('Cheque Payable To:', 'hall-booking-calendar'); ?></label>
+                        <input type="text" id="hbc_payment_cheque_payable" name="payment_cheque_payable" class="regular-text">
+                    </div>
+                    <div class="hbc-form-row">
+                        <label for="hbc_payment_deadline"><?php _e('Payment Deadline:', 'hall-booking-calendar'); ?></label>
+                        <input type="date" id="hbc_payment_deadline" name="payment_deadline">
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Terms and Conditions -->
         <?php
         $terms_text = get_option('hbc_terms_conditions', '');
@@ -1144,6 +1218,23 @@ function hbc_display_single_booking($booking_id) {
             <?php endif; ?>
         </div>
 
+        <?php
+        $book_in_form = hbc_get_book_in_form($booking_id);
+        if ($book_in_form) :
+            $calendar_page_id = hbc_find_calendar_page_id();
+            $book_in_url = $calendar_page_id
+                ? add_query_arg(array('hbc_book_in' => '1', 'booking_id' => $booking_id), get_permalink($calendar_page_id))
+                : add_query_arg(array('hbc_book_in' => '1'));
+        ?>
+        <div class="hbc-single-section hbc-book-in-cta">
+            <h3><?php _e('Member Booking-In', 'hall-booking-calendar'); ?></h3>
+            <p><?php _e('To book in for this event, please complete the booking-in form:', 'hall-booking-calendar'); ?></p>
+            <a href="<?php echo esc_url($book_in_url); ?>" class="button button-primary hbc-book-in-btn">
+                <?php _e('Book In for This Event', 'hall-booking-calendar'); ?>
+            </a>
+        </div>
+        <?php endif; ?>
+
         <div class="hbc-single-actions">
             <?php
             $back_url = get_query_var('hbc_event_date')
@@ -1154,6 +1245,181 @@ function hbc_display_single_booking($booking_id) {
                 &larr; <?php _e('Back to Calendar', 'hall-booking-calendar'); ?>
             </a>
         </div>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+
+/**
+ * Display the member booking-in form for a specific event
+ *
+ * @since 1.14.0
+ * @param int $booking_id
+ * @return string HTML output
+ */
+function hbc_display_booking_in_form($booking_id) {
+    global $wpdb;
+
+    $booking = $wpdb->get_row($wpdb->prepare(
+        "SELECT b.*, r.name as room_name, g.name as group_name
+         FROM {$wpdb->prefix}hbc_bookings b
+         LEFT JOIN {$wpdb->prefix}hbc_rooms r ON b.room_id = r.id
+         LEFT JOIN {$wpdb->prefix}hbc_groups g ON b.group_id = g.id
+         WHERE b.id = %d",
+        $booking_id
+    ));
+
+    if (!$booking) {
+        return '<div class="hbc-error"><p>' . esc_html__('Event not found.', 'hall-booking-calendar') . '</p></div>';
+    }
+
+    $form_config = hbc_get_book_in_form($booking_id);
+    if (!$form_config) {
+        return '<div class="hbc-error"><p>' . esc_html__('Booking-in is not available for this event.', 'hall-booking-calendar') . '</p></div>';
+    }
+
+    $meal_options      = !empty($form_config->meal_options) ? json_decode($form_config->meal_options, true) : array();
+    $include_meals     = $form_config->include_meal_menu && !empty($meal_options);
+    $has_bank_transfer = !empty($form_config->payment_bank_name) || !empty($form_config->payment_sort_code) || !empty($form_config->payment_account_number);
+    $has_cheque        = !empty($form_config->payment_cheque_payable);
+    $has_payment_info  = ($has_bank_transfer || $has_cheque) && $include_meals;
+
+    ob_start();
+    ?>
+    <div class="hbc-book-in-form-container">
+        <div class="hbc-book-in-header">
+            <h2><?php printf(esc_html__('Book In: %s', 'hall-booking-calendar'), esc_html($booking->purpose)); ?></h2>
+            <div class="hbc-book-in-event-summary">
+                <span><?php echo date('l, F j, Y', strtotime($booking->booking_date)); ?></span>
+                <span><?php echo date('g:i A', strtotime($booking->start_time)); ?> &ndash; <?php echo date('g:i A', strtotime($booking->end_time)); ?></span>
+                <?php if (!empty($booking->room_name)) : ?>
+                <span><?php echo esc_html($booking->room_name); ?></span>
+                <?php endif; ?>
+            </div>
+            <a href="<?php echo esc_url(hbc_get_event_url($booking)); ?>" class="hbc-back-to-event">&larr; <?php _e('Back to Event Details', 'hall-booking-calendar'); ?></a>
+        </div>
+
+        <form id="hbc-book-in-form" method="post">
+            <?php wp_nonce_field('hbc_book_in_nonce', 'hbc_book_in_nonce'); ?>
+            <input type="hidden" name="booking_id" value="<?php echo esc_attr($booking_id); ?>">
+            <div class="hbc-form-message"></div>
+
+            <!-- Personal Details -->
+            <div class="hbc-form-section">
+                <h3><?php _e('Personal Details', 'hall-booking-calendar'); ?></h3>
+                <div class="hbc-form-row">
+                    <label for="hbc_bi_full_name"><?php _e('Full Name:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                    <input type="text" id="hbc_bi_full_name" name="bi_full_name" required class="regular-text">
+                </div>
+                <div class="hbc-form-row">
+                    <label for="hbc_bi_email"><?php _e('Email Address:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                    <input type="email" id="hbc_bi_email" name="bi_email" required class="regular-text">
+                </div>
+                <div class="hbc-form-row">
+                    <label for="hbc_bi_phone"><?php _e('Phone Number:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                    <input type="tel" id="hbc_bi_phone" name="bi_phone" required class="regular-text">
+                </div>
+            </div>
+
+            <!-- Masonic Information -->
+            <div class="hbc-form-section">
+                <h3><?php _e('Masonic Information', 'hall-booking-calendar'); ?></h3>
+                <div class="hbc-form-row">
+                    <label for="hbc_bi_masonic_rank"><?php _e('Masonic Rank:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                    <input type="text" id="hbc_bi_masonic_rank" name="bi_masonic_rank" required class="regular-text" placeholder="<?php esc_attr_e('e.g. WM, SW, JW, PM', 'hall-booking-calendar'); ?>">
+                </div>
+                <div class="hbc-form-row">
+                    <label><?php _e('Attendance:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                    <div class="hbc-radio-group">
+                        <label><input type="radio" name="bi_attendance_type" value="attending_dinner" required> <?php _e('Attending, with dinner', 'hall-booking-calendar'); ?></label>
+                        <label><input type="radio" name="bi_attendance_type" value="attending_no_dinner"> <?php _e('Attending, but not having dinner', 'hall-booking-calendar'); ?></label>
+                        <label><input type="radio" name="bi_attendance_type" value="not_attending"> <?php _e('Not attending', 'hall-booking-calendar'); ?></label>
+                    </div>
+                </div>
+                <div class="hbc-form-row">
+                    <label><?php _e('Membership:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                    <div class="hbc-radio-group">
+                        <label><input type="radio" name="bi_membership_type" value="member" required> <?php _e('Member', 'hall-booking-calendar'); ?></label>
+                        <label><input type="radio" name="bi_membership_type" value="guest"> <?php _e('Guest', 'hall-booking-calendar'); ?></label>
+                    </div>
+                </div>
+                <div class="hbc-form-row">
+                    <label for="hbc_bi_lodge_name"><?php _e('Lodge Name:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                    <input type="text" id="hbc_bi_lodge_name" name="bi_lodge_name" required class="regular-text">
+                </div>
+            </div>
+
+            <?php if ($include_meals) : ?>
+            <!-- Meal Selection – shown only when "attending with dinner" is selected -->
+            <div class="hbc-form-section hbc-bi-dinner-only" style="display:none;">
+                <h3><?php _e('Meal Selection', 'hall-booking-calendar'); ?></h3>
+                <div class="hbc-form-row">
+                    <div class="hbc-meal-options-list">
+                        <?php foreach ($meal_options as $meal) : ?>
+                        <label class="hbc-meal-option">
+                            <input type="radio" name="bi_meal_choice" value="<?php echo esc_attr($meal['name']); ?>">
+                            <span class="hbc-meal-name"><?php echo esc_html($meal['name']); ?></span>
+                            <?php if (!empty($meal['description'])) : ?>
+                            <span class="hbc-meal-description"><?php echo esc_html($meal['description']); ?></span>
+                            <?php endif; ?>
+                            <?php if (!empty($meal['price'])) : ?>
+                            <span class="hbc-meal-price">&pound;<?php echo esc_html(number_format(floatval($meal['price']), 2)); ?></span>
+                            <?php endif; ?>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <div class="hbc-form-row">
+                    <label for="hbc_bi_dietary"><?php _e('Dietary Requirements / Allergies:', 'hall-booking-calendar'); ?></label>
+                    <textarea id="hbc_bi_dietary" name="bi_dietary_requirements" rows="3" class="large-text" placeholder="<?php esc_attr_e('Please list any dietary requirements or allergies', 'hall-booking-calendar'); ?>"></textarea>
+                </div>
+            </div>
+            <?php if ($has_payment_info) : ?>
+            <div class="hbc-form-section hbc-bi-dinner-only" style="display:none;">
+                <h3><?php _e('Payment Information', 'hall-booking-calendar'); ?></h3>
+                <p><?php _e('Please arrange payment using one of the following methods:', 'hall-booking-calendar'); ?></p>
+                <?php if ($has_bank_transfer) : ?>
+                <div class="hbc-payment-method">
+                    <h4><?php _e('Bank Transfer', 'hall-booking-calendar'); ?></h4>
+                    <?php if (!empty($form_config->payment_bank_name)) : ?>
+                    <p><strong><?php _e('Bank:', 'hall-booking-calendar'); ?></strong> <?php echo esc_html($form_config->payment_bank_name); ?></p>
+                    <?php endif; ?>
+                    <?php if (!empty($form_config->payment_sort_code)) : ?>
+                    <p><strong><?php _e('Sort Code:', 'hall-booking-calendar'); ?></strong> <?php echo esc_html($form_config->payment_sort_code); ?></p>
+                    <?php endif; ?>
+                    <?php if (!empty($form_config->payment_account_number)) : ?>
+                    <p><strong><?php _e('Account Number:', 'hall-booking-calendar'); ?></strong> <?php echo esc_html($form_config->payment_account_number); ?></p>
+                    <?php endif; ?>
+                    <?php if (!empty($form_config->payment_reference_prefix)) : ?>
+                    <p><strong><?php _e('Payment Reference:', 'hall-booking-calendar'); ?></strong> <?php printf(esc_html__('%s followed by your name', 'hall-booking-calendar'), esc_html($form_config->payment_reference_prefix)); ?></p>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+                <?php if ($has_cheque) : ?>
+                <div class="hbc-payment-method">
+                    <h4><?php _e('Cheque', 'hall-booking-calendar'); ?></h4>
+                    <p><strong><?php _e('Payable to:', 'hall-booking-calendar'); ?></strong> <?php echo esc_html($form_config->payment_cheque_payable); ?></p>
+                </div>
+                <?php endif; ?>
+                <?php if (!empty($form_config->payment_deadline)) : ?>
+                <p class="hbc-payment-deadline"><strong><?php _e('Payment deadline:', 'hall-booking-calendar'); ?></strong> <?php echo date('l, F j, Y', strtotime($form_config->payment_deadline)); ?></p>
+                <?php endif; ?>
+            </div>
+            <?php endif; // has_payment_info ?>
+            <?php endif; // include_meals ?>
+
+            <!-- Additional Comments -->
+            <div class="hbc-form-section">
+                <h3><?php _e('Additional Comments', 'hall-booking-calendar'); ?></h3>
+                <div class="hbc-form-row">
+                    <textarea id="hbc_bi_comments" name="bi_additional_comments" rows="4" class="large-text" placeholder="<?php esc_attr_e('Any additional information or comments...', 'hall-booking-calendar'); ?>"></textarea>
+                </div>
+            </div>
+
+            <div class="hbc-form-actions">
+                <button type="submit" class="hbc-submit-btn button button-primary"><?php _e('Confirm Booking', 'hall-booking-calendar'); ?></button>
+            </div>
+        </form>
     </div>
     <?php
     return ob_get_clean();

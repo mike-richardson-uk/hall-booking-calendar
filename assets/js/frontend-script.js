@@ -199,6 +199,38 @@
                 });
             }
 
+            // Append booking-in form config if enabled
+            if ($('#hbc_enable_book_in').is(':checked')) {
+                formData.append('enable_book_in', '1');
+                $('input[name="book_in_emails[]"]').each(function(i) {
+                    var emailVal = $.trim($(this).val());
+                    if (emailVal) {
+                        formData.append('book_in_emails[' + i + ']', emailVal);
+                    }
+                });
+                if ($('#hbc_include_meal_menu').is(':checked')) {
+                    formData.append('include_meal_menu', '1');
+                    var meals = [];
+                    $('#hbc-meal-items-list .hbc-meal-item-row').each(function() {
+                        var mealName = $.trim($(this).find('.hbc-meal-name-input').val());
+                        if (mealName) {
+                            meals.push({
+                                name:        mealName,
+                                description: $.trim($(this).find('.hbc-meal-desc-input').val()),
+                                price:       $(this).find('.hbc-meal-price-input').val()
+                            });
+                        }
+                    });
+                    formData.append('book_in_meals_json', JSON.stringify(meals));
+                }
+                formData.append('payment_bank_name',       $('#hbc_payment_bank_name').val());
+                formData.append('payment_sort_code',        $('#hbc_payment_sort_code').val());
+                formData.append('payment_account_number',   $('#hbc_payment_account_number').val());
+                formData.append('payment_reference_prefix', $('#hbc_payment_reference_prefix').val());
+                formData.append('payment_cheque_payable',   $('#hbc_payment_cheque_payable').val());
+                formData.append('payment_deadline',         $('#hbc_payment_deadline').val());
+            }
+
             // Submit via AJAX
             $.ajax({
                 url: hbc_ajax.ajax_url,
@@ -259,6 +291,138 @@
                 $(this).val('');
             }
         });
+
+        // ---------------------------------------------------------------
+        // Booking-In Form – room booking form setup section
+        // ---------------------------------------------------------------
+
+        // Toggle the book-in options panel
+        $('#hbc_enable_book_in').on('change', function() {
+            if ($(this).is(':checked')) {
+                $('#hbc-book-in-options').slideDown();
+            } else {
+                $('#hbc-book-in-options').slideUp();
+            }
+        });
+
+        // Toggle the meal menu builder
+        $('#hbc_include_meal_menu').on('change', function() {
+            if ($(this).is(':checked')) {
+                $('#hbc-meal-menu-builder').slideDown();
+            } else {
+                $('#hbc-meal-menu-builder').slideUp();
+            }
+        });
+
+        // Add email recipient row
+        $('#hbc-add-email-btn').on('click', function() {
+            var newRow = $('<div class="hbc-email-entry" style="display:flex;gap:6px;margin-bottom:4px;">' +
+                '<input type="email" name="book_in_emails[]" class="regular-text" placeholder="email@example.com">' +
+                '<button type="button" class="button hbc-remove-email">&times;</button>' +
+                '</div>');
+            $('#hbc-book-in-emails').append(newRow);
+            $('#hbc-book-in-emails .hbc-remove-email').show();
+        });
+
+        // Remove email recipient row
+        $(document).on('click', '.hbc-remove-email', function() {
+            $(this).closest('.hbc-email-entry').remove();
+            if ($('#hbc-book-in-emails .hbc-email-entry').length === 1) {
+                $('#hbc-book-in-emails .hbc-remove-email').hide();
+            }
+        });
+
+        // Add meal option row
+        $('#hbc-add-meal-btn').on('click', function() {
+            var idx = $('#hbc-meal-items-list .hbc-meal-item-row').length;
+            var row = $(
+                '<div class="hbc-meal-item-row" style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;">' +
+                '<input type="text" class="hbc-meal-name-input" placeholder="Meal name *" style="flex:2;min-width:120px;">' +
+                '<input type="text" class="hbc-meal-desc-input" placeholder="Description (optional)" style="flex:3;min-width:160px;">' +
+                '<input type="number" class="hbc-meal-price-input" placeholder="Price (£)" min="0" step="0.01" style="width:90px;">' +
+                '<button type="button" class="button hbc-remove-meal">&times;</button>' +
+                '</div>'
+            );
+            $('#hbc-meal-items-list').append(row);
+        });
+
+        // Remove meal option row
+        $(document).on('click', '.hbc-remove-meal', function() {
+            $(this).closest('.hbc-meal-item-row').remove();
+        });
+
+        // ---------------------------------------------------------------
+        // Booking-In Form – member-facing form submission
+        // ---------------------------------------------------------------
+
+        // Show/hide dinner-only sections based on attendance selection
+        $(document).on('change', 'input[name="bi_attendance_type"]', function() {
+            if ($(this).val() === 'attending_dinner') {
+                $('.hbc-bi-dinner-only').slideDown();
+            } else {
+                $('.hbc-bi-dinner-only').slideUp();
+            }
+        });
+
+        // Submit the booking-in form via AJAX
+        $(document).on('submit', '#hbc-book-in-form', function(e) {
+            e.preventDefault();
+
+            var form      = $(this);
+            var submitBtn = form.find('.hbc-submit-btn');
+
+            if (!$('input[name="bi_attendance_type"]:checked').length) {
+                showBookInMessage('error', 'Please select an attendance type.');
+                return;
+            }
+            if (!$('input[name="bi_membership_type"]:checked').length) {
+                showBookInMessage('error', 'Please select a membership type.');
+                return;
+            }
+
+            submitBtn.prop('disabled', true).text('Submitting...').addClass('loading');
+
+            $.ajax({
+                url:  hbc_ajax.ajax_url,
+                type: 'POST',
+                data: {
+                    action:                 'hbc_submit_book_in',
+                    nonce:                  hbc_ajax.book_in_nonce,
+                    booking_id:             $('input[name="booking_id"]', form).val(),
+                    bi_full_name:           $('#hbc_bi_full_name').val(),
+                    bi_email:               $('#hbc_bi_email').val(),
+                    bi_phone:               $('#hbc_bi_phone').val(),
+                    bi_masonic_rank:        $('#hbc_bi_masonic_rank').val(),
+                    bi_attendance_type:     $('input[name="bi_attendance_type"]:checked').val(),
+                    bi_membership_type:     $('input[name="bi_membership_type"]:checked').val(),
+                    bi_lodge_name:          $('#hbc_bi_lodge_name').val(),
+                    bi_meal_choice:         $('input[name="bi_meal_choice"]:checked').val() || '',
+                    bi_dietary_requirements: $('#hbc_bi_dietary').val(),
+                    bi_additional_comments: $('#hbc_bi_comments').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        showBookInMessage('success', response.data.message);
+                        form[0].reset();
+                        $('.hbc-bi-dinner-only').hide();
+                    } else {
+                        showBookInMessage('error', response.data.message);
+                    }
+                },
+                error: function() {
+                    showBookInMessage('error', 'An error occurred. Please try again.');
+                },
+                complete: function() {
+                    submitBtn.prop('disabled', false).text('Confirm Booking').removeClass('loading');
+                }
+            });
+        });
+
+        function showBookInMessage(type, message) {
+            var messageDiv = $('#hbc-book-in-form .hbc-form-message');
+            messageDiv.removeClass('success error').addClass(type).html(message).show();
+            $('html, body').animate({ scrollTop: messageDiv.offset().top - 100 }, 400);
+        }
 
     });
 

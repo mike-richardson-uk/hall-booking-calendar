@@ -3,7 +3,7 @@
  * Plugin Name: Hall Booking Calendar
  * Plugin URI: https://github.com/mike-richardson-uk/hall-booking-calendar
  * Description: A WordPress plugin to manage a hall calendar with 3 rooms, recurring bookings, and calendar subscriptions.
- * Version: 1.13.0
+ * Version: 1.14.0
  * Author: Mike Richardson
  * Author URI: https://github.com/mike-richardson-uk/hall-booking-calendar
  * License: GPL-2.0+
@@ -18,7 +18,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('HBC_VERSION', '1.13.0');
+define('HBC_VERSION', '1.14.0');
 define('HBC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HBC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('HBC_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -131,6 +131,46 @@ function hbc_activate() {
         KEY user_id (user_id)
     ) $charset_collate;";
 
+    // Create booking-in form configuration table
+    $booking_forms_table = $wpdb->prefix . 'hbc_booking_forms';
+    $sql_booking_forms = "CREATE TABLE IF NOT EXISTS $booking_forms_table (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        booking_id mediumint(9) NOT NULL,
+        enabled tinyint(1) DEFAULT 1,
+        submission_emails text,
+        include_meal_menu tinyint(1) DEFAULT 0,
+        meal_options text,
+        payment_bank_name varchar(255),
+        payment_sort_code varchar(50),
+        payment_account_number varchar(50),
+        payment_reference_prefix varchar(100),
+        payment_cheque_payable varchar(255),
+        payment_deadline date,
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY  (id),
+        UNIQUE KEY booking_id (booking_id)
+    ) $charset_collate;";
+
+    // Create member booking-in submissions table
+    $form_submissions_table = $wpdb->prefix . 'hbc_form_submissions';
+    $sql_form_submissions = "CREATE TABLE IF NOT EXISTS $form_submissions_table (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        booking_id mediumint(9) NOT NULL,
+        full_name varchar(255) NOT NULL,
+        email varchar(255) NOT NULL,
+        phone varchar(100),
+        masonic_rank varchar(100),
+        attendance_type varchar(50),
+        membership_type varchar(50),
+        lodge_name varchar(255),
+        meal_choice varchar(255),
+        dietary_requirements text,
+        additional_comments text,
+        submitted_at datetime DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY  (id),
+        KEY booking_id (booking_id)
+    ) $charset_collate;";
+
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql_rooms);
     dbDelta($sql_groups);
@@ -138,6 +178,8 @@ function hbc_activate() {
     dbDelta($sql_booking_rooms);
     dbDelta($sql_categories);
     dbDelta($sql_subscriptions);
+    dbDelta($sql_booking_forms);
+    dbDelta($sql_form_submissions);
 
     // Insert default 3 rooms if none exist
     $existing_rooms = $wpdb->get_var("SELECT COUNT(*) FROM $rooms_table");
@@ -313,6 +355,72 @@ function hbc_check_database_upgrade() {
 
     // Security upgrade: Hash plain-text passwords (v1.4.0 upgrade)
     hbc_upgrade_password_security();
+
+    // Booking-in form tables (v1.14.0)
+    hbc_upgrade_book_in_tables();
+}
+
+/**
+ * Create booking-in form tables if they don't yet exist
+ *
+ * @since 1.14.0
+ * @return void
+ */
+function hbc_upgrade_book_in_tables() {
+    global $wpdb;
+
+    $charset_collate = $wpdb->get_charset_collate();
+
+    $booking_forms_table   = $wpdb->prefix . 'hbc_booking_forms';
+    $form_submissions_table = $wpdb->prefix . 'hbc_form_submissions';
+
+    // Only run if either table is missing
+    $forms_exists       = $wpdb->get_var("SHOW TABLES LIKE '$booking_forms_table'") === $booking_forms_table;
+    $submissions_exists = $wpdb->get_var("SHOW TABLES LIKE '$form_submissions_table'") === $form_submissions_table;
+
+    if ($forms_exists && $submissions_exists) {
+        return;
+    }
+
+    $sql_booking_forms = "CREATE TABLE IF NOT EXISTS $booking_forms_table (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        booking_id mediumint(9) NOT NULL,
+        enabled tinyint(1) DEFAULT 1,
+        submission_emails text,
+        include_meal_menu tinyint(1) DEFAULT 0,
+        meal_options text,
+        payment_bank_name varchar(255),
+        payment_sort_code varchar(50),
+        payment_account_number varchar(50),
+        payment_reference_prefix varchar(100),
+        payment_cheque_payable varchar(255),
+        payment_deadline date,
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY  (id),
+        UNIQUE KEY booking_id (booking_id)
+    ) $charset_collate;";
+
+    $sql_form_submissions = "CREATE TABLE IF NOT EXISTS $form_submissions_table (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        booking_id mediumint(9) NOT NULL,
+        full_name varchar(255) NOT NULL,
+        email varchar(255) NOT NULL,
+        phone varchar(100),
+        masonic_rank varchar(100),
+        attendance_type varchar(50),
+        membership_type varchar(50),
+        lodge_name varchar(255),
+        meal_choice varchar(255),
+        dietary_requirements text,
+        additional_comments text,
+        submitted_at datetime DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY  (id),
+        KEY booking_id (booking_id)
+    ) $charset_collate;";
+
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql_booking_forms);
+    dbDelta($sql_form_submissions);
 }
 
 /**
@@ -867,8 +975,9 @@ function hbc_frontend_enqueue_scripts() {
 
     // Localize script for AJAX - provides URL and nonce for secure AJAX requests
     wp_localize_script('hbc-frontend-script', 'hbc_ajax', array(
-        'ajax_url' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('hbc_booking_nonce')
+        'ajax_url'      => admin_url('admin-ajax.php'),
+        'nonce'         => wp_create_nonce('hbc_booking_nonce'),
+        'book_in_nonce' => wp_create_nonce('hbc_book_in_nonce'),
     ));
 }
 add_action('wp_enqueue_scripts', 'hbc_frontend_enqueue_scripts');

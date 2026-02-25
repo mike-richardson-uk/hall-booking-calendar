@@ -206,6 +206,9 @@ function hbc_handle_booking_submission() {
         $result = hbc_create_recurring_bookings($booking_data, $recurrence_pattern, $recurrence_end, $additional_dates, $room_ids);
 
         if ($result['success']) {
+            // Save booking-in form config against the parent booking
+            hbc_save_book_in_form_config($result['parent_id']);
+
             // Send notification email for parent booking
             hbc_send_booking_notification($result['parent_id']);
 
@@ -282,6 +285,9 @@ function hbc_handle_booking_submission() {
         }
 
         if ($result) {
+            // Save booking-in form config if enabled
+            hbc_save_book_in_form_config($new_booking_id);
+
             // Send notification email
             hbc_send_booking_notification($new_booking_id);
 
@@ -296,6 +302,263 @@ function hbc_handle_booking_submission() {
 }
 add_action('wp_ajax_hbc_submit_booking', 'hbc_handle_booking_submission');
 add_action('wp_ajax_nopriv_hbc_submit_booking', 'hbc_handle_booking_submission');
+
+/**
+ * Get book-in form configuration for a booking
+ *
+ * Checks the booking's own config first, then falls back to the parent
+ * booking's config so recurring series members only need one config entry.
+ *
+ * @since 1.14.0
+ * @param int $booking_id
+ * @return object|null Row from hbc_booking_forms, or null if not found/table missing
+ */
+function hbc_get_book_in_form($booking_id) {
+    global $wpdb;
+    $table = $wpdb->prefix . 'hbc_booking_forms';
+
+    if ($wpdb->get_var("SHOW TABLES LIKE '$table'") !== $table) {
+        return null;
+    }
+
+    $config = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM $table WHERE booking_id = %d AND enabled = 1",
+        $booking_id
+    ));
+
+    if ($config) {
+        return $config;
+    }
+
+    // Fall back to parent booking config for recurring series
+    $parent_id = $wpdb->get_var($wpdb->prepare(
+        "SELECT parent_booking_id FROM {$wpdb->prefix}hbc_bookings WHERE id = %d",
+        $booking_id
+    ));
+
+    if ($parent_id) {
+        $config = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table WHERE booking_id = %d AND enabled = 1",
+            $parent_id
+        ));
+    }
+
+    return $config;
+}
+
+/**
+ * Save booking-in form configuration after a booking is created
+ *
+ * Reads form config from the current POST request and stores it against
+ * the given booking ID. Only runs when enable_book_in is set.
+ *
+ * @since 1.14.0
+ * @param int $booking_id Booking ID to attach the config to
+ * @return void
+ */
+function hbc_save_book_in_form_config($booking_id) {
+    if (empty($_POST['enable_book_in']) || '1' !== $_POST['enable_book_in']) {
+        return;
+    }
+
+    global $wpdb;
+    $table = $wpdb->prefix . 'hbc_booking_forms';
+
+    // Collect and validate email recipients
+    $raw_emails = isset($_POST['book_in_emails']) && is_array($_POST['book_in_emails'])
+        ? $_POST['book_in_emails']
+        : array();
+    $emails = array_values(array_filter(array_map('sanitize_email', $raw_emails), 'is_email'));
+
+    if (empty($emails)) {
+        return; // At least one valid email is required
+    }
+
+    // Collect meal options from JSON payload
+    $include_meal_menu = (!empty($_POST['include_meal_menu']) && '1' === $_POST['include_meal_menu']) ? 1 : 0;
+    $meal_options = array();
+    if ($include_meal_menu && !empty($_POST['book_in_meals_json'])) {
+        $raw_meals = json_decode(wp_unslash(sanitize_text_field(wp_unslash($_POST['book_in_meals_json']))), true);
+        if (is_array($raw_meals)) {
+            foreach ($raw_meals as $meal) {
+                if (!empty($meal['name'])) {
+                    $meal_options[] = array(
+                        'name'        => sanitize_text_field($meal['name']),
+                        'description' => sanitize_text_field(isset($meal['description']) ? $meal['description'] : ''),
+                        'price'       => isset($meal['price']) && is_numeric($meal['price']) ? abs(floatval($meal['price'])) : 0,
+                    );
+                }
+            }
+        }
+    }
+
+    $wpdb->replace(
+        $table,
+        array(
+            'booking_id'               => $booking_id,
+            'enabled'                  => 1,
+            'submission_emails'        => wp_json_encode($emails),
+            'include_meal_menu'        => $include_meal_menu,
+            'meal_options'             => wp_json_encode($meal_options),
+            'payment_bank_name'        => sanitize_text_field(isset($_POST['payment_bank_name']) ? wp_unslash($_POST['payment_bank_name']) : ''),
+            'payment_sort_code'        => sanitize_text_field(isset($_POST['payment_sort_code']) ? wp_unslash($_POST['payment_sort_code']) : ''),
+            'payment_account_number'   => sanitize_text_field(isset($_POST['payment_account_number']) ? wp_unslash($_POST['payment_account_number']) : ''),
+            'payment_reference_prefix' => sanitize_text_field(isset($_POST['payment_reference_prefix']) ? wp_unslash($_POST['payment_reference_prefix']) : ''),
+            'payment_cheque_payable'   => sanitize_text_field(isset($_POST['payment_cheque_payable']) ? wp_unslash($_POST['payment_cheque_payable']) : ''),
+            'payment_deadline'         => sanitize_text_field(isset($_POST['payment_deadline']) ? wp_unslash($_POST['payment_deadline']) : ''),
+        ),
+        array('%d', '%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+    );
+}
+
+/**
+ * Handle member booking-in form submission via AJAX
+ *
+ * @since 1.14.0
+ * @return void Sends JSON response and exits
+ */
+function hbc_handle_book_in_submission() {
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'hbc_book_in_nonce')) {
+        wp_send_json_error(array('message' => __('Security check failed.', 'hall-booking-calendar')));
+        return;
+    }
+
+    $booking_id = isset($_POST['booking_id']) ? intval($_POST['booking_id']) : 0;
+    if (!$booking_id) {
+        wp_send_json_error(array('message' => __('Invalid event.', 'hall-booking-calendar')));
+        return;
+    }
+
+    $form_config = hbc_get_book_in_form($booking_id);
+    if (!$form_config) {
+        wp_send_json_error(array('message' => __('Booking-in is not available for this event.', 'hall-booking-calendar')));
+        return;
+    }
+
+    // Sanitise all fields
+    $full_name         = sanitize_text_field(wp_unslash(isset($_POST['bi_full_name']) ? $_POST['bi_full_name'] : ''));
+    $email             = sanitize_email(isset($_POST['bi_email']) ? $_POST['bi_email'] : '');
+    $phone             = sanitize_text_field(wp_unslash(isset($_POST['bi_phone']) ? $_POST['bi_phone'] : ''));
+    $masonic_rank      = sanitize_text_field(wp_unslash(isset($_POST['bi_masonic_rank']) ? $_POST['bi_masonic_rank'] : ''));
+    $attendance_type   = sanitize_text_field(wp_unslash(isset($_POST['bi_attendance_type']) ? $_POST['bi_attendance_type'] : ''));
+    $membership_type   = sanitize_text_field(wp_unslash(isset($_POST['bi_membership_type']) ? $_POST['bi_membership_type'] : ''));
+    $lodge_name        = sanitize_text_field(wp_unslash(isset($_POST['bi_lodge_name']) ? $_POST['bi_lodge_name'] : ''));
+    $meal_choice       = sanitize_text_field(wp_unslash(isset($_POST['bi_meal_choice']) ? $_POST['bi_meal_choice'] : ''));
+    $dietary           = sanitize_textarea_field(wp_unslash(isset($_POST['bi_dietary_requirements']) ? $_POST['bi_dietary_requirements'] : ''));
+    $comments          = sanitize_textarea_field(wp_unslash(isset($_POST['bi_additional_comments']) ? $_POST['bi_additional_comments'] : ''));
+
+    // Validate required fields
+    if (empty($full_name) || empty($email) || empty($phone) || empty($masonic_rank) || empty($attendance_type) || empty($membership_type) || empty($lodge_name)) {
+        wp_send_json_error(array('message' => __('Please fill in all required fields.', 'hall-booking-calendar')));
+        return;
+    }
+
+    if (!is_email($email)) {
+        wp_send_json_error(array('message' => __('Please enter a valid email address.', 'hall-booking-calendar')));
+        return;
+    }
+
+    $valid_attendance = array('attending_dinner', 'attending_no_dinner', 'not_attending');
+    if (!in_array($attendance_type, $valid_attendance, true)) {
+        wp_send_json_error(array('message' => __('Please select a valid attendance type.', 'hall-booking-calendar')));
+        return;
+    }
+
+    if (!in_array($membership_type, array('member', 'guest'), true)) {
+        wp_send_json_error(array('message' => __('Please select a valid membership type.', 'hall-booking-calendar')));
+        return;
+    }
+
+    // Save submission
+    global $wpdb;
+    $result = $wpdb->insert(
+        $wpdb->prefix . 'hbc_form_submissions',
+        array(
+            'booking_id'           => $booking_id,
+            'full_name'            => $full_name,
+            'email'                => $email,
+            'phone'                => $phone,
+            'masonic_rank'         => $masonic_rank,
+            'attendance_type'      => $attendance_type,
+            'membership_type'      => $membership_type,
+            'lodge_name'           => $lodge_name,
+            'meal_choice'          => $meal_choice,
+            'dietary_requirements' => $dietary,
+            'additional_comments'  => $comments,
+        ),
+        array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+    );
+
+    if (!$result) {
+        wp_send_json_error(array('message' => __('Failed to save your booking. Please try again.', 'hall-booking-calendar')));
+        return;
+    }
+
+    // Fetch event details for the notification email
+    $booking = $wpdb->get_row($wpdb->prepare(
+        "SELECT b.*, r.name as room_name
+         FROM {$wpdb->prefix}hbc_bookings b
+         LEFT JOIN {$wpdb->prefix}hbc_rooms r ON b.room_id = r.id
+         WHERE b.id = %d",
+        $booking_id
+    ));
+
+    $attendance_labels = array(
+        'attending_dinner'    => __('Attending, with dinner', 'hall-booking-calendar'),
+        'attending_no_dinner' => __('Attending, but not having dinner', 'hall-booking-calendar'),
+        'not_attending'       => __('Not attending', 'hall-booking-calendar'),
+    );
+
+    $event_line = $booking
+        ? sprintf(
+            "Event: %s\nDate: %s\nTime: %s - %s\n\n",
+            $booking->purpose,
+            date('l, F j, Y', strtotime($booking->booking_date)),
+            date('g:i A', strtotime($booking->start_time)),
+            date('g:i A', strtotime($booking->end_time))
+          )
+        : '';
+
+    $safe_name = str_replace(array("\r", "\n", "%0a", "%0d"), '', $full_name);
+    $subject   = sprintf(__('Booking-In: %s', 'hall-booking-calendar'), $safe_name);
+
+    $body  = $event_line;
+    $body .= "Member Details\n--------------\n";
+    $body .= sprintf(__("Full Name: %s\n", 'hall-booking-calendar'), $safe_name);
+    $body .= sprintf(__("Email: %s\n", 'hall-booking-calendar'), $email);
+    $body .= sprintf(__("Phone: %s\n", 'hall-booking-calendar'), $phone);
+    $body .= "\nMasonic Information\n-------------------\n";
+    $body .= sprintf(__("Masonic Rank: %s\n", 'hall-booking-calendar'), $masonic_rank);
+    $body .= sprintf(__("Attendance: %s\n", 'hall-booking-calendar'), isset($attendance_labels[$attendance_type]) ? $attendance_labels[$attendance_type] : $attendance_type);
+    $body .= sprintf(__("Membership: %s\n", 'hall-booking-calendar'), 'member' === $membership_type ? __('Member', 'hall-booking-calendar') : __('Guest', 'hall-booking-calendar'));
+    $body .= sprintf(__("Lodge Name: %s\n", 'hall-booking-calendar'), $lodge_name);
+    if (!empty($meal_choice)) {
+        $body .= sprintf(__("\nMeal Choice: %s\n", 'hall-booking-calendar'), $meal_choice);
+    }
+    if (!empty($dietary)) {
+        $body .= sprintf(__("Dietary Requirements: %s\n", 'hall-booking-calendar'), $dietary);
+    }
+    if (!empty($comments)) {
+        $body .= sprintf(__("\nAdditional Comments: %s\n", 'hall-booking-calendar'), $comments);
+    }
+
+    // Send to all configured recipients
+    $recipients = json_decode($form_config->submission_emails, true);
+    if (is_array($recipients)) {
+        foreach ($recipients as $recipient) {
+            $recipient = sanitize_email($recipient);
+            if (is_email($recipient)) {
+                wp_mail($recipient, $subject, $body);
+            }
+        }
+    }
+
+    wp_send_json_success(array(
+        'message' => __('Thank you! Your booking-in has been received. We look forward to seeing you.', 'hall-booking-calendar'),
+    ));
+}
+add_action('wp_ajax_hbc_submit_book_in', 'hbc_handle_book_in_submission');
+add_action('wp_ajax_nopriv_hbc_submit_book_in', 'hbc_handle_book_in_submission');
 
 /**
  * Check for booking conflicts
