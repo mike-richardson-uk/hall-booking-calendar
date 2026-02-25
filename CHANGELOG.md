@@ -2,6 +2,15 @@
 
 All notable changes to the Hall Booking Calendar plugin will be documented in this file.
 
+## 1.15.0
+- **Short booking-in URL**: When a booking-in form is enabled, a unique short URL (e.g. `/book/X6fGh/`) is automatically generated and stored. The short URL is included in the confirmation email sent to the original hall booking submitter so they can share it directly with members
+- **Token routing**: The `/book/{token}/` URL resolves to the member-facing booking-in form for the associated event, with canonical redirect suppression so WordPress does not redirect the URL away
+
+## 1.14.0
+- **Member booking-in form**: When creating a hall booking, organisers can now enable a member booking-in form for that event via a new "Member Booking-In Form" section on the booking form. Options include one or more submission email addresses, an optional meal menu (name, description, price per option), and payment information (bank transfer details, cheque payable to, payment deadline)
+- **Member-facing form**: A "Book In for This Event" button appears on the event detail page for any booking with the form enabled. Members complete a form collecting personal details, masonic information (rank, attendance type, membership, lodge name), meal selection (shown only when attending with dinner), and additional comments. Submissions are emailed to the configured recipients
+- **Recurring series support**: Booking-in form config is stored on the parent booking and automatically applies to all events in the same recurring series
+
 ## 1.13.0
 - **Per-page theme templates**: Admins can now choose a WordPress theme template for each type of plugin-generated URL — individual event pages (`/events/group/date/purpose/`) and group agenda pages (`/calendar/group-name/`) — via two new dropdowns in Hall Booking → Settings. Leaving either dropdown on Default continues to use the calendar page's own template
 

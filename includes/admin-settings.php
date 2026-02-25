@@ -271,6 +271,7 @@ function hbc_admin_settings_page() {
             <a href="#hbc-tab-shortcodes" class="nav-tab nav-tab-active"><?php _e('Shortcodes', 'hall-booking-calendar'); ?></a>
             <a href="#hbc-tab-views" class="nav-tab"><?php _e('Views', 'hall-booking-calendar'); ?></a>
             <a href="#hbc-tab-bookings" class="nav-tab"><?php _e('Bookings', 'hall-booking-calendar'); ?></a>
+            <a href="#hbc-tab-bookin" class="nav-tab"><?php _e('Booking-In Form', 'hall-booking-calendar'); ?></a>
             <a href="#hbc-tab-admin" class="nav-tab"><?php _e('Administration', 'hall-booking-calendar'); ?></a>
         </nav>
 
@@ -358,6 +359,69 @@ function hbc_admin_settings_page() {
 
                 <h3><?php _e('Recurring Bookings', 'hall-booking-calendar'); ?></h3>
                 <p><?php _e('When creating a booking, users can enable the "Repeat this booking" option. Supported patterns: Daily, Weekly, Every 2 Weeks, Monthly (Same Date), and Monthly (Same Weekday). All dates in a series are sent as a single notification email.', 'hall-booking-calendar'); ?></p>
+
+                <hr>
+
+                <h3><?php _e('Member Booking-In Forms', 'hall-booking-calendar'); ?></h3>
+                <p><?php _e('Any booking can have a member booking-in form attached to it. See the <strong>Booking-In Form</strong> tab for full details.', 'hall-booking-calendar'); ?></p>
+            </div>
+
+            <div id="hbc-tab-bookin" class="hbc-tab-panel">
+                <h3><?php _e('Overview', 'hall-booking-calendar'); ?></h3>
+                <p><?php _e('The booking-in form allows members to register their attendance for a specific event (e.g. a lodge meeting or dinner). It is separate from the hall booking form — the hall booking form is for organisers to reserve rooms; the booking-in form is for members to confirm whether they are attending.', 'hall-booking-calendar'); ?></p>
+
+                <hr>
+
+                <h3><?php _e('Setting Up a Booking-In Form', 'hall-booking-calendar'); ?></h3>
+                <p><?php _e('When creating or submitting a hall booking, scroll to the <strong>Member Booking-In Form</strong> section at the bottom of the booking form and tick <em>Enable member booking-in form for this event</em>. The following options will appear:', 'hall-booking-calendar'); ?></p>
+                <ul style="list-style: disc; margin-left: 20px;">
+                    <li><strong><?php _e('Send submissions to', 'hall-booking-calendar'); ?></strong> &mdash; <?php _e('One or more email addresses that receive a notification each time a member completes the booking-in form. Use the <em>+ Add Another Email</em> button to add multiple recipients.', 'hall-booking-calendar'); ?></li>
+                    <li><strong><?php _e('Include meal menu selection', 'hall-booking-calendar'); ?></strong> &mdash; <?php _e('Tick this to add a dinner menu to the form. Use the <em>+ Add Meal Option</em> button to add as many options as needed. Each option has a name (required), description (optional), and price (optional).', 'hall-booking-calendar'); ?></li>
+                    <li><strong><?php _e('Payment Information', 'hall-booking-calendar'); ?></strong> &mdash; <?php _e('Bank name, sort code, account number, reference prefix, cheque payable to, and payment deadline. All fields are optional — only the fields you fill in will appear on the booking-in form. Payment information is shown only when a meal menu is included.', 'hall-booking-calendar'); ?></li>
+                </ul>
+                <p><?php _e('For a recurring series, configure the booking-in form when submitting the first (parent) booking. The same form and meal menu will be shown for all bookings in the series.', 'hall-booking-calendar'); ?></p>
+
+                <hr>
+
+                <h3><?php _e('How Members Use the Form', 'hall-booking-calendar'); ?></h3>
+                <ol style="margin-left: 20px;">
+                    <li><?php _e('A member visits the event detail page (accessible from the calendar, agenda, or a direct link).', 'hall-booking-calendar'); ?></li>
+                    <li><?php _e('If a booking-in form has been configured, a <strong>Book In for This Event</strong> button appears on the page.', 'hall-booking-calendar'); ?></li>
+                    <li><?php _e('The member clicks the button and completes the booking-in form, providing their personal details, masonic information, and (if attending with dinner) their meal choice.', 'hall-booking-calendar'); ?></li>
+                    <li><?php _e('On submission, the response is saved to the database and emailed to all configured recipients.', 'hall-booking-calendar'); ?></li>
+                </ol>
+
+                <hr>
+
+                <h3><?php _e('Booking-In Form Fields', 'hall-booking-calendar'); ?></h3>
+                <table class="form-table" style="margin-top:0;">
+                    <tr>
+                        <th style="width:180px;"><?php _e('Personal Details', 'hall-booking-calendar'); ?></th>
+                        <td><?php _e('Full Name, Email Address, Phone Number (all required).', 'hall-booking-calendar'); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Masonic Information', 'hall-booking-calendar'); ?></th>
+                        <td>
+                            <?php _e('Masonic Rank, Attendance type, Membership type, Lodge Name (all required).', 'hall-booking-calendar'); ?>
+                            <ul style="list-style: disc; margin-left: 20px; margin-top: 4px;">
+                                <li><?php _e('<strong>Attendance</strong>: Attending with dinner / Attending without dinner / Not attending', 'hall-booking-calendar'); ?></li>
+                                <li><?php _e('<strong>Membership</strong>: Member / Guest', 'hall-booking-calendar'); ?></li>
+                            </ul>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Meal Selection', 'hall-booking-calendar'); ?></th>
+                        <td><?php _e('Shown only when a meal menu has been configured <em>and</em> the member selects "Attending with dinner". Lists each meal option (name, description, price). Includes a free-text field for dietary requirements and allergies.', 'hall-booking-calendar'); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Payment Information', 'hall-booking-calendar'); ?></th>
+                        <td><?php _e('Shown (read-only) when attending with dinner and payment details have been configured. Displays bank transfer details, cheque instructions, and payment deadline.', 'hall-booking-calendar'); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Additional Comments', 'hall-booking-calendar'); ?></th>
+                        <td><?php _e('Free-text field for any other information (always shown).', 'hall-booking-calendar'); ?></td>
+                    </tr>
+                </table>
             </div>
 
             <div id="hbc-tab-admin" class="hbc-tab-panel">
