@@ -336,9 +336,9 @@
         $('#hbc-add-meal-btn').on('click', function() {
             var idx = $('#hbc-meal-items-list .hbc-meal-item-row').length;
             var row = $(
-                '<div class="hbc-meal-item-row" style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;">' +
+                '<div class="hbc-meal-item-row" style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;align-items:flex-start;">' +
                 '<input type="text" class="hbc-meal-name-input" placeholder="Meal name *" style="flex:2;min-width:120px;">' +
-                '<input type="text" class="hbc-meal-desc-input" placeholder="Description (optional)" style="flex:3;min-width:160px;">' +
+                '<textarea class="hbc-meal-desc-input" placeholder="Menu / description (optional)" style="flex:3;min-width:160px;" rows="4"></textarea>' +
                 '<input type="number" class="hbc-meal-price-input" placeholder="Price (£)" min="0" step="0.01" style="width:90px;">' +
                 '<button type="button" class="button hbc-remove-meal">&times;</button>' +
                 '</div>'
@@ -364,6 +364,15 @@
             }
         });
 
+        // Show Lodge Name only when Guest is selected
+        $(document).on('change', 'input[name="bi_membership_type"]', function() {
+            if ($(this).val() === 'guest') {
+                $('#hbc-bi-lodge-name-row').slideDown();
+            } else {
+                $('#hbc-bi-lodge-name-row').slideUp();
+            }
+        });
+
         // Submit the booking-in form via AJAX
         $(document).on('submit', '#hbc-book-in-form', function(e) {
             e.preventDefault();
@@ -377,6 +386,10 @@
             }
             if (!$('input[name="bi_membership_type"]:checked').length) {
                 showBookInMessage('error', 'Please select a membership type.');
+                return;
+            }
+            if ($('input[name="bi_membership_type"]:checked').val() === 'guest' && !$.trim($('#hbc_bi_lodge_name').val())) {
+                showBookInMessage('error', 'Please enter the Lodge Name.');
                 return;
             }
 
@@ -397,6 +410,7 @@
                     bi_membership_type:     $('input[name="bi_membership_type"]:checked').val(),
                     bi_lodge_name:          $('#hbc_bi_lodge_name').val(),
                     bi_meal_choice:         $('input[name="bi_meal_choice"]:checked').val() || '',
+                    bi_vegetarian_alt:      $('#hbc_bi_vegetarian_alt').is(':checked') ? '1' : '0',
                     bi_dietary_requirements: $('#hbc_bi_dietary').val(),
                     bi_additional_comments: $('#hbc_bi_comments').val()
                 },

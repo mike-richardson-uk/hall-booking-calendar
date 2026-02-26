@@ -1343,9 +1343,9 @@ function hbc_display_booking_in_form($booking_id) {
                         <label><input type="radio" name="bi_membership_type" value="guest"> <?php _e('Guest', 'hall-booking-calendar'); ?></label>
                     </div>
                 </div>
-                <div class="hbc-form-row">
+                <div class="hbc-form-row" id="hbc-bi-lodge-name-row" style="display:none;">
                     <label for="hbc_bi_lodge_name"><?php _e('Lodge Name:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
-                    <input type="text" id="hbc_bi_lodge_name" name="bi_lodge_name" required class="regular-text">
+                    <input type="text" id="hbc_bi_lodge_name" name="bi_lodge_name" class="regular-text">
                 </div>
             </div>
 
@@ -1368,6 +1368,12 @@ function hbc_display_booking_in_form($booking_id) {
                         </label>
                         <?php endforeach; ?>
                     </div>
+                </div>
+                <div class="hbc-form-row">
+                    <label>
+                        <input type="checkbox" id="hbc_bi_vegetarian_alt" name="bi_vegetarian_alt" value="1">
+                        <?php _e('I would like a vegetarian alternative', 'hall-booking-calendar'); ?>
+                    </label>
                 </div>
                 <div class="hbc-form-row">
                     <label for="hbc_bi_dietary"><?php _e('Dietary Requirements / Allergies:', 'hall-booking-calendar'); ?></label>

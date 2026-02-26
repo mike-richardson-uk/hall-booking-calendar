@@ -464,12 +464,17 @@ function hbc_handle_book_in_submission() {
     $membership_type   = sanitize_text_field(wp_unslash(isset($_POST['bi_membership_type']) ? $_POST['bi_membership_type'] : ''));
     $lodge_name        = sanitize_text_field(wp_unslash(isset($_POST['bi_lodge_name']) ? $_POST['bi_lodge_name'] : ''));
     $meal_choice       = sanitize_text_field(wp_unslash(isset($_POST['bi_meal_choice']) ? $_POST['bi_meal_choice'] : ''));
+    $vegetarian_alt    = (!empty($_POST['bi_vegetarian_alt']) && '1' === $_POST['bi_vegetarian_alt']) ? 1 : 0;
     $dietary           = sanitize_textarea_field(wp_unslash(isset($_POST['bi_dietary_requirements']) ? $_POST['bi_dietary_requirements'] : ''));
     $comments          = sanitize_textarea_field(wp_unslash(isset($_POST['bi_additional_comments']) ? $_POST['bi_additional_comments'] : ''));
 
-    // Validate required fields
-    if (empty($full_name) || empty($email) || empty($phone) || empty($masonic_rank) || empty($attendance_type) || empty($membership_type) || empty($lodge_name)) {
+    // Validate required fields (lodge_name only required for guests)
+    if (empty($full_name) || empty($email) || empty($phone) || empty($masonic_rank) || empty($attendance_type) || empty($membership_type)) {
         wp_send_json_error(array('message' => __('Please fill in all required fields.', 'hall-booking-calendar')));
+        return;
+    }
+    if ('guest' === $membership_type && empty($lodge_name)) {
+        wp_send_json_error(array('message' => __('Please enter the Lodge Name.', 'hall-booking-calendar')));
         return;
     }
 
@@ -501,12 +506,13 @@ function hbc_handle_book_in_submission() {
             'masonic_rank'         => $masonic_rank,
             'attendance_type'      => $attendance_type,
             'membership_type'      => $membership_type,
-            'lodge_name'           => $lodge_name,
-            'meal_choice'          => $meal_choice,
-            'dietary_requirements' => $dietary,
-            'additional_comments'  => $comments,
+            'lodge_name'             => $lodge_name,
+            'meal_choice'            => $meal_choice,
+            'vegetarian_alternative' => $vegetarian_alt,
+            'dietary_requirements'   => $dietary,
+            'additional_comments'    => $comments,
         ),
-        array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+        array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s')
     );
 
     if (!$result) {
@@ -551,9 +557,14 @@ function hbc_handle_book_in_submission() {
     $body .= sprintf(__("Masonic Rank: %s\n", 'hall-booking-calendar'), $masonic_rank);
     $body .= sprintf(__("Attendance: %s\n", 'hall-booking-calendar'), isset($attendance_labels[$attendance_type]) ? $attendance_labels[$attendance_type] : $attendance_type);
     $body .= sprintf(__("Membership: %s\n", 'hall-booking-calendar'), 'member' === $membership_type ? __('Member', 'hall-booking-calendar') : __('Guest', 'hall-booking-calendar'));
-    $body .= sprintf(__("Lodge Name: %s\n", 'hall-booking-calendar'), $lodge_name);
+    if ('guest' === $membership_type && !empty($lodge_name)) {
+        $body .= sprintf(__("Lodge Name: %s\n", 'hall-booking-calendar'), $lodge_name);
+    }
     if (!empty($meal_choice)) {
         $body .= sprintf(__("\nMeal Choice: %s\n", 'hall-booking-calendar'), $meal_choice);
+        if ($vegetarian_alt) {
+            $body .= __("Vegetarian Alternative: Yes\n", 'hall-booking-calendar');
+        }
     }
     if (!empty($dietary)) {
         $body .= sprintf(__("Dietary Requirements: %s\n", 'hall-booking-calendar'), $dietary);
