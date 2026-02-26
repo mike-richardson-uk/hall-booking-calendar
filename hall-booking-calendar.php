@@ -3,7 +3,7 @@
  * Plugin Name: Hall Booking Calendar
  * Plugin URI: https://github.com/mike-richardson-uk/hall-booking-calendar
  * Description: A WordPress plugin to manage a hall calendar with 3 rooms, recurring bookings, and calendar subscriptions.
- * Version: 1.16.0
+ * Version: 1.17.0
  * Author: Mike Richardson
  * Author URI: https://github.com/mike-richardson-uk/hall-booking-calendar
  * License: GPL-2.0+
@@ -18,7 +18,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('HBC_VERSION', '1.16.0');
+define('HBC_VERSION', '1.17.0');
 define('HBC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HBC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('HBC_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -166,6 +166,7 @@ function hbc_activate() {
         membership_type varchar(50),
         lodge_name varchar(255),
         meal_choice varchar(255),
+        vegetarian_alternative tinyint(1) DEFAULT 0,
         dietary_requirements text,
         additional_comments text,
         submitted_at datetime DEFAULT CURRENT_TIMESTAMP,
@@ -417,6 +418,7 @@ function hbc_upgrade_book_in_tables() {
                 membership_type varchar(50),
                 lodge_name varchar(255),
                 meal_choice varchar(255),
+                vegetarian_alternative tinyint(1) DEFAULT 0,
                 dietary_requirements text,
                 additional_comments text,
                 submitted_at datetime DEFAULT CURRENT_TIMESTAMP,
@@ -432,6 +434,14 @@ function hbc_upgrade_book_in_tables() {
         $columns = $wpdb->get_col("DESCRIBE $booking_forms_table", 0);
         if (!in_array('book_in_token', $columns)) {
             $wpdb->query("ALTER TABLE $booking_forms_table ADD COLUMN book_in_token varchar(12) NULL UNIQUE AFTER payment_deadline");
+        }
+    }
+
+    // Add vegetarian_alternative column to existing tables that pre-date v1.17.0
+    if ($submissions_exists) {
+        $sub_columns = $wpdb->get_col("DESCRIBE $form_submissions_table", 0);
+        if (!in_array('vegetarian_alternative', $sub_columns)) {
+            $wpdb->query("ALTER TABLE $form_submissions_table ADD COLUMN vegetarian_alternative tinyint(1) DEFAULT 0 AFTER meal_choice");
         }
     }
 }

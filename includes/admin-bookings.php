@@ -587,9 +587,9 @@ function hbc_display_booking_details($booking_id) {
                         <td>
                             <div id="hbc-admin-meal-items-list">
                                 <?php foreach ($bi_meals as $meal) : ?>
-                                <div class="hbc-admin-meal-item" style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
+                                <div class="hbc-admin-meal-item" style="display:flex;gap:6px;margin-bottom:6px;align-items:flex-start;">
                                     <input type="text" class="hbc-admin-meal-name" style="width:160px;" placeholder="<?php esc_attr_e('Meal name', 'hall-booking-calendar'); ?>" value="<?php echo esc_attr($meal['name']); ?>">
-                                    <input type="text" class="hbc-admin-meal-desc" style="width:200px;" placeholder="<?php esc_attr_e('Description', 'hall-booking-calendar'); ?>" value="<?php echo esc_attr(isset($meal['description']) ? $meal['description'] : ''); ?>">
+                                    <textarea class="hbc-admin-meal-desc" style="width:300px;" rows="4" placeholder="<?php esc_attr_e('Menu / description (optional)', 'hall-booking-calendar'); ?>"><?php echo esc_textarea(isset($meal['description']) ? $meal['description'] : ''); ?></textarea>
                                     <input type="number" class="hbc-admin-meal-price small-text" placeholder="<?php esc_attr_e('£ Price', 'hall-booking-calendar'); ?>" min="0" step="0.01" value="<?php echo esc_attr(isset($meal['price']) ? $meal['price'] : ''); ?>">
                                     <button type="button" class="button hbc-admin-remove-meal">&times;</button>
                                 </div>
@@ -691,9 +691,9 @@ function hbc_display_booking_details($booking_id) {
 
         // Add meal option row
         $('#hbc-admin-add-meal-btn').on('click', function() {
-            var row = '<div class="hbc-admin-meal-item" style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">' +
+            var row = '<div class="hbc-admin-meal-item" style="display:flex;gap:6px;margin-bottom:6px;align-items:flex-start;">' +
                 '<input type="text" class="hbc-admin-meal-name" style="width:160px;" placeholder="<?php echo esc_js(__('Meal name', 'hall-booking-calendar')); ?>">' +
-                '<input type="text" class="hbc-admin-meal-desc" style="width:200px;" placeholder="<?php echo esc_js(__('Description', 'hall-booking-calendar')); ?>">' +
+                '<textarea class="hbc-admin-meal-desc" style="width:300px;" rows="4" placeholder="<?php echo esc_js(__('Menu / description (optional)', 'hall-booking-calendar')); ?>"></textarea>' +
                 '<input type="number" class="hbc-admin-meal-price small-text" placeholder="<?php echo esc_js(__('£ Price', 'hall-booking-calendar')); ?>" min="0" step="0.01">' +
                 '<button type="button" class="button hbc-admin-remove-meal">&times;</button>' +
                 '</div>';
