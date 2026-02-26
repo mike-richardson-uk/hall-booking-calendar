@@ -74,9 +74,25 @@ function hbc_admin_settings_page() {
     $require_password = get_option('hbc_require_password', '0');
     $agenda_limit = get_option('hbc_agenda_limit', 10);
     $terms_conditions = get_option('hbc_terms_conditions', '');
-    $event_page_template = get_option('hbc_event_page_template', '');
+    $event_page_template   = get_option('hbc_event_page_template', '');
     $group_agenda_template = get_option('hbc_group_agenda_template', '');
-    $page_templates = wp_get_theme()->get_page_templates();
+    $page_templates        = wp_get_theme()->get_page_templates();
+
+    // Also collect non-registered PHP template files from the theme root
+    // (e.g. single.php, page.php, full-width.php — files without Template Name: headers).
+    $non_template_files = array('functions.php', 'header.php', 'footer.php', 'sidebar.php',
+        'comments.php', 'searchform.php', 'rtl.php', 'class-wp-bootstrap-navwalker.php');
+    $theme_root_files = glob(get_stylesheet_directory() . '/*.php');
+    $extra_templates   = array();
+    if ($theme_root_files) {
+        foreach ($theme_root_files as $full_path) {
+            $filename = basename($full_path);
+            if (!in_array($filename, $non_template_files, true) && !isset($page_templates[$filename])) {
+                $extra_templates[$filename] = $filename;
+            }
+        }
+        ksort($extra_templates);
+    }
 
     ?>
     <div class="wrap">
@@ -161,13 +177,24 @@ function hbc_admin_settings_page() {
                     <td>
                         <select id="hbc_event_page_template" name="hbc_event_page_template">
                             <option value=""><?php _e('— Default (use calendar page template) —', 'hall-booking-calendar'); ?></option>
-                            <?php foreach ($page_templates as $filename => $name) : ?>
+                            <?php if (!empty($page_templates)) : ?>
+                            <optgroup label="<?php esc_attr_e('Registered Page Templates', 'hall-booking-calendar'); ?>">
+                                <?php foreach ($page_templates as $filename => $name) : ?>
                                 <option value="<?php echo esc_attr($filename); ?>" <?php selected($event_page_template, $filename); ?>><?php echo esc_html($name); ?></option>
-                            <?php endforeach; ?>
+                                <?php endforeach; ?>
+                            </optgroup>
+                            <?php endif; ?>
+                            <?php if (!empty($extra_templates)) : ?>
+                            <optgroup label="<?php esc_attr_e('Theme PHP Files', 'hall-booking-calendar'); ?>">
+                                <?php foreach ($extra_templates as $filename => $label) : ?>
+                                <option value="<?php echo esc_attr($filename); ?>" <?php selected($event_page_template, $filename); ?>><?php echo esc_html($label); ?></option>
+                                <?php endforeach; ?>
+                            </optgroup>
+                            <?php endif; ?>
                         </select>
                         <p class="description"><?php _e('Theme template to use for individual event pages (<code>/events/group/date/purpose/</code>). Leave as Default to inherit the calendar page\'s template.', 'hall-booking-calendar'); ?></p>
-                        <?php if (empty($page_templates)) : ?>
-                            <p class="description" style="color:#666;"><?php _e('No page templates found in the active theme.', 'hall-booking-calendar'); ?></p>
+                        <?php if (empty($page_templates) && empty($extra_templates)) : ?>
+                            <p class="description" style="color:#666;"><?php _e('No PHP template files found in the active theme.', 'hall-booking-calendar'); ?></p>
                         <?php endif; ?>
                     </td>
                 </tr>
@@ -179,13 +206,24 @@ function hbc_admin_settings_page() {
                     <td>
                         <select id="hbc_group_agenda_template" name="hbc_group_agenda_template">
                             <option value=""><?php _e('— Default (use calendar page template) —', 'hall-booking-calendar'); ?></option>
-                            <?php foreach ($page_templates as $filename => $name) : ?>
+                            <?php if (!empty($page_templates)) : ?>
+                            <optgroup label="<?php esc_attr_e('Registered Page Templates', 'hall-booking-calendar'); ?>">
+                                <?php foreach ($page_templates as $filename => $name) : ?>
                                 <option value="<?php echo esc_attr($filename); ?>" <?php selected($group_agenda_template, $filename); ?>><?php echo esc_html($name); ?></option>
-                            <?php endforeach; ?>
+                                <?php endforeach; ?>
+                            </optgroup>
+                            <?php endif; ?>
+                            <?php if (!empty($extra_templates)) : ?>
+                            <optgroup label="<?php esc_attr_e('Theme PHP Files', 'hall-booking-calendar'); ?>">
+                                <?php foreach ($extra_templates as $filename => $label) : ?>
+                                <option value="<?php echo esc_attr($filename); ?>" <?php selected($group_agenda_template, $filename); ?>><?php echo esc_html($label); ?></option>
+                                <?php endforeach; ?>
+                            </optgroup>
+                            <?php endif; ?>
                         </select>
                         <p class="description"><?php _e('Theme template to use for group agenda pages (<code>/calendar/group-name/</code>). Leave as Default to inherit the calendar page\'s template.', 'hall-booking-calendar'); ?></p>
-                        <?php if (empty($page_templates)) : ?>
-                            <p class="description" style="color:#666;"><?php _e('No page templates found in the active theme.', 'hall-booking-calendar'); ?></p>
+                        <?php if (empty($page_templates) && empty($extra_templates)) : ?>
+                            <p class="description" style="color:#666;"><?php _e('No PHP template files found in the active theme.', 'hall-booking-calendar'); ?></p>
                         <?php endif; ?>
                     </td>
                 </tr>
