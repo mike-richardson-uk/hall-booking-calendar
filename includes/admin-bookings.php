@@ -564,6 +564,39 @@ function hbc_display_booking_details($booking_id) {
             </table>
 
             <hr style="margin: 24px 0;">
+            <h2><?php _e('Self-Service Links', 'hall-booking-calendar'); ?></h2>
+            <p class="description"><?php _e('These links are included in the confirmation email sent to the booker. They do not require a WordPress login.', 'hall-booking-calendar'); ?></p>
+            <?php
+            $edit_token_val   = $booking->edit_token ?? '';
+            $cancel_token_val = $booking->cancellation_token ?? '';
+            ?>
+            <table class="form-table">
+                <?php if (!empty($edit_token_val)) : ?>
+                <tr>
+                    <th scope="row"><?php _e('Edit Link:', 'hall-booking-calendar'); ?></th>
+                    <td>
+                        <code><?php echo esc_url(home_url('edit-booking/' . $edit_token_val . '/')); ?></code>
+                        <p class="description"><?php _e('The booker can use this to update the event name, description, date, time, or contact details.', 'hall-booking-calendar'); ?></p>
+                    </td>
+                </tr>
+                <?php endif; ?>
+                <?php if (!empty($cancel_token_val)) : ?>
+                <tr>
+                    <th scope="row"><?php _e('Cancel Link:', 'hall-booking-calendar'); ?></th>
+                    <td>
+                        <code><?php echo esc_url(home_url('cancel-booking/' . $cancel_token_val . '/')); ?></code>
+                        <p class="description"><?php _e('The booker can use this to cancel the booking.', 'hall-booking-calendar'); ?></p>
+                    </td>
+                </tr>
+                <?php endif; ?>
+                <?php if (empty($edit_token_val) && empty($cancel_token_val)) : ?>
+                <tr>
+                    <td colspan="2"><em><?php _e('No self-service links have been generated for this booking.', 'hall-booking-calendar'); ?></em></td>
+                </tr>
+                <?php endif; ?>
+            </table>
+
+            <hr style="margin: 24px 0;">
             <h2><?php _e('Member Booking-In Form', 'hall-booking-calendar'); ?></h2>
 
             <table class="form-table">

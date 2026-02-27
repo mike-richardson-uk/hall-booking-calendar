@@ -1644,3 +1644,120 @@
         padding: 2px 4px;
     }
 }
+
+/* ── Self-service edit booking page ── */
+.hbc-edit-page h1 {
+    margin-bottom: 20px;
+}
+
+.hbc-edit-notice {
+    padding: 14px 18px;
+    border-radius: 4px;
+    margin-bottom: 24px;
+    border-left: 4px solid transparent;
+}
+
+.hbc-edit-notice--success {
+    background: #edfaef;
+    border-color: #00a32a;
+    color: #1a5c23;
+}
+
+.hbc-edit-notice--error {
+    background: #fdf3f3;
+    border-color: #d63638;
+    color: #6e1a1a;
+}
+
+.hbc-edit-summary {
+    background: #f6f7f7;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin-bottom: 24px;
+    font-size: 14px;
+}
+
+.hbc-edit-summary p {
+    margin: 4px 0;
+}
+
+.hbc-edit-form {
+    margin-top: 8px;
+}
+
+.hbc-edit-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 18px;
+    flex: 1;
+}
+
+.hbc-edit-field label {
+    font-size: 14px;
+}
+
+.hbc-edit-field input[type="text"],
+.hbc-edit-field input[type="email"],
+.hbc-edit-field input[type="date"],
+.hbc-edit-field input[type="time"],
+.hbc-edit-field textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid #c3c4c7;
+    border-radius: 3px;
+    font-size: 15px;
+    box-sizing: border-box;
+}
+
+.hbc-edit-field textarea {
+    resize: vertical;
+}
+
+.hbc-edit-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.hbc-edit-row .hbc-edit-field {
+    min-width: 140px;
+}
+
+.hbc-edit-actions {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    padding-top: 16px;
+    border-top: 1px solid #dcdcde;
+}
+
+.hbc-edit-submit-btn {
+    background: #2271b1;
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    padding: 10px 24px;
+    font-size: 15px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.hbc-edit-submit-btn:hover {
+    background: #135e96;
+}
+
+.hbc-edit-cancel-link {
+    color: #d63638;
+    font-size: 14px;
+    text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+    .hbc-edit-row {
+        flex-direction: column;
+    }
+}
