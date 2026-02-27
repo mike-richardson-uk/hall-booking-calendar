@@ -1052,6 +1052,8 @@ function hbc_apply_page_template($template) {
         $chosen = get_option('hbc_event_page_template', '');
     } elseif (get_query_var('hbc_group_agenda')) {
         $chosen = get_option('hbc_group_agenda_template', '');
+    } elseif (get_query_var('hbc_book_in_token')) {
+        $chosen = get_option('hbc_book_in_template', '');
     }
 
     if (!empty($chosen)) {
