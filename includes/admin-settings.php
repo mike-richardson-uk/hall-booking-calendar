@@ -84,19 +84,27 @@ function hbc_admin_settings_page() {
 
     // Also collect non-registered PHP template files from the theme root
     // (e.g. single.php, page.php, full-width.php — files without Template Name: headers).
+    // Scan both the child theme and the parent theme so that sites using a minimal child theme
+    // (which may have no PHP files of its own) still see the parent theme's templates.
     $non_template_files = array('functions.php', 'header.php', 'footer.php', 'sidebar.php',
         'comments.php', 'searchform.php', 'rtl.php', 'class-wp-bootstrap-navwalker.php');
-    $theme_root_files = glob(get_stylesheet_directory() . '/*.php');
-    $extra_templates   = array();
-    if ($theme_root_files) {
-        foreach ($theme_root_files as $full_path) {
-            $filename = basename($full_path);
-            if (!in_array($filename, $non_template_files, true) && !isset($page_templates[$filename])) {
-                $extra_templates[$filename] = $filename;
+    $scan_dirs = array(get_stylesheet_directory());
+    if (get_template_directory() !== get_stylesheet_directory()) {
+        $scan_dirs[] = get_template_directory();
+    }
+    $extra_templates = array();
+    foreach ($scan_dirs as $scan_dir) {
+        $theme_root_files = glob($scan_dir . '/*.php');
+        if ($theme_root_files) {
+            foreach ($theme_root_files as $full_path) {
+                $filename = basename($full_path);
+                if (!in_array($filename, $non_template_files, true) && !isset($page_templates[$filename]) && !isset($extra_templates[$filename])) {
+                    $extra_templates[$filename] = $filename;
+                }
             }
         }
-        ksort($extra_templates);
     }
+    ksort($extra_templates);
 
     ?>
     <div class="wrap">

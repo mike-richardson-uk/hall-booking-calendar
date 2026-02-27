@@ -1360,7 +1360,7 @@ function hbc_apply_page_template($template) {
 
     return $template;
 }
-add_filter('template_include', 'hbc_apply_page_template');
+add_filter('template_include', 'hbc_apply_page_template', 99);
 
 /**
  * Find the page ID that contains the calendar or booking form shortcode
