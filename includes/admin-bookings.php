@@ -96,6 +96,34 @@ function hbc_handle_booking_operations() {
             'end_time' => $end_time,
         );
 
+        // Handle file upload / removal
+        $existing_file_path = $wpdb->get_var($wpdb->prepare("SELECT file_path FROM $bookings_table WHERE id = %d", $booking_id));
+        $upload_dir = wp_upload_dir();
+
+        $new_file_uploaded = isset($_FILES['booking_file']) && $_FILES['booking_file']['error'] === UPLOAD_ERR_OK;
+
+        if ($new_file_uploaded) {
+            $upload_result = hbc_handle_file_upload($_FILES['booking_file']);
+            if ($upload_result['success']) {
+                // Delete old file from disk if it exists
+                if (!empty($existing_file_path)) {
+                    $old_file_abs = $upload_dir['basedir'] . '/' . $existing_file_path;
+                    if (file_exists($old_file_abs)) {
+                        wp_delete_file($old_file_abs);
+                    }
+                }
+                $update_data['file_path'] = $upload_result['file_path'];
+            } else {
+                add_settings_error('hbc_messages', 'hbc_message', $upload_result['message'], 'error');
+            }
+        } elseif (!empty($_POST['remove_booking_file']) && '1' === $_POST['remove_booking_file'] && !empty($existing_file_path)) {
+            $old_file_abs = $upload_dir['basedir'] . '/' . $existing_file_path;
+            if (file_exists($old_file_abs)) {
+                wp_delete_file($old_file_abs);
+            }
+            $update_data['file_path'] = '';
+        }
+
         $wpdb->update(
             $bookings_table,
             $update_data,
@@ -430,7 +458,7 @@ function hbc_display_booking_details($booking_id) {
     <div class="hbc-booking-details">
         <h2><?php _e('Booking Details', 'hall-booking-calendar'); ?> #<?php echo esc_html($booking->id); ?></h2>
 
-        <form method="post" id="hbc-edit-booking-form" action="<?php echo admin_url('admin.php?page=hall-booking-bookings&action=view&booking_id=' . $booking_id); ?>">
+        <form method="post" enctype="multipart/form-data" id="hbc-edit-booking-form" action="<?php echo admin_url('admin.php?page=hall-booking-bookings&action=view&booking_id=' . $booking_id); ?>">
             <?php wp_nonce_field('hbc_update_booking_status', 'hbc_booking_nonce'); ?>
             <input type="hidden" name="booking_id" value="<?php echo esc_attr($booking->id); ?>">
 
@@ -505,10 +533,18 @@ function hbc_display_booking_details($booking_id) {
                             $file_url = $upload_dir['baseurl'] . '/' . $booking->file_path;
                             $file_name = basename($booking->file_path);
                             ?>
-                            <a href="<?php echo esc_url($file_url); ?>" target="_blank" class="button button-secondary">📄 <?php echo esc_html($file_name); ?></a>
+                            <p>
+                                <a href="<?php echo esc_url($file_url); ?>" target="_blank" class="button button-secondary">📄 <?php echo esc_html($file_name); ?></a>
+                            </p>
+                            <label>
+                                <input type="checkbox" name="remove_booking_file" value="1">
+                                <?php _e('Remove this file', 'hall-booking-calendar'); ?>
+                            </label>
+                            <p class="description" style="margin-top:6px;"><?php _e('Or replace it by uploading a new PDF below:', 'hall-booking-calendar'); ?></p>
                         <?php else : ?>
-                            <em><?php _e('No file attached', 'hall-booking-calendar'); ?></em>
+                            <p class="description"><?php _e('No file attached. Upload a PDF (max 5&nbsp;MB):', 'hall-booking-calendar'); ?></p>
                         <?php endif; ?>
+                        <input type="file" name="booking_file" id="booking_file" accept=".pdf,application/pdf" style="margin-top:4px;">
                     </td>
                 </tr>
                 <tr>
@@ -525,6 +561,39 @@ function hbc_display_booking_details($booking_id) {
                     <th scope="row"><?php _e('Created At:', 'hall-booking-calendar'); ?></th>
                     <td><?php echo esc_html(date('F j, Y g:i A', strtotime($booking->created_at))); ?></td>
                 </tr>
+            </table>
+
+            <hr style="margin: 24px 0;">
+            <h2><?php _e('Self-Service Links', 'hall-booking-calendar'); ?></h2>
+            <p class="description"><?php _e('These links are included in the confirmation email sent to the booker. They do not require a WordPress login.', 'hall-booking-calendar'); ?></p>
+            <?php
+            $edit_token_val   = $booking->edit_token ?? '';
+            $cancel_token_val = $booking->cancellation_token ?? '';
+            ?>
+            <table class="form-table">
+                <?php if (!empty($edit_token_val)) : ?>
+                <tr>
+                    <th scope="row"><?php _e('Edit Link:', 'hall-booking-calendar'); ?></th>
+                    <td>
+                        <code><?php echo esc_url(home_url('edit-booking/' . $edit_token_val . '/')); ?></code>
+                        <p class="description"><?php _e('The booker can use this to update the event name, description, date, time, or contact details.', 'hall-booking-calendar'); ?></p>
+                    </td>
+                </tr>
+                <?php endif; ?>
+                <?php if (!empty($cancel_token_val)) : ?>
+                <tr>
+                    <th scope="row"><?php _e('Cancel Link:', 'hall-booking-calendar'); ?></th>
+                    <td>
+                        <code><?php echo esc_url(home_url('cancel-booking/' . $cancel_token_val . '/')); ?></code>
+                        <p class="description"><?php _e('The booker can use this to cancel the booking.', 'hall-booking-calendar'); ?></p>
+                    </td>
+                </tr>
+                <?php endif; ?>
+                <?php if (empty($edit_token_val) && empty($cancel_token_val)) : ?>
+                <tr>
+                    <td colspan="2"><em><?php _e('No self-service links have been generated for this booking.', 'hall-booking-calendar'); ?></em></td>
+                </tr>
+                <?php endif; ?>
             </table>
 
             <hr style="margin: 24px 0;">

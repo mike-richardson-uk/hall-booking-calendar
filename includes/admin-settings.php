@@ -60,6 +60,9 @@ function hbc_handle_settings_save() {
     $group_agenda_template = isset($_POST['hbc_group_agenda_template']) ? sanitize_text_field($_POST['hbc_group_agenda_template']) : '';
     update_option('hbc_group_agenda_template', $group_agenda_template);
 
+    $book_in_template = isset($_POST['hbc_book_in_template']) ? sanitize_text_field($_POST['hbc_book_in_template']) : '';
+    update_option('hbc_book_in_template', $book_in_template);
+
     add_settings_error('hbc_settings', 'hbc_settings_updated', __('Settings saved successfully.', 'hall-booking-calendar'), 'updated');
 }
 add_action('admin_init', 'hbc_handle_settings_save');
@@ -76,6 +79,7 @@ function hbc_admin_settings_page() {
     $terms_conditions = get_option('hbc_terms_conditions', '');
     $event_page_template   = get_option('hbc_event_page_template', '');
     $group_agenda_template = get_option('hbc_group_agenda_template', '');
+    $book_in_template      = get_option('hbc_book_in_template', '');
     $page_templates        = wp_get_theme()->get_page_templates();
 
     // Also collect non-registered PHP template files from the theme root
@@ -222,6 +226,35 @@ function hbc_admin_settings_page() {
                             <?php endif; ?>
                         </select>
                         <p class="description"><?php _e('Theme template to use for group agenda pages (<code>/calendar/group-name/</code>). Leave as Default to inherit the calendar page\'s template.', 'hall-booking-calendar'); ?></p>
+                        <?php if (empty($page_templates) && empty($extra_templates)) : ?>
+                            <p class="description" style="color:#666;"><?php _e('No PHP template files found in the active theme.', 'hall-booking-calendar'); ?></p>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">
+                        <label for="hbc_book_in_template"><?php _e('Book-In Page Template', 'hall-booking-calendar'); ?></label>
+                    </th>
+                    <td>
+                        <select id="hbc_book_in_template" name="hbc_book_in_template">
+                            <option value=""><?php _e('— Default (use calendar page template) —', 'hall-booking-calendar'); ?></option>
+                            <?php if (!empty($page_templates)) : ?>
+                            <optgroup label="<?php esc_attr_e('Registered Page Templates', 'hall-booking-calendar'); ?>">
+                                <?php foreach ($page_templates as $filename => $name) : ?>
+                                <option value="<?php echo esc_attr($filename); ?>" <?php selected($book_in_template, $filename); ?>><?php echo esc_html($name); ?></option>
+                                <?php endforeach; ?>
+                            </optgroup>
+                            <?php endif; ?>
+                            <?php if (!empty($extra_templates)) : ?>
+                            <optgroup label="<?php esc_attr_e('Theme PHP Files', 'hall-booking-calendar'); ?>">
+                                <?php foreach ($extra_templates as $filename => $label) : ?>
+                                <option value="<?php echo esc_attr($filename); ?>" <?php selected($book_in_template, $filename); ?>><?php echo esc_html($label); ?></option>
+                                <?php endforeach; ?>
+                            </optgroup>
+                            <?php endif; ?>
+                        </select>
+                        <p class="description"><?php _e('Theme template to use for member book-in form pages (<code>/book/{token}/</code>). Leave as Default to inherit the calendar page\'s template.', 'hall-booking-calendar'); ?></p>
                         <?php if (empty($page_templates) && empty($extra_templates)) : ?>
                             <p class="description" style="color:#666;"><?php _e('No PHP template files found in the active theme.', 'hall-booking-calendar'); ?></p>
                         <?php endif; ?>
@@ -483,6 +516,11 @@ function hbc_admin_settings_page() {
 
                 <h3><?php _e('Attendee CSV Export', 'hall-booking-calendar'); ?></h3>
                 <p><?php _e('In the admin booking detail page, an <strong>Attendee Submissions</strong> section shows how many members have booked in and provides a summary table. Click <em>Download Attendee CSV</em> to export all submissions as a spreadsheet-compatible CSV file including name, email, attendance type, lodge, meal choice, vegetarian preference, dietary requirements, and submission time.', 'hall-booking-calendar'); ?></p>
+
+                <hr>
+
+                <h3><?php _e('Book-In Page Template', 'hall-booking-calendar'); ?></h3>
+                <p><?php _e('Choose which theme template is used when a member visits a book-in URL (<code>/book/{token}/</code>) under <strong>Hall Booking &rarr; Settings &rarr; Book-In Page Template</strong>. This works the same way as the Event Page and Group Agenda template selectors.', 'hall-booking-calendar'); ?></p>
             </div>
 
             <div id="hbc-tab-admin" class="hbc-tab-panel">

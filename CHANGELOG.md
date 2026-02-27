@@ -2,6 +2,11 @@
 
 All notable changes to the Hall Booking Calendar plugin will be documented in this file.
 
+## 1.19.0
+- **Self-service booking edit link**: The confirmation email sent to the booker now includes a personal edit link (`/edit-booking/{token}/`). Clicking it opens a simple, login-free form where the booker can update the event name, description, date, time, and their contact details. A conflict check prevents double-bookings when the date or time is changed. The venue administrator is notified by email of any changes
+- **Admin self-service links panel**: The booking detail page in Hall Booking → Bookings now shows a "Self-Service Links" section displaying the edit link and cancel link for the booking, so admins can copy and re-share them if needed
+- **DB upgrade**: `edit_token varchar(64) UNIQUE` column added to `hbc_bookings` automatically on plugin init
+
 ## 1.18.0
 - **Admin dashboard analytics**: Monthly booking bar chart (last 6 months), room usage horizontal bars (top 5), status breakdown (confirmed/pending/cancelled), quick-action cards with dashicons and a pending-count alert badge
 - **Booking cancellation by booker**: A signed cancellation URL is included in booking confirmation emails. Visiting the URL presents a theme-integrated confirmation page; submitting it cancels the booking and notifies the webmaster. Cancellation tokens are stored in a new `cancellation_token` column on `hbc_bookings` (DB upgrade applied automatically)

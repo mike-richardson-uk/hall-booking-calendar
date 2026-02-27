@@ -74,6 +74,7 @@ Both routes resolve to the page containing `[hall_booking_calendar]` (found via 
 | `hbc_booking_page_id` | ID of the auto-created booking-form page |
 | `hbc_event_page_template` | Theme template file for `/events/…` pages |
 | `hbc_group_agenda_template` | Theme template file for `/calendar/group/` pages |
+| `hbc_book_in_template` | Theme template file for `/book/{token}/` pages |
 
 ## Database tables
 

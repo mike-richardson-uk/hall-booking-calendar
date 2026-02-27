@@ -280,8 +280,9 @@ function hbc_handle_booking_submission() {
                 ));
             }
             $wpdb->query('COMMIT');
-            // Generate a cancellation token for the booker (outside transaction)
+            // Generate cancellation and edit tokens for the booker (outside transaction)
             hbc_generate_and_store_cancel_token($new_booking_id);
+            hbc_generate_and_store_edit_token($new_booking_id);
         } else {
             $wpdb->query('ROLLBACK');
         }
@@ -910,14 +911,18 @@ function hbc_send_booking_notification($booking_id) {
         $message .= "\n\n" . __("Members can book in for this event using the following link:", 'hall-booking-calendar') . "\n" . $book_in_url;
     }
 
-    // Append cancellation link so the booker can self-cancel if needed
-    $cancel_token = $wpdb->get_var($wpdb->prepare(
-        "SELECT cancellation_token FROM $bookings_table WHERE id = %d",
+    // Append edit and cancellation links so the booker can self-serve
+    $tokens = $wpdb->get_row($wpdb->prepare(
+        "SELECT edit_token, cancellation_token FROM $bookings_table WHERE id = %d",
         $booking_id
     ));
-    if (!empty($cancel_token)) {
-        $cancel_url = home_url('cancel-booking/' . $cancel_token . '/');
-        $message .= "\n\n" . __("Need to cancel? Use this link (valid until the booking is confirmed or cancelled):", 'hall-booking-calendar') . "\n" . $cancel_url;
+    if (!empty($tokens->edit_token)) {
+        $edit_url = home_url('edit-booking/' . $tokens->edit_token . '/');
+        $message .= "\n\n" . __("Need to make changes? Update your booking here:", 'hall-booking-calendar') . "\n" . $edit_url;
+    }
+    if (!empty($tokens->cancellation_token)) {
+        $cancel_url = home_url('cancel-booking/' . $tokens->cancellation_token . '/');
+        $message .= "\n\n" . __("Need to cancel? Use this link:", 'hall-booking-calendar') . "\n" . $cancel_url;
     }
 
     wp_mail($to, $subject, $message);
@@ -988,6 +993,33 @@ function hbc_generate_and_store_cancel_token($booking_id) {
     $wpdb->update(
         $bookings_table,
         array('cancellation_token' => $token),
+        array('id' => $booking_id),
+        array('%s'),
+        array('%d')
+    );
+    return $token;
+}
+
+/**
+ * Generate and store a self-service edit token for a booking
+ *
+ * @since 1.19.0
+ * @param int $booking_id
+ * @return string|false The generated token or false if the column doesn't exist
+ */
+function hbc_generate_and_store_edit_token($booking_id) {
+    global $wpdb;
+    $bookings_table = $wpdb->prefix . 'hbc_bookings';
+
+    $columns = $wpdb->get_col("DESCRIBE $bookings_table", 0);
+    if (!in_array('edit_token', $columns)) {
+        return false;
+    }
+
+    $token = wp_generate_password(40, false, false);
+    $wpdb->update(
+        $bookings_table,
+        array('edit_token' => $token),
         array('id' => $booking_id),
         array('%s'),
         array('%d')
