@@ -356,8 +356,9 @@ function hbc_admin_settings_page() {
                     <li><?php _e('<strong>Navigation</strong> &mdash; Use the Previous/Next arrows to move between months.', 'hall-booking-calendar'); ?></li>
                     <li><?php _e('<strong>Room legend</strong> &mdash; A colour key below the navigation shows each room name and capacity.', 'hall-booking-calendar'); ?></li>
                     <li><?php _e('<strong>Filters</strong> &mdash; Dropdown menus let visitors filter by Group or Room.', 'hall-booking-calendar'); ?></li>
-                    <li><?php _e('<strong>Booking pills</strong> &mdash; Click a booking pill to view that booking&rsquo;s detail page. Each pill shows the time, purpose, and rooms.', 'hall-booking-calendar'); ?></li>
+                    <li><?php _e('<strong>Booking pills</strong> &mdash; Click a booking pill to view that booking&rsquo;s detail page. Each pill shows the time, purpose, and rooms. Bookings that belong to a recurring series show a &#x21BB; icon on the pill.', 'hall-booking-calendar'); ?></li>
                     <li><?php _e('<strong>Book button</strong> &mdash; Future available dates show a &ldquo;Book&rdquo; button that opens the booking form with the date pre-filled.', 'hall-booking-calendar'); ?></li>
+                    <li><?php _e('<strong>Mobile view</strong> &mdash; On screens narrower than 480&nbsp;px, booking pills collapse to small coloured dots so the monthly grid remains usable on phones.', 'hall-booking-calendar'); ?></li>
                 </ul>
                 <p><?php _e('To restrict the calendar to a specific group, pass the group ID:', 'hall-booking-calendar'); ?></p>
                 <p><code>[hall_booking_calendar group="1"]</code></p>
@@ -397,6 +398,18 @@ function hbc_admin_settings_page() {
 
                 <h3><?php _e('Recurring Bookings', 'hall-booking-calendar'); ?></h3>
                 <p><?php _e('When creating a booking, users can enable the "Repeat this booking" option. Supported patterns: Daily, Weekly, Every 2 Weeks, Monthly (Same Date), and Monthly (Same Weekday). All dates in a series are sent as a single notification email.', 'hall-booking-calendar'); ?></p>
+
+                <hr>
+
+                <hr>
+
+                <h3><?php _e('Booking Cancellation', 'hall-booking-calendar'); ?></h3>
+                <p><?php _e('When a booking is submitted, the confirmation email sent to the booker includes a personal cancellation link. Clicking the link shows a confirmation page with the booking details. On confirmation, the booking is marked as <strong>Cancelled</strong> and the webmaster is notified by email. No login is required — the link contains a unique signed token.', 'hall-booking-calendar'); ?></p>
+
+                <hr>
+
+                <h3><?php _e('Booking Detail Page', 'hall-booking-calendar'); ?></h3>
+                <p><?php _e('The public event detail page (accessible from the calendar, agenda, or a direct link) shows a colour-coded status badge (green&nbsp;= confirmed, amber&nbsp;= pending, red&nbsp;= cancelled) and, for recurring series, a &#x21BB;&nbsp;Recurring badge. If a member booking-in form is configured, a QR code linking directly to the book-in form is displayed below the &ldquo;Book In for This Event&rdquo; button so attendees can scan it on a poster or screen.', 'hall-booking-calendar'); ?></p>
 
                 <hr>
 
@@ -440,16 +453,16 @@ function hbc_admin_settings_page() {
                     <tr>
                         <th><?php _e('Masonic Information', 'hall-booking-calendar'); ?></th>
                         <td>
-                            <?php _e('Masonic Rank, Attendance type, Membership type, Lodge Name (all required).', 'hall-booking-calendar'); ?>
+                            <?php _e('Masonic Rank, Attendance type, and Membership type (all required). Lodge Name is shown and required only when <strong>Guest</strong> is selected as the membership type.', 'hall-booking-calendar'); ?>
                             <ul style="list-style: disc; margin-left: 20px; margin-top: 4px;">
                                 <li><?php _e('<strong>Attendance</strong>: Attending with dinner / Attending without dinner / Not attending', 'hall-booking-calendar'); ?></li>
-                                <li><?php _e('<strong>Membership</strong>: Member / Guest', 'hall-booking-calendar'); ?></li>
+                                <li><?php _e('<strong>Membership</strong>: Member / Guest (selecting Guest reveals the Lodge Name field)', 'hall-booking-calendar'); ?></li>
                             </ul>
                         </td>
                     </tr>
                     <tr>
                         <th><?php _e('Meal Selection', 'hall-booking-calendar'); ?></th>
-                        <td><?php _e('Shown only when a meal menu has been configured <em>and</em> the member selects "Attending with dinner". Lists each meal option (name, description, price). Includes a free-text field for dietary requirements and allergies.', 'hall-booking-calendar'); ?></td>
+                        <td><?php _e('Shown only when a meal menu has been configured <em>and</em> the member selects "Attending with dinner". Lists each meal option (name, description, price). Includes a <strong>Vegetarian alternative</strong> checkbox (stored separately and included in notification emails) and a free-text field for dietary requirements and allergies.', 'hall-booking-calendar'); ?></td>
                     </tr>
                     <tr>
                         <th><?php _e('Payment Information', 'hall-booking-calendar'); ?></th>
@@ -460,9 +473,31 @@ function hbc_admin_settings_page() {
                         <td><?php _e('Free-text field for any other information (always shown).', 'hall-booking-calendar'); ?></td>
                     </tr>
                 </table>
+
+                <hr>
+
+                <h3><?php _e('QR Code', 'hall-booking-calendar'); ?></h3>
+                <p><?php _e('When a booking-in form is enabled, a QR code linking directly to the book-in form is displayed on the public event detail page below the &ldquo;Book In for This Event&rdquo; button. The same QR code appears on the admin booking detail page for easy printing or sharing.', 'hall-booking-calendar'); ?></p>
+
+                <hr>
+
+                <h3><?php _e('Attendee CSV Export', 'hall-booking-calendar'); ?></h3>
+                <p><?php _e('In the admin booking detail page, an <strong>Attendee Submissions</strong> section shows how many members have booked in and provides a summary table. Click <em>Download Attendee CSV</em> to export all submissions as a spreadsheet-compatible CSV file including name, email, attendance type, lodge, meal choice, vegetarian preference, dietary requirements, and submission time.', 'hall-booking-calendar'); ?></p>
             </div>
 
             <div id="hbc-tab-admin" class="hbc-tab-panel">
+                <h3><?php _e('Dashboard', 'hall-booking-calendar'); ?></h3>
+                <p><?php _e('The <strong>Hall Booking &rarr; Dashboard</strong> page provides an at-a-glance overview of your bookings:', 'hall-booking-calendar'); ?></p>
+                <ul style="list-style: disc; margin-left: 20px;">
+                    <li><?php _e('<strong>Stat boxes</strong> &mdash; Booking counts for today, this week, this month, and totals by status (pending, confirmed, all-time).', 'hall-booking-calendar'); ?></li>
+                    <li><?php _e('<strong>Quick actions</strong> &mdash; One-click cards for New Booking, All Bookings, Pending Approval (with a count badge when bookings are waiting), Manage Rooms, Export CSV, and Settings.', 'hall-booking-calendar'); ?></li>
+                    <li><?php _e('<strong>Monthly trend chart</strong> &mdash; A bar chart showing booking volume for the past six months.', 'hall-booking-calendar'); ?></li>
+                    <li><?php _e('<strong>Top rooms</strong> &mdash; A horizontal bar chart of the five most-booked rooms.', 'hall-booking-calendar'); ?></li>
+                    <li><?php _e('<strong>Status breakdown</strong> &mdash; Confirmed, pending, and cancelled totals.', 'hall-booking-calendar'); ?></li>
+                </ul>
+
+                <hr>
+
                 <h3><?php _e('Rooms &amp; Groups', 'hall-booking-calendar'); ?></h3>
                 <p><?php _e('Manage rooms under <strong>Hall Booking &rarr; Rooms</strong> and groups under <strong>Hall Booking &rarr; Groups</strong>. Each room has a name, description, and capacity. Groups allow you to organise bookings by department, team, or purpose.', 'hall-booking-calendar'); ?></p>
 
