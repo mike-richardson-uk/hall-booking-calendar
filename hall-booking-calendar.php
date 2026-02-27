@@ -3,7 +3,7 @@
  * Plugin Name: Hall Booking Calendar
  * Plugin URI: https://github.com/mike-richardson-uk/hall-booking-calendar
  * Description: A WordPress plugin to manage a hall calendar with 3 rooms, recurring bookings, and calendar subscriptions.
- * Version: 1.17.0
+ * Version: 1.18.0
  * Author: Mike Richardson
  * Author URI: https://github.com/mike-richardson-uk/hall-booking-calendar
  * License: GPL-2.0+
@@ -18,7 +18,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('HBC_VERSION', '1.17.0');
+define('HBC_VERSION', '1.18.0');
 define('HBC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HBC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('HBC_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -361,6 +361,28 @@ function hbc_check_database_upgrade() {
 
     // Booking-in form tables (v1.14.0)
     hbc_upgrade_book_in_tables();
+
+    // Cancellation token column (v1.18.0)
+    hbc_upgrade_cancellation_token();
+}
+
+/**
+ * Add cancellation_token column to hbc_bookings if missing
+ *
+ * Enables bookers to cancel their own confirmed or pending bookings via
+ * a signed URL included in the confirmation email.
+ *
+ * @since 1.18.0
+ * @return void
+ */
+function hbc_upgrade_cancellation_token() {
+    global $wpdb;
+    $bookings_table = $wpdb->prefix . 'hbc_bookings';
+
+    $columns = $wpdb->get_col("DESCRIBE $bookings_table", 0);
+    if (!in_array('cancellation_token', $columns)) {
+        $wpdb->query("ALTER TABLE $bookings_table ADD COLUMN cancellation_token varchar(64) NULL UNIQUE AFTER status");
+    }
 }
 
 /**
@@ -666,6 +688,13 @@ function hbc_register_event_rewrite_rules() {
         'index.php?hbc_book_in_token=$matches[1]',
         'top'
     );
+
+    // Booking cancellation URL: /cancel-booking/{token}/
+    add_rewrite_rule(
+        'cancel-booking/([^/]+)/?$',
+        'index.php?hbc_cancel_token=$matches[1]',
+        'top'
+    );
 }
 add_action('init', 'hbc_register_event_rewrite_rules');
 
@@ -682,6 +711,7 @@ function hbc_register_event_query_vars($vars) {
     $vars[] = 'hbc_event_purpose';
     $vars[] = 'hbc_group_agenda';
     $vars[] = 'hbc_book_in_token';
+    $vars[] = 'hbc_cancel_token';
     return $vars;
 }
 add_filter('query_vars', 'hbc_register_event_query_vars');
@@ -841,6 +871,147 @@ function hbc_handle_book_in_token_query($query) {
 add_action('pre_get_posts', 'hbc_handle_book_in_token_query');
 
 /**
+ * Render the booking cancellation confirmation page
+ *
+ * Intercepts /cancel-booking/{token}/ URLs, looks up the booking, and either
+ * renders a confirmation form (GET) or processes the cancellation (POST).
+ * Uses the active theme's header and footer so it inherits the site design.
+ *
+ * @since 1.18.0
+ * @return void
+ */
+function hbc_handle_cancellation_page() {
+    $token = get_query_var('hbc_cancel_token');
+    if (empty($token)) {
+        return;
+    }
+
+    global $wpdb;
+    $bookings_table      = $wpdb->prefix . 'hbc_bookings';
+    $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
+    $rooms_table         = $wpdb->prefix . 'hbc_rooms';
+
+    $booking = $wpdb->get_row($wpdb->prepare(
+        "SELECT b.*, g.name as group_name
+         FROM $bookings_table b
+         LEFT JOIN {$wpdb->prefix}hbc_groups g ON b.group_id = g.id
+         WHERE b.cancellation_token = %s",
+        sanitize_text_field($token)
+    ));
+
+    $cancelled   = false;
+    $error       = '';
+    $already_done = false;
+
+    if (!$booking) {
+        $error = __('This cancellation link is invalid or has already been used.', 'hall-booking-calendar');
+    } elseif ('cancelled' === $booking->status) {
+        $already_done = true;
+    } elseif ('confirmed' !== $booking->status && 'pending' !== $booking->status) {
+        $error = __('This booking cannot be cancelled.', 'hall-booking-calendar');
+    }
+
+    // Handle POST confirmation
+    $request_method = isset($_SERVER['REQUEST_METHOD']) ? sanitize_key(wp_unslash($_SERVER['REQUEST_METHOD'])) : '';
+    if (!$error && !$already_done && 'post' === $request_method && isset($_POST['hbc_confirm_cancel'])) {
+        if (!isset($_POST['hbc_cancel_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['hbc_cancel_nonce'])), 'hbc_cancel_booking_' . $token)) {
+            $error = __('Security check failed. Please try again.', 'hall-booking-calendar');
+        } else {
+            $wpdb->update(
+                $bookings_table,
+                array('status' => 'cancelled'),
+                array('id' => $booking->id)
+            );
+            $cancelled = true;
+
+            // Notify the webmaster
+            $webmaster_email = sanitize_email(get_option('hbc_webmaster_email', get_option('admin_email')));
+            $safe_name       = str_replace(array("\r", "\n"), '', $booking->user_name);
+            wp_mail(
+                $webmaster_email,
+                sprintf(__('Booking Cancelled by User: %s — Hall Booking Calendar', 'hall-booking-calendar'), $safe_name),
+                sprintf(
+                    __("The following booking has been cancelled by the user:\n\nUser: %s (%s)\nPurpose: %s\nDate: %s\nTime: %s – %s\n\nAdmin: %s", 'hall-booking-calendar'),
+                    $safe_name,
+                    sanitize_email($booking->user_email),
+                    $booking->purpose,
+                    date('F j, Y', strtotime($booking->booking_date)),
+                    date('g:i A', strtotime($booking->start_time)),
+                    date('g:i A', strtotime($booking->end_time)),
+                    admin_url('admin.php?page=hall-booking-bookings&action=view&booking_id=' . $booking->id)
+                )
+            );
+        }
+    }
+
+    // Get room names for display
+    $room_names = array();
+    if ($booking) {
+        $room_names = $wpdb->get_col($wpdb->prepare(
+            "SELECT r.name FROM $booking_rooms_table br
+             INNER JOIN $rooms_table r ON br.room_id = r.id
+             WHERE br.booking_id = %d ORDER BY r.name ASC",
+            $booking->id
+        ));
+        if (empty($room_names) && !empty($booking->room_id)) {
+            $room_names = array($wpdb->get_var($wpdb->prepare("SELECT name FROM $rooms_table WHERE id = %d", $booking->room_id)));
+        }
+    }
+
+    // Render the page using the active theme
+    get_header();
+    ?>
+    <div class="hbc-cancel-page" style="max-width:680px;margin:40px auto;padding:0 20px;">
+        <h1><?php esc_html_e('Cancel Booking', 'hall-booking-calendar'); ?></h1>
+
+        <?php if ($error) : ?>
+            <div class="hbc-cancel-notice hbc-cancel-notice--error">
+                <p><?php echo esc_html($error); ?></p>
+            </div>
+
+        <?php elseif ($already_done) : ?>
+            <div class="hbc-cancel-notice hbc-cancel-notice--info">
+                <p><?php esc_html_e('This booking has already been cancelled.', 'hall-booking-calendar'); ?></p>
+            </div>
+
+        <?php elseif ($cancelled) : ?>
+            <div class="hbc-cancel-notice hbc-cancel-notice--success">
+                <h2><?php esc_html_e('Booking Cancelled', 'hall-booking-calendar'); ?></h2>
+                <p><?php esc_html_e('Your booking has been cancelled successfully. The venue administrator has been notified.', 'hall-booking-calendar'); ?></p>
+            </div>
+
+        <?php else : ?>
+            <div class="hbc-cancel-details">
+                <h2><?php esc_html_e('Are you sure you want to cancel this booking?', 'hall-booking-calendar'); ?></h2>
+                <table class="hbc-cancel-table">
+                    <tr><th><?php esc_html_e('Purpose', 'hall-booking-calendar'); ?></th><td><?php echo esc_html($booking->purpose); ?></td></tr>
+                    <tr><th><?php esc_html_e('Date', 'hall-booking-calendar'); ?></th><td><?php echo esc_html(date('l, F j, Y', strtotime($booking->booking_date))); ?></td></tr>
+                    <tr><th><?php esc_html_e('Time', 'hall-booking-calendar'); ?></th><td><?php echo esc_html(date('g:i A', strtotime($booking->start_time)) . ' – ' . date('g:i A', strtotime($booking->end_time))); ?></td></tr>
+                    <?php if (!empty($room_names)) : ?>
+                    <tr><th><?php esc_html_e('Room(s)', 'hall-booking-calendar'); ?></th><td><?php echo esc_html(implode(', ', $room_names)); ?></td></tr>
+                    <?php endif; ?>
+                    <tr><th><?php esc_html_e('Status', 'hall-booking-calendar'); ?></th><td><?php echo esc_html(ucfirst($booking->status)); ?></td></tr>
+                </table>
+
+                <form method="post" style="margin-top:24px;">
+                    <?php wp_nonce_field('hbc_cancel_booking_' . $token, 'hbc_cancel_nonce'); ?>
+                    <button type="submit" name="hbc_confirm_cancel" value="1" class="hbc-cancel-confirm-btn">
+                        <?php esc_html_e('Yes, Cancel My Booking', 'hall-booking-calendar'); ?>
+                    </button>
+                    <a href="<?php echo esc_url(hbc_get_calendar_page_url()); ?>" class="hbc-cancel-back-btn">
+                        <?php esc_html_e('No, Keep My Booking', 'hall-booking-calendar'); ?>
+                    </a>
+                </form>
+            </div>
+        <?php endif; ?>
+    </div>
+    <?php
+    get_footer();
+    exit;
+}
+add_action('template_redirect', 'hbc_handle_cancellation_page');
+
+/**
  * Prevent WordPress canonical redirect from redirecting custom URLs
  *
  * When we serve a page (e.g. the calendar page) at a custom URL like /events/...
@@ -852,7 +1023,7 @@ add_action('pre_get_posts', 'hbc_handle_book_in_token_query');
  * @return string|false The redirect URL or false to cancel
  */
 function hbc_disable_canonical_redirect_for_events($redirect_url) {
-    if (get_query_var('hbc_event_date') || get_query_var('hbc_group_agenda') || get_query_var('hbc_book_in_token')) {
+    if (get_query_var('hbc_event_date') || get_query_var('hbc_group_agenda') || get_query_var('hbc_book_in_token') || get_query_var('hbc_cancel_token')) {
         return false;
     }
     return $redirect_url;

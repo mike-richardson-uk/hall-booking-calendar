@@ -280,6 +280,8 @@ function hbc_handle_booking_submission() {
                 ));
             }
             $wpdb->query('COMMIT');
+            // Generate a cancellation token for the booker (outside transaction)
+            hbc_generate_and_store_cancel_token($new_booking_id);
         } else {
             $wpdb->query('ROLLBACK');
         }
@@ -908,6 +910,16 @@ function hbc_send_booking_notification($booking_id) {
         $message .= "\n\n" . __("Members can book in for this event using the following link:", 'hall-booking-calendar') . "\n" . $book_in_url;
     }
 
+    // Append cancellation link so the booker can self-cancel if needed
+    $cancel_token = $wpdb->get_var($wpdb->prepare(
+        "SELECT cancellation_token FROM $bookings_table WHERE id = %d",
+        $booking_id
+    ));
+    if (!empty($cancel_token)) {
+        $cancel_url = home_url('cancel-booking/' . $cancel_token . '/');
+        $message .= "\n\n" . __("Need to cancel? Use this link (valid until the booking is confirmed or cancelled):", 'hall-booking-calendar') . "\n" . $cancel_url;
+    }
+
     wp_mail($to, $subject, $message);
 
     // Email to webmaster (from settings)
@@ -931,7 +943,56 @@ function hbc_send_booking_notification($booking_id) {
         $pending_url
     );
 
+    // Append attendee CSV download link to webmaster email if book-in is configured
+    $submissions_count = 0;
+    $form_config_wm = hbc_get_book_in_form($booking_id);
+    if ($form_config_wm) {
+        $subs_table      = $wpdb->prefix . 'hbc_form_submissions';
+        $submissions_count = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $subs_table WHERE booking_id = %d",
+            $booking_id
+        ));
+    }
+    if ($submissions_count > 0) {
+        $csv_url          = admin_url('admin.php?page=hall-booking-bookings&action=view&booking_id=' . $booking->id);
+        $webmaster_message .= "\n\n" . sprintf(
+            __("This event has %d booking-in submission(s). Download the attendee list from the booking detail page:\n%s", 'hall-booking-calendar'),
+            $submissions_count,
+            $csv_url
+        );
+    }
+
     wp_mail($webmaster_email, $webmaster_subject, $webmaster_message);
+}
+
+/**
+ * Generate and store a unique cancellation token for a booking
+ *
+ * Called after a booking is inserted. Uses wp_generate_password for a
+ * cryptographically random 40-character alphanumeric token.
+ *
+ * @since 1.18.0
+ * @param int $booking_id
+ * @return string|false The generated token or false if the column doesn't exist
+ */
+function hbc_generate_and_store_cancel_token($booking_id) {
+    global $wpdb;
+    $bookings_table = $wpdb->prefix . 'hbc_bookings';
+
+    $columns = $wpdb->get_col("DESCRIBE $bookings_table", 0);
+    if (!in_array('cancellation_token', $columns)) {
+        return false;
+    }
+
+    $token = wp_generate_password(40, false, false);
+    $wpdb->update(
+        $bookings_table,
+        array('cancellation_token' => $token),
+        array('id' => $booking_id),
+        array('%s'),
+        array('%d')
+    );
+    return $token;
 }
 
 /**
@@ -1003,3 +1064,152 @@ function hbc_send_acceptance_notification($booking_id) {
 
     wp_mail($to, $subject, $message);
 }
+
+/**
+ * Inline conflict check AJAX handler
+ *
+ * Called from the booking form as the user fills in times and rooms, so
+ * conflicts are surfaced before form submission rather than after.
+ *
+ * Expects POST: nonce, room_ids[], booking_date, start_time, end_time
+ *
+ * @since 1.18.0
+ * @return void Sends JSON response
+ */
+function hbc_check_booking_conflicts_inline() {
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'hbc_booking_nonce')) {
+        wp_send_json_error(array('message' => __('Security check failed.', 'hall-booking-calendar')));
+        return;
+    }
+
+    $room_ids     = isset($_POST['room_ids']) && is_array($_POST['room_ids']) ? array_map('intval', $_POST['room_ids']) : array();
+    $booking_date = sanitize_text_field(isset($_POST['booking_date']) ? $_POST['booking_date'] : '');
+    $start_time   = sanitize_text_field(isset($_POST['start_time']) ? $_POST['start_time'] : '');
+    $end_time     = sanitize_text_field(isset($_POST['end_time']) ? $_POST['end_time'] : '');
+
+    if (empty($room_ids) || empty($booking_date) || empty($start_time) || empty($end_time)) {
+        wp_send_json_success(array('has_conflict' => false));
+        return;
+    }
+
+    // Basic time sanity check
+    if ($start_time >= $end_time) {
+        wp_send_json_success(array('has_conflict' => false));
+        return;
+    }
+
+    global $wpdb;
+    $rooms_table = $wpdb->prefix . 'hbc_rooms';
+
+    $conflicting_rooms = array();
+    foreach ($room_ids as $rid) {
+        if (hbc_check_booking_conflict($rid, $booking_date, $start_time, $end_time)) {
+            $room_name = $wpdb->get_var($wpdb->prepare("SELECT name FROM $rooms_table WHERE id = %d", $rid));
+            if ($room_name) {
+                $conflicting_rooms[] = $room_name;
+            }
+        }
+    }
+
+    if (!empty($conflicting_rooms)) {
+        wp_send_json_success(array(
+            'has_conflict'      => true,
+            'conflicting_rooms' => $conflicting_rooms,
+            'message'           => sprintf(
+                __('Conflict: %s already has a booking that overlaps this time slot.', 'hall-booking-calendar'),
+                implode(', ', $conflicting_rooms)
+            ),
+        ));
+    } else {
+        wp_send_json_success(array('has_conflict' => false));
+    }
+}
+add_action('wp_ajax_hbc_check_conflicts_inline', 'hbc_check_booking_conflicts_inline');
+add_action('wp_ajax_nopriv_hbc_check_conflicts_inline', 'hbc_check_booking_conflicts_inline');
+
+/**
+ * Export book-in form submissions for a booking as a CSV file
+ *
+ * Triggered by a form POST from the admin booking detail page.
+ * Runs on admin_init so headers can be sent before any output.
+ *
+ * @since 1.18.0
+ * @return void
+ */
+function hbc_export_book_in_submissions_csv() {
+    if (!isset($_POST['hbc_export_book_in_csv']) || !isset($_POST['hbc_book_in_export_nonce'])) {
+        return;
+    }
+
+    $booking_id = intval($_POST['hbc_book_in_export_booking_id']);
+    if (!$booking_id) {
+        return;
+    }
+
+    if (!wp_verify_nonce($_POST['hbc_book_in_export_nonce'], 'hbc_export_book_in_' . $booking_id)) {
+        wp_die(__('Security check failed', 'hall-booking-calendar'));
+    }
+
+    if (!current_user_can('manage_options')) {
+        wp_die(__('Unauthorized access', 'hall-booking-calendar'));
+    }
+
+    global $wpdb;
+    $submissions = $wpdb->get_results($wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}hbc_form_submissions WHERE booking_id = %d ORDER BY submitted_at ASC",
+        $booking_id
+    ));
+
+    $booking = $wpdb->get_row($wpdb->prepare(
+        "SELECT purpose, booking_date FROM {$wpdb->prefix}hbc_bookings WHERE id = %d",
+        $booking_id
+    ));
+
+    $filename = 'attendees-booking-' . $booking_id;
+    if ($booking) {
+        $filename .= '-' . sanitize_title($booking->purpose) . '-' . $booking->booking_date;
+    }
+    $filename .= '.csv';
+
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+
+    $out = fopen('php://output', 'w');
+    fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM for Excel
+
+    fputcsv($out, array(
+        'Full Name', 'Email', 'Phone', 'Masonic Rank',
+        'Attendance', 'Membership', 'Lodge Name',
+        'Meal Choice', 'Vegetarian Alternative', 'Dietary Requirements',
+        'Additional Comments', 'Submitted At',
+    ));
+
+    $attendance_labels = array(
+        'attending_dinner'    => 'Attending with dinner',
+        'attending_no_dinner' => 'Attending without dinner',
+        'not_attending'       => 'Not attending',
+    );
+
+    foreach ($submissions as $s) {
+        fputcsv($out, array(
+            $s->full_name,
+            $s->email,
+            $s->phone,
+            $s->masonic_rank,
+            isset($attendance_labels[$s->attendance_type]) ? $attendance_labels[$s->attendance_type] : $s->attendance_type,
+            'member' === $s->membership_type ? 'Member' : 'Guest',
+            $s->lodge_name,
+            $s->meal_choice,
+            $s->vegetarian_alternative ? 'Yes' : 'No',
+            $s->dietary_requirements,
+            $s->additional_comments,
+            $s->submitted_at,
+        ));
+    }
+
+    fclose($out);
+    exit;
+}
+add_action('admin_init', 'hbc_export_book_in_submissions_csv');

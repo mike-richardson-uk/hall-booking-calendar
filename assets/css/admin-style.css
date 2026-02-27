@@ -1,31 +1,277 @@
 /* Admin Styles for Hall Booking Calendar */
 
+/* ── Dashboard stat boxes ────────────────────────────────────────────────── */
 .hbc-dashboard-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-    margin: 20px 0;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+    margin: 16px 0 24px;
 }
 
 .hbc-stat-box {
     background: #fff;
     border: 1px solid #ccd0d4;
-    border-radius: 4px;
-    padding: 20px;
+    border-top: 4px solid #2271b1;
+    border-radius: 6px;
+    padding: 18px 16px;
     text-align: center;
-    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.15s;
 }
 
-.hbc-stat-box h3 {
-    font-size: 36px;
-    margin: 0 0 10px 0;
+.hbc-stat-box:hover {
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+}
+
+.hbc-stat-number {
+    font-size: 38px;
+    font-weight: 700;
+    line-height: 1;
+    color: #1d2327;
+    margin-bottom: 6px;
+}
+
+.hbc-stat-label {
+    color: #646970;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+/* Accent colours per stat type */
+.hbc-stat-today    { border-top-color: #2271b1; }
+.hbc-stat-week     { border-top-color: #00a32a; }
+.hbc-stat-month    { border-top-color: #9b59b6; }
+.hbc-stat-pending  { border-top-color: #dba617; }
+.hbc-stat-confirmed { border-top-color: #00a32a; }
+.hbc-stat-total    { border-top-color: #646970; }
+
+.hbc-stat-pending .hbc-stat-number  { color: #856404; }
+.hbc-stat-confirmed .hbc-stat-number { color: #0a5a29; }
+
+/* ── Quick Action cards ──────────────────────────────────────────────────── */
+.hbc-quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 16px 0 24px;
+}
+
+.hbc-action-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 6px;
+    padding: 10px 16px;
+    text-decoration: none;
+    color: #1d2327;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: background 0.15s, box-shadow 0.15s, color 0.15s;
+}
+
+.hbc-action-card:hover {
+    background: #f0f6fc;
+    color: #2271b1;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.hbc-action-card--alert {
+    border-color: #dba617;
+    background: #fff8e5;
+}
+
+.hbc-action-card--alert:hover {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.hbc-action-icon {
+    font-size: 18px;
+    line-height: 1;
     color: #2271b1;
 }
 
-.hbc-stat-box p {
-    margin: 0;
+.hbc-action-card--alert .hbc-action-icon { color: #dba617; }
+
+.hbc-badge {
+    display: inline-block;
+    background: #dba617;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 7px;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+/* ── Analytics layout ───────────────────────────────────────────────────── */
+.hbc-analytics-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    margin: 0 0 28px;
+}
+
+@media (max-width: 900px) {
+    .hbc-analytics-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.hbc-analytics-chart-box,
+.hbc-analytics-room-box,
+.hbc-analytics-status-box,
+.hbc-analytics-side {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 6px;
+    padding: 20px;
+}
+
+.hbc-analytics-side {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.hbc-analytics-room-box,
+.hbc-analytics-status-box {
+    flex: 1;
+}
+
+.hbc-analytics-chart-box h2,
+.hbc-analytics-room-box h2,
+.hbc-analytics-status-box h2 {
+    margin: 0 0 16px;
+    font-size: 15px;
+    color: #1d2327;
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 8px;
+}
+
+/* ── Bar chart ───────────────────────────────────────────────────────────── */
+.hbc-bar-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    height: 140px;
+}
+
+.hbc-bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+}
+
+.hbc-bar-wrap {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    width: 100%;
+}
+
+.hbc-bar {
+    width: 100%;
+    background: #2271b1;
+    border-radius: 4px 4px 0 0;
+    min-height: 4px;
+    position: relative;
+    transition: background 0.2s;
+}
+
+.hbc-bar:hover {
+    background: #135e96;
+}
+
+.hbc-bar-count {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    font-weight: 700;
+    color: #1d2327;
+    white-space: nowrap;
+}
+
+.hbc-bar-label {
+    font-size: 11px;
     color: #646970;
-    font-size: 14px;
+    text-align: center;
+    margin-top: 6px;
+    font-weight: 600;
+}
+
+/* ── Room stats horizontal bars ─────────────────────────────────────────── */
+.hbc-room-stats-list,
+.hbc-status-stats-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.hbc-room-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 13px;
+}
+
+.hbc-room-stat-name {
+    flex: 0 0 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #1d2327;
+}
+
+.hbc-room-stat-bar-wrap {
+    flex: 1;
+    background: #f0f0f0;
+    border-radius: 3px;
+    height: 10px;
+    overflow: hidden;
+}
+
+.hbc-room-stat-bar {
+    background: #2271b1;
+    height: 100%;
+    border-radius: 3px;
+    min-width: 4px;
+    transition: width 0.3s;
+}
+
+.hbc-room-stat-count {
+    flex: 0 0 24px;
+    font-weight: 700;
+    text-align: right;
+    font-size: 13px;
+    color: #1d2327;
+}
+
+.hbc-status-stats-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 13px;
+}
+
+.hbc-status-stats-list li:last-child {
+    border-bottom: none;
 }
 
 .hbc-recent-bookings {

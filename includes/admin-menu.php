@@ -135,54 +135,169 @@ add_action('admin_menu', 'hbc_add_admin_menu');
 function hbc_admin_dashboard_page() {
     global $wpdb;
 
-    $rooms_table = $wpdb->prefix . 'hbc_rooms';
-    $groups_table = $wpdb->prefix . 'hbc_groups';
-    $bookings_table = $wpdb->prefix . 'hbc_bookings';
+    $rooms_table      = $wpdb->prefix . 'hbc_rooms';
+    $groups_table     = $wpdb->prefix . 'hbc_groups';
+    $bookings_table   = $wpdb->prefix . 'hbc_bookings';
     $categories_table = $wpdb->prefix . 'hbc_categories';
 
-    // Fetch dashboard statistics
-    $total_rooms = $wpdb->get_var("SELECT COUNT(*) FROM $rooms_table WHERE status = 'active'");
-    $total_groups = $wpdb->get_var("SELECT COUNT(*) FROM $groups_table WHERE status = 'active'");
-    $total_categories = $wpdb->get_var("SELECT COUNT(*) FROM $categories_table WHERE status = 'active'");
-    $total_bookings = $wpdb->get_var("SELECT COUNT(*) FROM $bookings_table");
-    $pending_bookings = $wpdb->get_var("SELECT COUNT(*) FROM $bookings_table WHERE status = 'pending'");
-    $today_bookings = $wpdb->get_var($wpdb->prepare(
-        "SELECT COUNT(*) FROM $bookings_table WHERE booking_date = %s",
-        date('Y-m-d')
-    ));
+    // ── Core statistics ───────────────────────────────────────────────────────
+    $total_rooms      = (int) $wpdb->get_var("SELECT COUNT(*) FROM $rooms_table WHERE status = 'active'");
+    $total_groups     = (int) $wpdb->get_var("SELECT COUNT(*) FROM $groups_table WHERE status = 'active'");
+    $total_categories = (int) $wpdb->get_var("SELECT COUNT(*) FROM $categories_table WHERE status = 'active'");
+    $total_bookings   = (int) $wpdb->get_var("SELECT COUNT(*) FROM $bookings_table");
+    $pending_bookings = (int) $wpdb->get_var("SELECT COUNT(*) FROM $bookings_table WHERE status = 'pending'");
+    $confirmed_count  = (int) $wpdb->get_var("SELECT COUNT(*) FROM $bookings_table WHERE status = 'confirmed'");
+    $cancelled_count  = (int) $wpdb->get_var("SELECT COUNT(*) FROM $bookings_table WHERE status = 'cancelled'");
+    $today            = date('Y-m-d');
+    $week_start       = date('Y-m-d', strtotime('monday this week'));
+    $week_end         = date('Y-m-d', strtotime('sunday this week'));
+    $today_bookings   = (int) $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM $bookings_table WHERE booking_date = %s AND status != 'cancelled'", $today));
+    $week_bookings    = (int) $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM $bookings_table WHERE booking_date BETWEEN %s AND %s AND status != 'cancelled'",
+        $week_start, $week_end));
+    $month_bookings   = (int) $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM $bookings_table WHERE booking_date BETWEEN %s AND %s AND status != 'cancelled'",
+        date('Y-m-01'), date('Y-m-t')));
+
+    // ── Monthly trend: last 6 months ─────────────────────────────────────────
+    $monthly_data = array();
+    for ($i = 5; $i >= 0; $i--) {
+        $month_ts    = strtotime("-$i months", strtotime(date('Y-m-01')));
+        $month_label = date('M', $month_ts);
+        $month_from  = date('Y-m-01', $month_ts);
+        $month_to    = date('Y-m-t', $month_ts);
+        $count       = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $bookings_table WHERE booking_date BETWEEN %s AND %s AND status != 'cancelled'",
+            $month_from, $month_to
+        ));
+        $monthly_data[] = array('label' => $month_label, 'count' => $count);
+    }
+    $max_monthly = max(1, ...array_column($monthly_data, 'count'));
+
+    // ── Bookings by room (top 5) ─────────────────────────────────────────────
+    $room_stats = $wpdb->get_results(
+        "SELECT r.name, COUNT(br.booking_id) as cnt
+         FROM {$wpdb->prefix}hbc_booking_rooms br
+         INNER JOIN $rooms_table r ON br.room_id = r.id
+         INNER JOIN $bookings_table b ON br.booking_id = b.id
+         WHERE b.status != 'cancelled'
+         GROUP BY r.id ORDER BY cnt DESC LIMIT 5"
+    );
+    $max_room_count = max(1, ...array_map(function ($r) { return (int) $r->cnt; }, $room_stats ?: array((object) array('cnt' => 1))));
 
     ?>
     <div class="wrap">
-        <h1><?php _e('Hall Booking Calendar - Dashboard', 'hall-booking-calendar'); ?></h1>
+        <h1><?php _e('Hall Booking Calendar', 'hall-booking-calendar'); ?></h1>
 
+        <?php settings_errors('hbc_messages'); ?>
+
+        <!-- Quick Actions -->
+        <div class="hbc-quick-actions">
+            <a href="<?php echo esc_url(hbc_get_calendar_page_url() ? add_query_arg('action', 'book', hbc_get_calendar_page_url()) : admin_url('admin.php?page=hall-booking-bookings')); ?>" class="hbc-action-card hbc-action-book">
+                <span class="hbc-action-icon dashicons dashicons-plus-alt2"></span>
+                <span class="hbc-action-label"><?php _e('New Booking', 'hall-booking-calendar'); ?></span>
+            </a>
+            <a href="<?php echo admin_url('admin.php?page=hall-booking-bookings'); ?>" class="hbc-action-card hbc-action-list">
+                <span class="hbc-action-icon dashicons dashicons-list-view"></span>
+                <span class="hbc-action-label"><?php _e('All Bookings', 'hall-booking-calendar'); ?></span>
+            </a>
+            <a href="<?php echo admin_url('admin.php?page=hall-booking-bookings&status=pending'); ?>" class="hbc-action-card hbc-action-pending<?php echo $pending_bookings ? ' hbc-action-card--alert' : ''; ?>">
+                <span class="hbc-action-icon dashicons dashicons-clock"></span>
+                <span class="hbc-action-label"><?php _e('Pending Approval', 'hall-booking-calendar'); ?><?php if ($pending_bookings) : ?> <span class="hbc-badge"><?php echo esc_html($pending_bookings); ?></span><?php endif; ?></span>
+            </a>
+            <a href="<?php echo admin_url('admin.php?page=hall-booking-rooms'); ?>" class="hbc-action-card hbc-action-rooms">
+                <span class="hbc-action-icon dashicons dashicons-building"></span>
+                <span class="hbc-action-label"><?php _e('Manage Rooms', 'hall-booking-calendar'); ?></span>
+            </a>
+            <a href="<?php echo admin_url('admin.php?page=hall-booking-export'); ?>" class="hbc-action-card hbc-action-export">
+                <span class="hbc-action-icon dashicons dashicons-download"></span>
+                <span class="hbc-action-label"><?php _e('Export CSV', 'hall-booking-calendar'); ?></span>
+            </a>
+            <a href="<?php echo admin_url('admin.php?page=hall-booking-settings'); ?>" class="hbc-action-card hbc-action-settings">
+                <span class="hbc-action-icon dashicons dashicons-admin-settings"></span>
+                <span class="hbc-action-label"><?php _e('Settings', 'hall-booking-calendar'); ?></span>
+            </a>
+        </div>
+
+        <!-- Statistics row -->
         <div class="hbc-dashboard-stats">
-            <div class="hbc-stat-box">
-                <h3><?php echo esc_html($total_rooms); ?></h3>
-                <p><?php _e('Active Rooms', 'hall-booking-calendar'); ?></p>
+            <div class="hbc-stat-box hbc-stat-today">
+                <div class="hbc-stat-number"><?php echo esc_html($today_bookings); ?></div>
+                <div class="hbc-stat-label"><?php _e('Today', 'hall-booking-calendar'); ?></div>
             </div>
-            <div class="hbc-stat-box">
-                <h3><?php echo esc_html($total_groups); ?></h3>
-                <p><?php _e('Active Groups', 'hall-booking-calendar'); ?></p>
+            <div class="hbc-stat-box hbc-stat-week">
+                <div class="hbc-stat-number"><?php echo esc_html($week_bookings); ?></div>
+                <div class="hbc-stat-label"><?php _e('This Week', 'hall-booking-calendar'); ?></div>
             </div>
-            <div class="hbc-stat-box">
-                <h3><?php echo esc_html($total_categories); ?></h3>
-                <p><?php _e('Event Categories', 'hall-booking-calendar'); ?></p>
+            <div class="hbc-stat-box hbc-stat-month">
+                <div class="hbc-stat-number"><?php echo esc_html($month_bookings); ?></div>
+                <div class="hbc-stat-label"><?php _e('This Month', 'hall-booking-calendar'); ?></div>
             </div>
-            <div class="hbc-stat-box">
-                <h3><?php echo esc_html($total_bookings); ?></h3>
-                <p><?php _e('Total Bookings', 'hall-booking-calendar'); ?></p>
+            <div class="hbc-stat-box hbc-stat-pending">
+                <div class="hbc-stat-number"><?php echo esc_html($pending_bookings); ?></div>
+                <div class="hbc-stat-label"><?php _e('Pending', 'hall-booking-calendar'); ?></div>
             </div>
-            <div class="hbc-stat-box">
-                <h3><?php echo esc_html($pending_bookings); ?></h3>
-                <p><?php _e('Pending Bookings', 'hall-booking-calendar'); ?></p>
+            <div class="hbc-stat-box hbc-stat-confirmed">
+                <div class="hbc-stat-number"><?php echo esc_html($confirmed_count); ?></div>
+                <div class="hbc-stat-label"><?php _e('Confirmed', 'hall-booking-calendar'); ?></div>
             </div>
-            <div class="hbc-stat-box">
-                <h3><?php echo esc_html($today_bookings); ?></h3>
-                <p><?php _e('Today\'s Bookings', 'hall-booking-calendar'); ?></p>
+            <div class="hbc-stat-box hbc-stat-total">
+                <div class="hbc-stat-number"><?php echo esc_html($total_bookings); ?></div>
+                <div class="hbc-stat-label"><?php _e('Total Bookings', 'hall-booking-calendar'); ?></div>
             </div>
         </div>
 
-        <?php settings_errors('hbc_messages'); ?>
+        <!-- Analytics: monthly trend + room breakdown -->
+        <div class="hbc-analytics-row">
+            <div class="hbc-analytics-chart-box">
+                <h2><?php _e('Bookings — Last 6 Months', 'hall-booking-calendar'); ?></h2>
+                <div class="hbc-bar-chart">
+                    <?php foreach ($monthly_data as $m) :
+                        $bar_pct = $max_monthly > 0 ? round(($m['count'] / $max_monthly) * 100) : 0;
+                    ?>
+                    <div class="hbc-bar-col">
+                        <div class="hbc-bar-wrap">
+                            <div class="hbc-bar" style="height:<?php echo esc_attr($bar_pct); ?>%;" title="<?php echo esc_attr($m['count']); ?>">
+                                <span class="hbc-bar-count"><?php echo esc_html($m['count']); ?></span>
+                            </div>
+                        </div>
+                        <div class="hbc-bar-label"><?php echo esc_html($m['label']); ?></div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <div class="hbc-analytics-side">
+                <?php if (!empty($room_stats)) : ?>
+                <div class="hbc-analytics-room-box">
+                    <h2><?php _e('Bookings by Room', 'hall-booking-calendar'); ?></h2>
+                    <ul class="hbc-room-stats-list">
+                        <?php foreach ($room_stats as $rs) :
+                            $room_pct = round(($rs->cnt / $max_room_count) * 100);
+                        ?>
+                        <li class="hbc-room-stat-item">
+                            <span class="hbc-room-stat-name"><?php echo esc_html($rs->name); ?></span>
+                            <div class="hbc-room-stat-bar-wrap">
+                                <div class="hbc-room-stat-bar" style="width:<?php echo esc_attr($room_pct); ?>%;"></div>
+                            </div>
+                            <span class="hbc-room-stat-count"><?php echo esc_html($rs->cnt); ?></span>
+                        </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+                <?php endif; ?>
+
+                <div class="hbc-analytics-status-box">
+                    <h2><?php _e('Status Breakdown', 'hall-booking-calendar'); ?></h2>
+                    <ul class="hbc-status-stats-list">
+                        <li><span class="hbc-status hbc-status-confirmed"><?php _e('Confirmed', 'hall-booking-calendar'); ?></span> <strong><?php echo esc_html($confirmed_count); ?></strong></li>
+                        <li><span class="hbc-status hbc-status-pending"><?php _e('Pending', 'hall-booking-calendar'); ?></span> <strong><?php echo esc_html($pending_bookings); ?></strong></li>
+                        <li><span class="hbc-status hbc-status-cancelled"><?php _e('Cancelled', 'hall-booking-calendar'); ?></span> <strong><?php echo esc_html($cancelled_count); ?></strong></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
 
         <div class="hbc-recent-bookings">
             <h2><?php _e('Recent Bookings', 'hall-booking-calendar'); ?></h2>

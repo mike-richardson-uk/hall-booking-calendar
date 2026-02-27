@@ -64,41 +64,55 @@
             }
         });
 
-        // Get available slots when rooms or date are selected
-        $(document).on('change', 'input[name="room_ids[]"], #hbc_booking_date', function() {
-            var roomIds = [];
-            $('input[name="room_ids[]"]:checked').each(function() {
-                roomIds.push($(this).val());
-            });
-            var bookingDate = $('#hbc_booking_date').val();
+        // ── Inline conflict warning ───────────────────────────────────────────
+        // Trigger a lightweight conflict check whenever the user changes rooms,
+        // date, or times. Shows a yellow warning banner without blocking submit.
 
-            if (roomIds.length > 0 && bookingDate) {
-                // Check availability for each selected room
-                roomIds.forEach(function(roomId) {
-                    checkAvailability(roomId, bookingDate);
+        var conflictCheckTimer = null;
+
+        function triggerConflictCheck() {
+            clearTimeout(conflictCheckTimer);
+            conflictCheckTimer = setTimeout(function() {
+                var roomIds = [];
+                $('input[name="room_ids[]"]:checked').each(function() {
+                    roomIds.push($(this).val());
                 });
-            }
-        });
+                var bookingDate = $('#hbc_booking_date').val();
+                var startTime   = $('#hbc_start_time').val();
+                var endTime     = $('#hbc_end_time').val();
 
-        // Check availability function
-        function checkAvailability(roomId, bookingDate) {
-            $.ajax({
-                url: hbc_ajax.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'hbc_get_available_slots',
-                    nonce: hbc_ajax.nonce,
-                    room_id: roomId,
-                    booking_date: bookingDate
-                },
-                success: function(response) {
-                    if (response.success) {
-                        // You could display available/booked slots here
-                        console.log('Booked slots for room ' + roomId + ':', response.data.booked_slots);
-                    }
+                var $warning = $('#hbc-conflict-warning');
+
+                if (!roomIds.length || !bookingDate || !startTime || !endTime || startTime >= endTime) {
+                    $warning.hide();
+                    return;
                 }
-            });
+
+                var data = {
+                    action:       'hbc_check_conflicts_inline',
+                    nonce:        hbc_ajax.nonce,
+                    booking_date: bookingDate,
+                    start_time:   startTime,
+                    end_time:     endTime
+                };
+                roomIds.forEach(function(id, i) {
+                    data['room_ids[' + i + ']'] = id;
+                });
+
+                $.post(hbc_ajax.ajax_url, data, function(response) {
+                    if (response.success && response.data.has_conflict) {
+                        $warning.html(
+                            '<strong>&#9888; ' + response.data.message + '</strong>'
+                        ).show();
+                    } else {
+                        $warning.hide();
+                    }
+                });
+            }, 400);
         }
+
+        $(document).on('change', 'input[name="room_ids[]"], #hbc_booking_date', triggerConflictCheck);
+        $(document).on('change blur', '#hbc_start_time, #hbc_end_time', triggerConflictCheck);
 
         // Handle booking form submission
         $('#hbc-booking-form').on('submit', function(e) {
