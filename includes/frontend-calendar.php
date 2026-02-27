@@ -376,13 +376,18 @@ function hbc_display_calendar($group_filter = 'all', $room_filter = 'all', $layo
                                 $time_range = date('g:i A', strtotime($booking->start_time)) . ' - ' . date('g:i A', strtotime($booking->end_time));
                             }
 
-                            echo '<a href="' . esc_url($booking_url) . '" class="hbc-day-booking-pill hbc-status-' . esc_attr($booking->status) . '">';
+                            $is_series = !empty($booking->series_id) || !empty($booking->is_recurring);
+                            echo '<a href="' . esc_url($booking_url) . '" class="hbc-day-booking-pill hbc-status-' . esc_attr($booking->status) . ($is_series ? ' hbc-pill-recurring' : '') . '">';
 
                             if ($time_range) {
                                 echo '<span class="hbc-pill-time">' . esc_html($time_range) . '</span>';
                             }
 
-                            echo '<span class="hbc-pill-title">' . esc_html(wp_trim_words($purpose_text, 6, '&hellip;')) . '</span>';
+                            echo '<span class="hbc-pill-title">';
+                            if ($is_series) {
+                                echo '<span class="hbc-recurring-icon" title="' . esc_attr__('Recurring series', 'hall-booking-calendar') . '" aria-label="' . esc_attr__('Recurring', 'hall-booking-calendar') . '">&#x21BB;</span> ';
+                            }
+                            echo esc_html(wp_trim_words($purpose_text, 6, '&hellip;')) . '</span>';
 
                             if ($rooms_list) {
                                 echo '<span class="hbc-pill-room">' . esc_html($rooms_list) . '</span>';
@@ -586,6 +591,7 @@ function hbc_render_booking_form($selected_date = '', $preselect_group = '', $pr
                     <input type="time" id="hbc_end_time" name="end_time" required>
                 </div>
             </div>
+            <div id="hbc-conflict-warning" class="hbc-conflict-warning" style="display:none;" role="alert" aria-live="polite"></div>
         </div>
 
         <!-- Contact Information -->
@@ -1138,6 +1144,12 @@ function hbc_display_single_booking($booking_id) {
     <div class="hbc-single-booking">
         <div class="hbc-single-header">
             <h2><?php echo esc_html($booking->purpose); ?></h2>
+            <span class="hbc-single-status hbc-status-badge hbc-status-badge--<?php echo esc_attr($booking->status); ?>">
+                <?php echo esc_html(ucfirst($booking->status)); ?>
+                <?php if (!empty($booking->series_id)) : ?>
+                    &nbsp;<span class="hbc-series-badge" title="<?php esc_attr_e('Part of a recurring series', 'hall-booking-calendar'); ?>">&#x21BB; <?php esc_html_e('Recurring', 'hall-booking-calendar'); ?></span>
+                <?php endif; ?>
+            </span>
         </div>
 
         <div class="hbc-single-content">
@@ -1232,6 +1244,19 @@ function hbc_display_single_booking($booking_id) {
             <a href="<?php echo esc_url($book_in_url); ?>" class="button button-primary hbc-book-in-btn">
                 <?php _e('Book In for This Event', 'hall-booking-calendar'); ?>
             </a>
+            <?php
+            // Show QR code for the short book-in URL if available
+            $book_in_form_config = hbc_get_book_in_form($booking_id);
+            if ($book_in_form_config && !empty($book_in_form_config->book_in_token)) :
+                $short_url = home_url('book/' . $book_in_form_config->book_in_token . '/');
+                $qr_url    = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' . rawurlencode($short_url);
+            ?>
+            <div class="hbc-book-in-qr">
+                <p class="hbc-qr-label"><?php _e('Or scan to book in:', 'hall-booking-calendar'); ?></p>
+                <img src="<?php echo esc_url($qr_url); ?>" alt="<?php esc_attr_e('QR code to book in', 'hall-booking-calendar'); ?>" width="160" height="160" class="hbc-qr-img">
+                <p class="hbc-qr-url"><small><?php echo esc_url($short_url); ?></small></p>
+            </div>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
 

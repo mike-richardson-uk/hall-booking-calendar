@@ -1419,3 +1419,228 @@
         order: 4;
     }
 }
+
+/* ── v1.18.0 additions ──────────────────────────────────────────────────── */
+
+/* Recurring series indicator on calendar pills */
+.hbc-recurring-icon {
+    display: inline-block;
+    font-style: normal;
+    opacity: 0.75;
+    font-size: 11px;
+    vertical-align: middle;
+}
+
+.hbc-pill-recurring {
+    border-left: 3px solid rgba(0, 0, 0, 0.25);
+}
+
+/* Single booking — status badge in header */
+.hbc-single-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.hbc-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    margin-top: 6px;
+    flex-shrink: 0;
+}
+
+.hbc-status-badge--confirmed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.hbc-status-badge--pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.hbc-status-badge--cancelled {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.hbc-series-badge {
+    font-size: 10px;
+    font-weight: 600;
+    opacity: 0.85;
+}
+
+/* Inline conflict warning on the booking form */
+.hbc-conflict-warning {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-left: 4px solid #ffc107;
+    border-radius: 4px;
+    color: #664d03;
+    font-size: 13px;
+    padding: 10px 14px;
+    margin: 8px 0 4px;
+}
+
+/* QR code block on single event page */
+.hbc-book-in-qr {
+    margin-top: 16px;
+    display: inline-block;
+    text-align: center;
+}
+
+.hbc-qr-label {
+    font-size: 12px;
+    color: #666;
+    margin: 0 0 6px;
+}
+
+.hbc-qr-img {
+    display: block;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 6px;
+    background: #fff;
+}
+
+.hbc-qr-url {
+    margin: 4px 0 0;
+    word-break: break-all;
+    color: #666;
+}
+
+/* Cancellation page */
+.hbc-cancel-page h1 {
+    margin-bottom: 20px;
+}
+
+.hbc-cancel-notice {
+    padding: 16px 20px;
+    border-radius: 6px;
+    margin: 20px 0;
+}
+
+.hbc-cancel-notice--error {
+    background: #f8d7da;
+    border: 1px solid #f5c2c7;
+    color: #842029;
+}
+
+.hbc-cancel-notice--success {
+    background: #d1e7dd;
+    border: 1px solid #badbcc;
+    color: #0f5132;
+}
+
+.hbc-cancel-notice--info {
+    background: #cff4fc;
+    border: 1px solid #b6effb;
+    color: #055160;
+}
+
+.hbc-cancel-table {
+    border-collapse: collapse;
+    width: 100%;
+    max-width: 500px;
+    margin: 16px 0 24px;
+}
+
+.hbc-cancel-table th,
+.hbc-cancel-table td {
+    padding: 8px 12px;
+    border: 1px solid #dee2e6;
+    text-align: left;
+    font-size: 14px;
+}
+
+.hbc-cancel-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    width: 40%;
+}
+
+.hbc-cancel-confirm-btn {
+    background: #dc3545;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 22px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    margin-right: 12px;
+}
+
+.hbc-cancel-confirm-btn:hover {
+    background: #bb2d3b;
+    color: #fff;
+}
+
+.hbc-cancel-back-btn {
+    background: #6c757d;
+    color: #fff;
+    border-radius: 4px;
+    padding: 10px 22px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.hbc-cancel-back-btn:hover {
+    background: #5a6268;
+    color: #fff;
+}
+
+/* Mobile: calendar dot indicators for very small screens */
+@media (max-width: 480px) {
+    .hbc-calendar-grid {
+        gap: 1px;
+    }
+
+    .hbc-calendar-day {
+        min-height: 50px;
+        padding: 4px 2px;
+    }
+
+    .hbc-day-number {
+        font-size: 11px;
+    }
+
+    /* Collapse booking pills to coloured dots on very narrow screens */
+    .hbc-day-bookings-detailed {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px;
+    }
+
+    .hbc-day-booking-pill {
+        width: 10px;
+        height: 10px;
+        min-width: 0;
+        border-radius: 50%;
+        overflow: hidden;
+        padding: 0;
+    }
+
+    .hbc-pill-time,
+    .hbc-pill-title,
+    .hbc-pill-room {
+        display: none;
+    }
+
+    .hbc-book-btn {
+        font-size: 10px;
+        padding: 2px 4px;
+    }
+}

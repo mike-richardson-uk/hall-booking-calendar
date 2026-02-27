@@ -2,6 +2,22 @@
 
 All notable changes to the Hall Booking Calendar plugin will be documented in this file.
 
+## 1.18.0
+- **Admin dashboard analytics**: Monthly booking bar chart (last 6 months), room usage horizontal bars (top 5), status breakdown (confirmed/pending/cancelled), quick-action cards with dashicons and a pending-count alert badge
+- **Booking cancellation by booker**: A signed cancellation URL is included in booking confirmation emails. Visiting the URL presents a theme-integrated confirmation page; submitting it cancels the booking and notifies the webmaster. Cancellation tokens are stored in a new `cancellation_token` column on `hbc_bookings` (DB upgrade applied automatically)
+- **Inline conflict warning**: A debounced AJAX check fires when the booker changes the room, date, or times on the booking form. A warning message is shown immediately if a conflict is detected — before submission
+- **QR codes**: A QR code for the member book-in URL is shown on the single event detail page and on the admin booking detail page, generated via api.qrserver.com
+- **Book-in CSV export**: A "Download Attendee CSV" button on the admin booking detail page exports all form submissions for that event as a UTF-8 CSV (Excel-compatible BOM), including name, email, attendance, lodge, meal choice, dietary requirements, and more
+- **Recurring series indicator**: Calendar booking pills and single booking headers now display a ↻ icon when the booking belongs to a recurring series
+- **Mobile calendar**: At viewports ≤ 480 px, booking pills collapse to small coloured dots to keep the calendar usable on phones
+- **Status badges**: Single booking header displays a colour-coded pill badge (confirmed = green, pending = amber, cancelled = red)
+- **Event/group template dropdowns**: Admin settings now also lists all PHP files in the active theme root, not just files with a `Template Name:` header, so any custom theme file can be selected as the event or group-agenda template
+
+## 1.17.0
+- **Lodge Name conditional field**: The Lodge Name field on the member booking-in form is now hidden by default and only shown (and required) when the booker selects "Guest" as their attendance type
+- **Larger meal description field**: The meal description input in both the admin meal builder and the frontend booking form has been changed from a single-line text input to a four-row textarea for easier entry of longer descriptions
+- **Vegetarian alternative checkbox**: A "I would like a vegetarian alternative" checkbox is added to the meal selection section of the booking-in form. The preference is stored in a new `vegetarian_alternative` column on `hbc_form_submissions` (DB upgrade applied automatically) and included in submission notification emails
+
 ## 1.16.0
 - **Admin booking-in form editing**: The booking detail/edit page in Hall Booking → Bookings now includes a full "Member Booking-In Form" section. Admins can enable the form, manage notification email recipients, configure the meal menu, set payment information, and view the generated short URL — all from the same page without needing to go back through the original booking form
 

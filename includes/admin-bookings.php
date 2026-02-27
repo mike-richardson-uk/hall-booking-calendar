@@ -547,6 +547,14 @@ function hbc_display_booking_details($booking_id) {
                     <td>
                         <code><?php echo esc_url(home_url('book/' . $bi_token . '/')); ?></code>
                         <p class="description"><?php _e('Share this link with members so they can book in directly.', 'hall-booking-calendar'); ?></p>
+                        <?php
+                        $short_url_admin = home_url('book/' . $bi_token . '/');
+                        $qr_src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' . rawurlencode($short_url_admin);
+                        ?>
+                        <div style="margin-top:10px;">
+                            <img src="<?php echo esc_url($qr_src); ?>" alt="<?php esc_attr_e('QR code for book-in URL', 'hall-booking-calendar'); ?>" width="160" height="160" style="display:block;border:1px solid #ddd;padding:4px;background:#fff;">
+                            <p class="description" style="margin-top:4px;"><?php _e('Print or share this QR code so members can scan and book in.', 'hall-booking-calendar'); ?></p>
+                        </div>
                     </td>
                 </tr>
                 <?php endif; ?>
@@ -638,6 +646,74 @@ function hbc_display_booking_details($booking_id) {
             <br>
             <input type="submit" name="hbc_update_booking_status" class="button button-primary" value="<?php _e('Update Booking', 'hall-booking-calendar'); ?>">
         </form>
+
+        <?php
+        // ── Attendee Submissions ──────────────────────────────────────────────
+        $subs_table_name = $wpdb->prefix . 'hbc_form_submissions';
+        if ($wpdb->get_var("SHOW TABLES LIKE '$subs_table_name'") === $subs_table_name) :
+            $submissions = $wpdb->get_results($wpdb->prepare(
+                "SELECT * FROM $subs_table_name WHERE booking_id = %d ORDER BY submitted_at ASC",
+                $booking_id
+            ));
+            if (!empty($submissions)) :
+        ?>
+        <div class="hbc-booking-details" style="margin-top:24px;">
+            <h2><?php _e('Booking-In Submissions', 'hall-booking-calendar'); ?> <span style="font-weight:normal;font-size:14px;">(<?php echo count($submissions); ?>)</span></h2>
+
+            <form method="post" style="margin-bottom:12px;">
+                <?php wp_nonce_field('hbc_export_book_in_' . $booking_id, 'hbc_book_in_export_nonce'); ?>
+                <input type="hidden" name="hbc_book_in_export_booking_id" value="<?php echo esc_attr($booking_id); ?>">
+                <button type="submit" name="hbc_export_book_in_csv" class="button button-secondary">
+                    &#8681; <?php _e('Download Attendee List (CSV)', 'hall-booking-calendar'); ?>
+                </button>
+            </form>
+
+            <table class="wp-list-table widefat fixed striped" style="font-size:13px;">
+                <thead>
+                    <tr>
+                        <th><?php _e('Name', 'hall-booking-calendar'); ?></th>
+                        <th><?php _e('Attendance', 'hall-booking-calendar'); ?></th>
+                        <th><?php _e('Membership', 'hall-booking-calendar'); ?></th>
+                        <th><?php _e('Meal', 'hall-booking-calendar'); ?></th>
+                        <th><?php _e('Dietary', 'hall-booking-calendar'); ?></th>
+                        <th><?php _e('Submitted', 'hall-booking-calendar'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    $att_labels = array(
+                        'attending_dinner'    => __('With dinner', 'hall-booking-calendar'),
+                        'attending_no_dinner' => __('No dinner', 'hall-booking-calendar'),
+                        'not_attending'       => __('Not attending', 'hall-booking-calendar'),
+                    );
+                    foreach ($submissions as $s) :
+                    ?>
+                    <tr>
+                        <td>
+                            <strong><?php echo esc_html($s->full_name); ?></strong><br>
+                            <small><?php echo esc_html($s->email); ?></small>
+                        </td>
+                        <td><?php echo esc_html(isset($att_labels[$s->attendance_type]) ? $att_labels[$s->attendance_type] : $s->attendance_type); ?></td>
+                        <td>
+                            <?php echo 'member' === $s->membership_type ? esc_html__('Member', 'hall-booking-calendar') : esc_html__('Guest', 'hall-booking-calendar'); ?>
+                            <?php if (!empty($s->lodge_name)) : ?>
+                                <br><small><?php echo esc_html($s->lodge_name); ?></small>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php echo !empty($s->meal_choice) ? esc_html($s->meal_choice) : '&mdash;'; ?>
+                            <?php if ($s->vegetarian_alternative) : ?>
+                                <br><small><?php _e('Vegetarian alt.', 'hall-booking-calendar'); ?></small>
+                            <?php endif; ?>
+                        </td>
+                        <td><?php echo !empty($s->dietary_requirements) ? esc_html(wp_trim_words($s->dietary_requirements, 8)) : '&mdash;'; ?></td>
+                        <td><small><?php echo esc_html(date('M j, Y g:i A', strtotime($s->submitted_at))); ?></small></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; endif; ?>
 
         <p>
             <a href="<?php echo admin_url('admin.php?page=hall-booking-bookings'); ?>" class="button"><?php _e('Back to Bookings', 'hall-booking-calendar'); ?></a>
