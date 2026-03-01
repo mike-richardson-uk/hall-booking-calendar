@@ -1392,6 +1392,34 @@ function hbc_disable_canonical_redirect_for_events($redirect_url) {
 add_filter('redirect_canonical', 'hbc_disable_canonical_redirect_for_events');
 
 /**
+ * Add body class on event or booking pages (used to hide wp-block-cover)
+ *
+ * @since 1.20.0
+ * @param array $classes Body classes
+ * @return array
+ */
+function hbc_event_booking_body_class($classes) {
+    if (is_admin()) {
+        return $classes;
+    }
+    $is_event_or_booking = get_query_var('hbc_event_date')
+        || get_query_var('hbc_group_agenda')
+        || get_query_var('hbc_book_in_token')
+        || get_query_var('hbc_cancel_token')
+        || get_query_var('hbc_edit_token');
+    if ($is_event_or_booking) {
+        $classes[] = 'hbc-event-booking-page';
+        return $classes;
+    }
+    $page_id = hbc_find_calendar_page_id();
+    if ($page_id && is_page() && (int) get_queried_object_id() === (int) $page_id) {
+        $classes[] = 'hbc-event-booking-page';
+    }
+    return $classes;
+}
+add_filter('body_class', 'hbc_event_booking_body_class');
+
+/**
  * Apply configured page template for plugin-generated URLs
  *
  * When a visitor accesses /events/... or /calendar/group-slug/, allows the

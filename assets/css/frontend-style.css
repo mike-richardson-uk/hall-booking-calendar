@@ -1,5 +1,10 @@
 /* Frontend Styles for Hall Booking Calendar */
 
+/* Hide wp-block-cover and its contents on event/booking pages */
+.hbc-event-booking-page .wp-block-cover {
+    display: none !important;
+}
+
 /* Base font size standardization - all text 14px except headings */
 .hbc-calendar-container,
 .hbc-agenda-container,
