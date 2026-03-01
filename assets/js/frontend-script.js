@@ -270,7 +270,7 @@
                 },
                 error: function(xhr, status, error) {
                     console.error('AJAX error:', error, xhr.responseText);
-                    showMessage('error', 'An error occurred. Please try again. Check console for details.');
+                    showMessage('error', 'Something went wrong submitting your booking. Please try again, or contact us directly if the problem continues.');
                 },
                 complete: function() {
                     submitBtn.prop('disabled', false).text('Submit Booking').removeClass('loading');

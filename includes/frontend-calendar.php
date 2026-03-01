@@ -539,7 +539,7 @@ function hbc_render_booking_form($selected_date = '', $preselect_group = '', $pr
 
     <form id="hbc-booking-form" method="post" enctype="multipart/form-data">
 
-        <div class="hbc-form-message"></div>
+        <div class="hbc-form-message" role="alert" aria-live="polite"></div>
 
         <?php if ($require_password == '1') : ?>
         <!-- Password Verification -->
@@ -565,13 +565,17 @@ function hbc_render_booking_form($selected_date = '', $preselect_group = '', $pr
                     if (!empty($preselect_room)) {
                         $preselect_rooms = array_map('intval', explode(',', $preselect_room));
                     }
-                    foreach ($rooms as $room) : ?>
+                    <?php if (empty($rooms)) : ?>
+                        <p class="hbc-no-rooms-notice"><?php _e('No rooms are currently available. Please contact the administrator.', 'hall-booking-calendar'); ?></p>
+                    <?php else : ?>
+                    <?php foreach ($rooms as $room) : ?>
                         <label class="hbc-room-checkbox-label">
                             <input type="checkbox" name="room_ids[]" value="<?php echo esc_attr($room->id); ?>" <?php checked(in_array($room->id, $preselect_rooms)); ?>>
                             <span class="hbc-room-checkbox-color hbc-room-<?php echo esc_attr($room->id); ?>"></span>
                             <?php echo esc_html($room->name . ' (Capacity: ' . $room->capacity . ')'); ?>
                         </label>
                     <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
                 <p class="description"><?php _e('You can select multiple rooms for the same booking.', 'hall-booking-calendar'); ?></p>
             </div>
@@ -937,7 +941,9 @@ function hbc_display_agenda($group_filter = 'all') {
                         </div>
                         
                         <div class="hbc-agenda-details">
-                            <h4 class="hbc-agenda-purpose-title"><?php echo esc_html($booking->purpose ? $booking->purpose : __('No purpose specified', 'hall-booking-calendar')); ?></h4>
+                            <?php if (!empty($booking->purpose)) : ?>
+                            <h4 class="hbc-agenda-purpose-title"><?php echo esc_html($booking->purpose); ?></h4>
+                            <?php endif; ?>
                             <div class="hbc-agenda-meta">
                                 <span class="hbc-agenda-room-info"><?php
                                     $agenda_rooms_display = isset($agenda_booking_rooms[$booking->id]) ? implode(', ', $agenda_booking_rooms[$booking->id]) : $booking->room_name;
@@ -1112,7 +1118,10 @@ function hbc_display_single_booking($booking_id) {
     ));
 
     if (!$booking) {
-        return '<div class="hbc-error"><p>' . __('Booking not found.', 'hall-booking-calendar') . '</p></div>';
+        $calendar_page_id = hbc_find_calendar_page_id();
+        $back_url = $calendar_page_id ? get_permalink($calendar_page_id) : home_url('/');
+        return '<div class="hbc-error"><p>' . __('Booking not found.', 'hall-booking-calendar') . '</p>'
+            . '<p><a href="' . esc_url($back_url) . '">' . __('&larr; Back to calendar', 'hall-booking-calendar') . '</a></p></div>';
     }
 
     // Get all rooms for this booking from junction table
@@ -1327,7 +1336,7 @@ function hbc_display_booking_in_form($booking_id) {
         <form id="hbc-book-in-form" method="post">
             <?php wp_nonce_field('hbc_book_in_nonce', 'hbc_book_in_nonce'); ?>
             <input type="hidden" name="booking_id" value="<?php echo esc_attr($booking_id); ?>">
-            <div class="hbc-form-message"></div>
+            <div class="hbc-form-message" role="alert" aria-live="polite"></div>
 
             <!-- Personal Details -->
             <div class="hbc-form-section">

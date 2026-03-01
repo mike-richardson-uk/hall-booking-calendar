@@ -893,9 +893,16 @@ function hbc_send_booking_notification($booking_id) {
     // Strip CRLF characters from user name to prevent email header injection
     $safe_user_name = str_replace(array("\r", "\n", "%0a", "%0d"), '', $booking->user_name);
 
-    $subject = $booking_count > 1
-        ? __('Booking Confirmation - Multiple Bookings - Hall Booking Calendar', 'hall-booking-calendar')
-        : __('Booking Confirmation - Hall Booking Calendar', 'hall-booking-calendar');
+    // Build subject-line date and purpose (strip CRLF to prevent header injection)
+    $safe_purpose = !empty($booking->purpose)
+        ? str_replace(array("\r", "\n", "%0a", "%0d"), '', $booking->purpose)
+        : '';
+    $subject_date = $booking_count > 1
+        ? date_i18n('l j F Y', strtotime($bookings[0]->booking_date)) . '+'
+        : date_i18n('l j F Y', strtotime($booking->booking_date));
+    $subject = !empty($safe_purpose)
+        ? sprintf('[Hall Booking Confirmation] %s — %s', $subject_date, $safe_purpose)
+        : sprintf('[Hall Booking Confirmation] %s', $subject_date);
 
     $message = sprintf(
         __("Dear %s,\n\nThank you for your booking request.\n\n%s\nYour booking%s currently pending approval. You will receive another email once it is confirmed.\n\nThank you!", 'hall-booking-calendar'),
@@ -929,9 +936,9 @@ function hbc_send_booking_notification($booking_id) {
 
     // Email to webmaster (from settings)
     $webmaster_email = sanitize_email(get_option('hbc_webmaster_email', get_option('admin_email')));
-    $webmaster_subject = $booking_count > 1
-        ? __('New Booking Request - Multiple Bookings - Hall Booking Calendar', 'hall-booking-calendar')
-        : __('New Booking Request - Hall Booking Calendar', 'hall-booking-calendar');
+    $webmaster_subject = !empty($safe_purpose)
+        ? sprintf('[New Hall Booking] %s — %s', $subject_date, $safe_purpose)
+        : sprintf('[New Hall Booking] %s', $subject_date);
 
     // Build direct approval link to the admin booking detail page
     $approval_url = admin_url('admin.php?page=hall-booking-bookings&action=view&booking_id=' . $booking->id);
