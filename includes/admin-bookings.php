@@ -675,18 +675,16 @@ function hbc_display_booking_details($booking_id) {
                         <th scope="row"><?php _e('Meal Options:', 'hall-booking-calendar'); ?></th>
                         <td>
                             <div id="hbc-admin-meal-items-list">
-                                <?php foreach ($bi_meals as $meal) :
+                                <?php
+                                $meal_editor_settings = hbc_get_meal_editor_settings();
+                                foreach ($bi_meals as $idx => $meal) :
                                     $meal_desc_safe = isset($meal['description']) ? wp_kses($meal['description'], hbc_allowed_meal_description_tags()) : '';
+                                    $editor_id = 'hbc_admin_meal_desc_' . $idx;
                                     ?>
                                 <div class="hbc-admin-meal-item" style="display:flex;gap:6px;margin-bottom:6px;align-items:flex-start;">
                                     <input type="text" class="hbc-admin-meal-name" style="width:160px;" placeholder="<?php esc_attr_e('Meal name', 'hall-booking-calendar'); ?>" value="<?php echo esc_attr($meal['name']); ?>">
-                                    <div class="hbc-meal-desc-wrap">
-                                        <div class="hbc-meal-format-toolbar">
-                                            <button type="button" class="button button-small hbc-format-btn" data-cmd="bold" title="<?php esc_attr_e('Bold', 'hall-booking-calendar'); ?>">B</button>
-                                            <button type="button" class="button button-small hbc-format-btn" data-cmd="italic" title="<?php esc_attr_e('Italic', 'hall-booking-calendar'); ?>">I</button>
-                                            <button type="button" class="button button-small hbc-format-btn" data-cmd="underline" title="<?php esc_attr_e('Underline', 'hall-booking-calendar'); ?>">U</button>
-                                        </div>
-                                        <div class="hbc-admin-meal-desc" contenteditable="true" data-placeholder="<?php esc_attr_e('Menu / description (optional)', 'hall-booking-calendar'); ?>"><?php echo $meal_desc_safe; ?></div>
+                                    <div class="hbc-meal-desc-wrap" style="width:300px;">
+                                        <?php wp_editor($meal_desc_safe, $editor_id, array_merge($meal_editor_settings, array('textarea_name' => ''))); ?>
                                     </div>
                                     <input type="number" class="hbc-admin-meal-price small-text" placeholder="<?php esc_attr_e('£ Price', 'hall-booking-calendar'); ?>" min="0" step="0.01" value="<?php echo esc_attr(isset($meal['price']) ? $meal['price'] : ''); ?>">
                                     <button type="button" class="button hbc-admin-remove-meal">&times;</button>
@@ -855,50 +853,48 @@ function hbc_display_booking_details($booking_id) {
             }
         }
 
-        // Add meal option row (contenteditable + format toolbar)
+        // Meal editor settings for dynamically added rows
+        var hbcMealEditorSettings = <?php echo wp_json_encode(hbc_get_meal_editor_settings()); ?>;
+
+        // Add meal option row (wp_editor WYSIWYG)
         $('#hbc-admin-add-meal-btn').on('click', function() {
-            var placeholder = '<?php echo esc_js(__('Menu / description (optional)', 'hall-booking-calendar')); ?>';
+            var editorId = 'hbc_admin_meal_desc_new_' + Date.now();
             var row = '<div class="hbc-admin-meal-item" style="display:flex;gap:6px;margin-bottom:6px;align-items:flex-start;">' +
                 '<input type="text" class="hbc-admin-meal-name" style="width:160px;" placeholder="<?php echo esc_js(__('Meal name', 'hall-booking-calendar')); ?>">' +
-                '<div class="hbc-meal-desc-wrap">' +
-                '<div class="hbc-meal-format-toolbar">' +
-                '<button type="button" class="button button-small hbc-format-btn" data-cmd="bold" title="<?php echo esc_js(__('Bold', 'hall-booking-calendar')); ?>">B</button>' +
-                '<button type="button" class="button button-small hbc-format-btn" data-cmd="italic" title="<?php echo esc_js(__('Italic', 'hall-booking-calendar')); ?>">I</button>' +
-                '<button type="button" class="button button-small hbc-format-btn" data-cmd="underline" title="<?php echo esc_js(__('Underline', 'hall-booking-calendar')); ?>">U</button>' +
-                '</div>' +
-                '<div class="hbc-admin-meal-desc" contenteditable="true" data-placeholder="' + placeholder + '"></div>' +
+                '<div class="hbc-meal-desc-wrap" style="width:300px;">' +
+                '<textarea id="' + editorId + '" class="hbc-meal-editor" rows="4" style="width:100%;"></textarea>' +
                 '</div>' +
                 '<input type="number" class="hbc-admin-meal-price small-text" placeholder="<?php echo esc_js(__('£ Price', 'hall-booking-calendar')); ?>" min="0" step="0.01">' +
                 '<button type="button" class="button hbc-admin-remove-meal">&times;</button>' +
                 '</div>';
             $('#hbc-admin-meal-items-list').append(row);
-        });
-
-        // Meal format toolbar: apply bold/italic/underline without stealing focus (scoped to meal-desc-wrap)
-        $(document).on('mousedown', '.hbc-meal-desc-wrap .hbc-format-btn', function(e) {
-            e.preventDefault();
-            var cmd = $(this).data('cmd');
-            var editor = $(this).closest('.hbc-meal-desc-wrap').find('.hbc-admin-meal-desc')[0];
-            if (editor) {
-                editor.focus();
-                document.execCommand(cmd, false, null);
+            if (typeof wp !== 'undefined' && wp.editor) {
+                wp.editor.initialize(editorId, hbcMealEditorSettings);
             }
         });
 
-        // Remove meal option row
+        // Remove meal option row (remove TinyMCE instance first)
         $(document).on('click', '.hbc-admin-remove-meal', function() {
-            $(this).closest('.hbc-admin-meal-item').remove();
+            var $row = $(this).closest('.hbc-admin-meal-item');
+            var $editor = $row.find('.hbc-meal-editor, .wp-editor-area');
+            var editorId = $editor.attr('id');
+            if (editorId && typeof wp !== 'undefined' && wp.editor && wp.editor.remove) {
+                wp.editor.remove(editorId);
+            }
+            $row.remove();
         });
 
-        // Serialize meal rows to JSON hidden field before form submits (contenteditable stores HTML)
+        // Serialize meal rows to JSON before form submits (trigger TinyMCE save, then read textarea)
         $('#hbc-edit-booking-form').on('submit', function() {
+            if (typeof tinymce !== 'undefined') {
+                tinymce.triggerSave();
+            }
             var meals = [];
             $('#hbc-admin-meal-items-list .hbc-admin-meal-item').each(function() {
                 var name = $(this).find('.hbc-admin-meal-name').val().trim();
                 if (name) {
-                    var descEl = $(this).find('.hbc-admin-meal-desc');
-                    var isContentEditable = descEl.prop('contenteditable');
-                    var desc = (isContentEditable === true || isContentEditable === 'true') ? descEl.html().trim() : (descEl.val() || '').trim();
+                    var descEl = $(this).find('.hbc-meal-editor, .wp-editor-area');
+                    var desc = (descEl.length ? descEl.val() : '').trim();
                     meals.push({
                         name:        name,
                         description: desc,

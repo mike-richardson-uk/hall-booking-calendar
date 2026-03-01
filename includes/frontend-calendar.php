@@ -506,6 +506,9 @@ function hbc_display_booking_form() {
  * Render booking form
  */
 function hbc_render_booking_form($selected_date = '', $preselect_group = '', $preselect_room = '') {
+    wp_enqueue_editor();
+    wp_enqueue_media();
+
     global $wpdb;
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
     $groups_table = $wpdb->prefix . 'hbc_groups';
@@ -599,44 +602,9 @@ function hbc_render_booking_form($selected_date = '', $preselect_group = '', $pr
             <div id="hbc-conflict-warning" class="hbc-conflict-warning" style="display:none;" role="alert" aria-live="polite"></div>
         </div>
 
-        <!-- Contact Information -->
+        <!-- Meeting -->
         <div class="hbc-form-section">
-            <h3><?php _e('Your Information', 'hall-booking-calendar'); ?></h3>
-
-            <div class="hbc-form-row">
-                <label for="hbc_user_name"><?php _e('Your Name:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
-                <input type="text" id="hbc_user_name" name="user_name" value="<?php echo esc_attr($current_user->display_name); ?>" required>
-            </div>
-
-            <div class="hbc-form-row">
-                <label for="hbc_user_email"><?php _e('Your Email:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
-                <input type="email" id="hbc_user_email" name="user_email" value="<?php echo esc_attr($current_user->user_email); ?>" required>
-            </div>
-
-            <div class="hbc-form-row">
-                <label for="hbc_group_id"><?php _e('Select Group:', 'hall-booking-calendar'); ?></label>
-                <select id="hbc_group_id" name="group_id">
-                    <option value=""><?php _e('-- Select a Group (Optional) --', 'hall-booking-calendar'); ?></option>
-                    <?php foreach ($groups as $group) : ?>
-                        <option value="<?php echo esc_attr($group->id); ?>" <?php selected($preselect_group, $group->id); ?>><?php echo esc_html($group->name); ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <div class="hbc-form-row">
-                <label for="hbc_category_id"><?php _e('Event Category:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
-                <select id="hbc_category_id" name="category_id" required>
-                    <option value=""><?php _e('-- Select a Category --', 'hall-booking-calendar'); ?></option>
-                    <?php foreach ($categories as $category) : ?>
-                        <option value="<?php echo esc_attr($category->id); ?>"><?php echo esc_html($category->name); ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-        </div>
-
-        <!-- Additional Information -->
-        <div class="hbc-form-section">
-            <h3><?php _e('Additional Details', 'hall-booking-calendar'); ?></h3>
+            <h3><?php _e('Meeting', 'hall-booking-calendar'); ?></h3>
 
             <div class="hbc-form-row">
                 <label for="hbc_purpose"><?php _e('Purpose of Booking:', 'hall-booking-calendar'); ?></label>
@@ -699,6 +667,41 @@ function hbc_render_booking_form($selected_date = '', $preselect_group = '', $pr
                     <button type="button" id="hbc-add-date-btn" class="button"><?php _e('+ Add Another Date', 'hall-booking-calendar'); ?></button>
                     <p class="description"><?php _e('Same time will be used for all selected dates', 'hall-booking-calendar'); ?></p>
                 </div>
+            </div>
+        </div>
+
+        <!-- Contact Information -->
+        <div class="hbc-form-section">
+            <h3><?php _e('Your Information', 'hall-booking-calendar'); ?></h3>
+
+            <div class="hbc-form-row">
+                <label for="hbc_user_name"><?php _e('Your Name:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                <input type="text" id="hbc_user_name" name="user_name" value="<?php echo esc_attr($current_user->display_name); ?>" required>
+            </div>
+
+            <div class="hbc-form-row">
+                <label for="hbc_user_email"><?php _e('Your Email:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                <input type="email" id="hbc_user_email" name="user_email" value="<?php echo esc_attr($current_user->user_email); ?>" required>
+            </div>
+
+            <div class="hbc-form-row">
+                <label for="hbc_group_id"><?php _e('Select Group:', 'hall-booking-calendar'); ?></label>
+                <select id="hbc_group_id" name="group_id">
+                    <option value=""><?php _e('-- Select a Group (Optional) --', 'hall-booking-calendar'); ?></option>
+                    <?php foreach ($groups as $group) : ?>
+                        <option value="<?php echo esc_attr($group->id); ?>" <?php selected($preselect_group, $group->id); ?>><?php echo esc_html($group->name); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="hbc-form-row">
+                <label for="hbc_category_id"><?php _e('Event Category:', 'hall-booking-calendar'); ?> <span class="required">*</span></label>
+                <select id="hbc_category_id" name="category_id" required>
+                    <option value=""><?php _e('-- Select a Category --', 'hall-booking-calendar'); ?></option>
+                    <?php foreach ($categories as $category) : ?>
+                        <option value="<?php echo esc_attr($category->id); ?>"><?php echo esc_html($category->name); ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
         </div>
 

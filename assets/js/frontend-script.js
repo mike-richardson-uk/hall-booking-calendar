@@ -224,13 +224,15 @@
                 });
                 if ($('#hbc_include_meal_menu').is(':checked')) {
                     formData.append('include_meal_menu', '1');
+                    if (typeof tinymce !== 'undefined') {
+                        tinymce.triggerSave();
+                    }
                     var meals = [];
                     $('#hbc-meal-items-list .hbc-meal-item-row').each(function() {
                         var mealName = $.trim($(this).find('.hbc-meal-name-input').val());
                         if (mealName) {
-                            var descEl = $(this).find('.hbc-meal-desc-input');
-                            var isContentEditable = descEl.prop('contenteditable');
-                            var desc = (isContentEditable === true || isContentEditable === 'true') ? descEl.html().trim() : (descEl.val() || '');
+                            var descEl = $(this).find('.hbc-meal-editor, .wp-editor-area');
+                            var desc = (descEl.length ? descEl.val() : '');
                             meals.push({
                                 name:        mealName,
                                 description: $.trim(desc),
@@ -349,40 +351,33 @@
             }
         });
 
-        // Add meal option row (contenteditable description with Bold/Italic/Underline toolbar)
+        // Add meal option row (wp_editor WYSIWYG)
         $('#hbc-add-meal-btn').on('click', function() {
+            var editorId = 'hbc_meal_desc_' + Date.now();
             var row = $(
                 '<div class="hbc-meal-item-row" style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;align-items:flex-start;">' +
                 '<input type="text" class="hbc-meal-name-input" placeholder="Meal name *" style="flex:2;min-width:120px;">' +
-                '<div class="hbc-meal-desc-wrap" style="flex:3;min-width:160px;">' +
-                '<div class="hbc-meal-format-toolbar">' +
-                '<button type="button" class="button button-small hbc-format-btn" data-cmd="bold" title="Bold">B</button>' +
-                '<button type="button" class="button button-small hbc-format-btn" data-cmd="italic" title="Italic">I</button>' +
-                '<button type="button" class="button button-small hbc-format-btn" data-cmd="underline" title="Underline">U</button>' +
-                '</div>' +
-                '<div class="hbc-meal-desc-input" contenteditable="true" data-placeholder="Menu / description (optional)"></div>' +
+                '<div class="hbc-meal-desc-wrap" style="flex:3;min-width:200px;">' +
+                '<textarea id="' + editorId + '" class="hbc-meal-desc-input hbc-meal-editor" rows="4" style="width:100%;"></textarea>' +
                 '</div>' +
                 '<input type="number" class="hbc-meal-price-input" placeholder="Price (£)" min="0" step="0.01" style="width:90px;">' +
                 '<button type="button" class="button hbc-remove-meal">&times;</button>' +
                 '</div>'
             );
             $('#hbc-meal-items-list').append(row);
-        });
-
-        // Meal format toolbar (frontend): apply bold/italic/underline without stealing focus
-        $(document).on('mousedown', '.hbc-meal-desc-wrap .hbc-format-btn', function(e) {
-            e.preventDefault();
-            var cmd = $(this).data('cmd');
-            var editor = $(this).closest('.hbc-meal-desc-wrap').find('.hbc-meal-desc-input')[0];
-            if (editor) {
-                editor.focus();
-                document.execCommand(cmd, false, null);
+            if (typeof wp !== 'undefined' && wp.editor && typeof hbc_ajax !== 'undefined' && hbc_ajax.meal_editor_settings) {
+                wp.editor.initialize(editorId, hbc_ajax.meal_editor_settings);
             }
         });
 
-        // Remove meal option row
+        // Remove meal option row (remove TinyMCE instance first)
         $(document).on('click', '.hbc-remove-meal', function() {
-            $(this).closest('.hbc-meal-item-row').remove();
+            var $row = $(this).closest('.hbc-meal-item-row');
+            var editorId = $row.find('.hbc-meal-editor, .wp-editor-area').attr('id');
+            if (editorId && typeof wp !== 'undefined' && wp.editor && wp.editor.remove) {
+                wp.editor.remove(editorId);
+            }
+            $row.remove();
         });
 
         // ---------------------------------------------------------------

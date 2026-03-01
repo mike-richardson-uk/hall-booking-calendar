@@ -660,6 +660,44 @@ function hbc_sanitize_meal_description_html($html) {
 }
 
 /**
+ * Get wp_editor settings for meal description (WYSIWYG - bold, italic, underline only)
+ *
+ * @since 1.20.0
+ * @return array Settings for wp_editor / wp.editor.initialize
+ */
+function hbc_get_meal_editor_settings() {
+    return array(
+        'teeny'         => true,
+        'media_buttons' => false,
+        'textarea_rows' => 4,
+        'textarea_name' => 'hbc_meal_desc_temp',
+        'quicktags'     => false,
+        'tinymce'       => array(
+            'toolbar1' => 'bold,italic,underline',
+            'toolbar2' => '',
+            'plugins'  => '',
+        ),
+        'editor_class'  => 'hbc-meal-editor',
+    );
+}
+
+/**
+ * Restrict teeny editor buttons to bold, italic, underline for meal editors
+ *
+ * @since 1.20.0
+ * @param array  $buttons   Button list
+ * @param string $editor_id Editor ID
+ * @return array Filtered buttons
+ */
+function hbc_meal_editor_teeny_buttons($buttons, $editor_id) {
+    if (strpos($editor_id, 'hbc_admin_meal_desc_') === 0 || strpos($editor_id, 'hbc_meal_desc_') === 0) {
+        return array('bold', 'italic', 'underline');
+    }
+    return $buttons;
+}
+add_filter('teeny_mce_buttons', 'hbc_meal_editor_teeny_buttons', 10, 2);
+
+/**
  * Check if Elementor is active and register widget
  *
  * @since 1.4.0
@@ -1554,11 +1592,12 @@ function hbc_frontend_enqueue_scripts() {
     wp_enqueue_style('hbc-frontend-style', HBC_PLUGIN_URL . 'assets/css/frontend-style.css', array(), HBC_VERSION);
     wp_enqueue_script('hbc-frontend-script', HBC_PLUGIN_URL . 'assets/js/frontend-script.js', array('jquery'), HBC_VERSION, true);
 
-    // Localize script for AJAX - provides URL and nonce for secure AJAX requests
+    // Localize script for AJAX and meal editor settings (WYSIWYG)
     wp_localize_script('hbc-frontend-script', 'hbc_ajax', array(
-        'ajax_url'      => admin_url('admin-ajax.php'),
-        'nonce'         => wp_create_nonce('hbc_booking_nonce'),
-        'book_in_nonce' => wp_create_nonce('hbc_book_in_nonce'),
+        'ajax_url'            => admin_url('admin-ajax.php'),
+        'nonce'               => wp_create_nonce('hbc_booking_nonce'),
+        'book_in_nonce'       => wp_create_nonce('hbc_book_in_nonce'),
+        'meal_editor_settings' => hbc_get_meal_editor_settings(),
     ));
 }
 add_action('wp_enqueue_scripts', 'hbc_frontend_enqueue_scripts');
