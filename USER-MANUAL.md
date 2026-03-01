@@ -231,7 +231,8 @@ Go to **Hall Booking → Settings** to configure the following:
 
 | Setting | Description |
 |---|---|
-| **Notification email** | The email address that receives booking notifications and cancellation alerts. Defaults to the WordPress admin email. |
+| **Hall Name** | Your venue's name. When set it replaces the generic "Hall Booking" label in all outbound email subjects and bodies, e.g. *[Ely Masonic Hall Booking Confirmation]*. |
+| **Booking Notifications Email** | The email address that receives booking notifications and cancellation alerts. Defaults to the WordPress admin email. |
 | **Require password** | Tick to require bookers to enter a password when submitting a booking. Set the password in the field below. |
 | **Booking password** | The password bookers must enter (only used when the above is ticked). Leave blank to keep the current password. |
 | **Agenda view limit** | How many bookings to show per page in the agenda view (default: 10). |
