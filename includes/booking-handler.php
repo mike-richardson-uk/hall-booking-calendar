@@ -9,6 +9,14 @@ if (!defined('WPINC')) {
 }
 
 /**
+ * Return the configured hall name, or an empty string if not set.
+ * Use this wherever emails reference the venue so that the name is consistent.
+ */
+function hbc_get_hall_name() {
+    return trim((string) get_option('hbc_hall_name', ''));
+}
+
+/**
  * Handle booking submission via AJAX
  *
  * Processes new booking requests from the frontend form. Validates all input,
@@ -866,7 +874,7 @@ function hbc_send_booking_notification($booking_id) {
         ));
         $bk_rooms_display = !empty($bk_room_names) ? implode(', ', $bk_room_names) : $bk->room_name;
         $booking_details .= sprintf(__("- Room(s): %s\n", 'hall-booking-calendar'), $bk_rooms_display);
-        $booking_details .= sprintf(__("- Date: %s\n", 'hall-booking-calendar'), date('F j, Y', strtotime($bk->booking_date)));
+        $booking_details .= sprintf(__("- Date: %s\n", 'hall-booking-calendar'), date_i18n('l j F Y', strtotime($bk->booking_date)));
         $booking_details .= sprintf(__("- Time: %s - %s\n", 'hall-booking-calendar'), date('g:i A', strtotime($bk->start_time)), date('g:i A', strtotime($bk->end_time)));
         if (!empty($bk->group_name)) {
             $booking_details .= sprintf(__("- Group: %s\n", 'hall-booking-calendar'), $bk->group_name);
@@ -900,13 +908,17 @@ function hbc_send_booking_notification($booking_id) {
     $subject_date = $booking_count > 1
         ? date_i18n('l j F Y', strtotime($bookings[0]->booking_date)) . '+'
         : date_i18n('l j F Y', strtotime($booking->booking_date));
+    $hall_name       = hbc_get_hall_name();
+    $confirm_label   = !empty($hall_name) ? $hall_name . ' Booking Confirmation' : 'Hall Booking Confirmation';
     $subject = !empty($safe_purpose)
-        ? sprintf('[Hall Booking Confirmation] %s — %s', $subject_date, $safe_purpose)
-        : sprintf('[Hall Booking Confirmation] %s', $subject_date);
+        ? sprintf('[%s] %s — %s', $confirm_label, $subject_date, $safe_purpose)
+        : sprintf('[%s] %s', $confirm_label, $subject_date);
 
+    $at_hall = !empty($hall_name) ? ' at ' . $hall_name : '';
     $message = sprintf(
-        __("Dear %s,\n\nThank you for your booking request.\n\n%s\nYour booking%s currently pending approval. You will receive another email once it is confirmed.\n\nThank you!", 'hall-booking-calendar'),
+        __("Dear %s,\n\nThank you for your booking request%s.\n\n%s\nYour booking%s currently pending approval. You will receive another email once it is confirmed.\n\nThank you!", 'hall-booking-calendar'),
         $safe_user_name,
+        $at_hall,
         $booking_details,
         $booking_count > 1 ? 's are' : ' is'
     );
@@ -936,9 +948,10 @@ function hbc_send_booking_notification($booking_id) {
 
     // Email to webmaster (from settings)
     $webmaster_email = sanitize_email(get_option('hbc_webmaster_email', get_option('admin_email')));
+    $new_booking_label = !empty($hall_name) ? 'New ' . $hall_name . ' Booking' : 'New Hall Booking';
     $webmaster_subject = !empty($safe_purpose)
-        ? sprintf('[New Hall Booking] %s — %s', $subject_date, $safe_purpose)
-        : sprintf('[New Hall Booking] %s', $subject_date);
+        ? sprintf('[%s] %s — %s', $new_booking_label, $subject_date, $safe_purpose)
+        : sprintf('[%s] %s', $new_booking_label, $subject_date);
 
     // Build direct approval link to the admin booking detail page
     $approval_url = admin_url('admin.php?page=hall-booking-bookings&action=view&booking_id=' . $booking->id);
@@ -1080,10 +1093,18 @@ function hbc_send_acceptance_notification($booking_id) {
     $to = sanitize_email($booking->user_email);
     $safe_user_name = str_replace(array("\r", "\n", "%0a", "%0d"), '', $booking->user_name);
 
-    $subject = __('Booking Confirmed - Hall Booking Calendar', 'hall-booking-calendar');
+    $hall_name = hbc_get_hall_name();
+    $safe_purpose_conf = !empty($booking->purpose)
+        ? str_replace(array("\r", "\n", "%0a", "%0d"), '', $booking->purpose)
+        : '';
+    $subject_date_conf  = date_i18n('l j F Y', strtotime($booking->booking_date));
+    $confirmed_label    = !empty($hall_name) ? $hall_name . ' Booking Confirmed' : 'Hall Booking Confirmed';
+    $subject = !empty($safe_purpose_conf)
+        ? sprintf('[%s] %s — %s', $confirmed_label, $subject_date_conf, $safe_purpose_conf)
+        : sprintf('[%s] %s', $confirmed_label, $subject_date_conf);
 
     $booking_details = sprintf(__("- Room(s): %s\n", 'hall-booking-calendar'), $rooms_display);
-    $booking_details .= sprintf(__("- Date: %s\n", 'hall-booking-calendar'), date('F j, Y', strtotime($booking->booking_date)));
+    $booking_details .= sprintf(__("- Date: %s\n", 'hall-booking-calendar'), date_i18n('l j F Y', strtotime($booking->booking_date)));
     $booking_details .= sprintf(__("- Time: %s - %s\n", 'hall-booking-calendar'), date('g:i A', strtotime($booking->start_time)), date('g:i A', strtotime($booking->end_time)));
     if (!empty($booking->group_name)) {
         $booking_details .= sprintf(__("- Group: %s\n", 'hall-booking-calendar'), $booking->group_name);
@@ -1095,9 +1116,11 @@ function hbc_send_acceptance_notification($booking_id) {
         $booking_details .= sprintf(__("- Purpose: %s\n", 'hall-booking-calendar'), $booking->purpose);
     }
 
+    $at_hall_conf = !empty($hall_name) ? ' at ' . $hall_name : '';
     $message = sprintf(
-        __("Dear %s,\n\nGreat news! Your booking has been confirmed.\n\n%s\nYour booking is now approved and confirmed. If you need to make any changes, please contact the administrator.\n\nThank you!", 'hall-booking-calendar'),
+        __("Dear %s,\n\nGreat news! Your booking%s has been confirmed.\n\n%s\nIf you need to make any changes, please contact us.\n\nThank you!", 'hall-booking-calendar'),
         $safe_user_name,
+        $at_hall_conf,
         $booking_details
     );
 

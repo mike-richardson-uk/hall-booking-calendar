@@ -32,6 +32,10 @@ function hbc_handle_settings_save() {
         update_option('hbc_booking_password', $hashed_password);
     }
 
+    // Save hall name
+    $hall_name = isset($_POST['hbc_hall_name']) ? sanitize_text_field($_POST['hbc_hall_name']) : '';
+    update_option('hbc_hall_name', $hall_name);
+
     // Save webmaster email
     $webmaster_email = isset($_POST['hbc_webmaster_email']) ? sanitize_email($_POST['hbc_webmaster_email']) : get_option('admin_email');
     update_option('hbc_webmaster_email', $webmaster_email);
@@ -77,6 +81,7 @@ function hbc_admin_settings_page() {
     $require_password = get_option('hbc_require_password', '0');
     $agenda_limit = get_option('hbc_agenda_limit', 10);
     $terms_conditions = get_option('hbc_terms_conditions', '');
+    $hall_name        = get_option('hbc_hall_name', '');
     $event_page_template   = get_option('hbc_event_page_template', '');
     $group_agenda_template = get_option('hbc_group_agenda_template', '');
     $book_in_template      = get_option('hbc_book_in_template', '');
@@ -118,11 +123,21 @@ function hbc_admin_settings_page() {
             <table class="form-table">
                 <tr>
                     <th scope="row">
-                        <label for="hbc_webmaster_email"><?php _e('Webmaster Email', 'hall-booking-calendar'); ?></label>
+                        <label for="hbc_hall_name"><?php _e('Hall Name', 'hall-booking-calendar'); ?></label>
+                    </th>
+                    <td>
+                        <input type="text" id="hbc_hall_name" name="hbc_hall_name" value="<?php echo esc_attr($hall_name); ?>" class="regular-text" placeholder="<?php esc_attr_e('e.g. Ely Masonic Hall', 'hall-booking-calendar'); ?>">
+                        <p class="description"><?php _e('Your hall\'s name. When set, it replaces the generic &ldquo;Hall Booking&rdquo; label in confirmation and notification emails, e.g. <em>[Ely Masonic Hall Booking Confirmation]</em>.', 'hall-booking-calendar'); ?></p>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">
+                        <label for="hbc_webmaster_email"><?php _e('Booking Notifications Email', 'hall-booking-calendar'); ?></label>
                     </th>
                     <td>
                         <input type="email" id="hbc_webmaster_email" name="hbc_webmaster_email" value="<?php echo esc_attr($webmaster_email); ?>" class="regular-text" required>
-                        <p class="description"><?php _e('Email address to receive booking notifications. Defaults to admin email.', 'hall-booking-calendar'); ?></p>
+                        <p class="description"><?php _e('This address receives an email each time a booking is submitted for approval, and again if a booker cancels. Defaults to the WordPress admin email.', 'hall-booking-calendar'); ?></p>
                     </td>
                 </tr>
 
@@ -340,7 +355,6 @@ function hbc_admin_settings_page() {
                 <input type="submit" name="hbc_save_settings" class="button button-primary" value="<?php _e('Save Settings', 'hall-booking-calendar'); ?>">
             </p>
         </form>
-    </div>
 
         <hr>
 
@@ -439,8 +453,6 @@ function hbc_admin_settings_page() {
 
                 <h3><?php _e('Recurring Bookings', 'hall-booking-calendar'); ?></h3>
                 <p><?php _e('When creating a booking, users can enable the "Repeat this booking" option. Supported patterns: Daily, Weekly, Every 2 Weeks, Monthly (Same Date), and Monthly (Same Weekday). All dates in a series are sent as a single notification email.', 'hall-booking-calendar'); ?></p>
-
-                <hr>
 
                 <hr>
 
@@ -545,7 +557,7 @@ function hbc_admin_settings_page() {
                 <hr>
 
                 <h3><?php _e('Rooms &amp; Groups', 'hall-booking-calendar'); ?></h3>
-                <p><?php _e('Manage rooms under <strong>Hall Booking &rarr; Rooms</strong> and groups under <strong>Hall Booking &rarr; Groups</strong>. Each room has a name, description, and capacity. Groups allow you to organise bookings by department, team, or purpose.', 'hall-booking-calendar'); ?></p>
+                <p><?php _e('Manage rooms under <strong>Hall Booking &rarr; Rooms</strong> and groups under <strong>Hall Booking &rarr; Groups</strong>. Each room has a name, description, and capacity. Groups represent the different organisations or parties that book the hall (for example a lodge, a committee, or an external hirer). Assigning a group to a booking makes it easier to filter the calendar and generate reports.', 'hall-booking-calendar'); ?></p>
 
                 <hr>
 
