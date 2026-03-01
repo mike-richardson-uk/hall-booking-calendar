@@ -565,6 +565,7 @@ function hbc_render_booking_form($selected_date = '', $preselect_group = '', $pr
                     if (!empty($preselect_room)) {
                         $preselect_rooms = array_map('intval', explode(',', $preselect_room));
                     }
+                    ?>
                     <?php if (empty($rooms)) : ?>
                         <p class="hbc-no-rooms-notice"><?php _e('No rooms are currently available. Please contact the administrator.', 'hall-booking-calendar'); ?></p>
                     <?php else : ?>
