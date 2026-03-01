@@ -2,6 +2,16 @@
 
 All notable changes to the Hall Booking Calendar plugin will be documented in this file.
 
+## 1.20.0
+- **Hall name setting**: A new "Hall Name" field in Settings replaces the generic "Hall Booking" label in all outbound emails. When set (e.g. *Ely Masonic Hall*), email subjects read `[Ely Masonic Hall Booking Confirmation]`, `[New Ely Masonic Hall Booking]`, and `[Ely Masonic Hall Booking Confirmed]`; the email body gains *"at Ely Masonic Hall"* in the opening sentence. Falls back to the previous generic labels if left blank
+- **Email subjects include date and purpose**: All three confirmation/notification email subjects now follow the format `[Label] Weekday Day Month Year — Purpose` (e.g. `[Hall Booking Confirmation] Monday 2 March 2026 — Lodge Meeting`). For recurring series the first date is shown with a `+` suffix. The date uses `date_i18n()` for consistent locale-aware formatting throughout
+- **Admin footer fix**: The "Powered by WordPress" footer was rendering in the middle of the Settings page because the `.wrap` container closed immediately after the settings form, leaving the entire Usage Instructions section outside it. The premature `</div>` has been removed
+- **Booking Notifications Email**: The "Webmaster Email" settings field has been renamed to "Booking Notifications Email" with a clearer description of when notifications are sent
+- **Event page template dropdown now includes parent theme files**: The template selector previously only scanned the child theme directory for PHP files, leaving the dropdown empty on sites with a minimal child theme. It now also scans the parent theme directory. The `template_include` filter priority has been raised to 99 to prevent other plugins overriding the selection
+- **Pre-launch UX improvements**: Network AJAX errors no longer say "Check console for details" — replaced with a plain-English message. Empty rooms list now shows a "No rooms available — contact the administrator" notice. Both form message areas have `role="alert" aria-live="polite"` for screen-reader compatibility. "Booking not found" now includes a Back to calendar link. Agenda entries without a purpose no longer show "No purpose specified"
+- **Admin instructions fixes**: Duplicate `<hr>` removed from the Bookings tab. Groups description corrected to describe groups as booking parties (lodge, committee, external hirer) rather than "department, team, or purpose"
+- **Version constant corrected**: `HBC_VERSION` was still set to `1.18.0` despite the plugin header reading `1.19.0`; both are now `1.20.0`
+
 ## 1.19.0
 - **Self-service booking edit link**: The confirmation email sent to the booker now includes a personal edit link (`/edit-booking/{token}/`). Clicking it opens a simple, login-free form where the booker can update the event name, description, date, time, and their contact details. A conflict check prevents double-bookings when the date or time is changed. The venue administrator is notified by email of any changes
 - **Admin self-service links panel**: The booking detail page in Hall Booking → Bookings now shows a "Self-Service Links" section displaying the edit link and cancel link for the booking, so admins can copy and re-share them if needed

@@ -66,6 +66,7 @@ Both routes resolve to the page containing `[hall_booking_calendar]` (found via 
 
 | Option key | Description |
 |---|---|
+| `hbc_hall_name` | Venue name used in email subjects/bodies (optional) |
 | `hbc_booking_password` | wp_hash_password()-hashed booking password |
 | `hbc_webmaster_email` | Notification recipient |
 | `hbc_require_password` | `'1'` / `'0'` |
