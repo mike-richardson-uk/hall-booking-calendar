@@ -1761,3 +1761,60 @@
         flex-direction: column;
     }
 }
+
+/* Meal description formatting (contenteditable + toolbar) - frontend booking form */
+.hbc-meal-desc-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.hbc-meal-format-toolbar {
+    display: flex;
+    gap: 2px;
+}
+.hbc-meal-format-toolbar .hbc-format-btn {
+    min-width: 28px;
+    padding: 2px 6px;
+    font-weight: 700;
+    font-size: 13px;
+}
+.hbc-meal-format-toolbar .hbc-format-btn[data-cmd="italic"] {
+    font-style: italic;
+    font-weight: normal;
+}
+.hbc-meal-desc-input[contenteditable="true"] {
+    min-height: 80px;
+    padding: 6px 8px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    background: #fff;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+    outline: none;
+}
+.hbc-meal-desc-input[contenteditable="true"]:focus {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+}
+.hbc-meal-desc-input[contenteditable="true"]:empty::before {
+    content: attr(data-placeholder);
+    color: #757575;
+}
+/* Rendered meal description on member booking-in form */
+.hbc-meal-description {
+    display: block;
+    margin-top: 2px;
+    line-height: 1.4;
+}
+.hbc-meal-description b,
+.hbc-meal-description strong {
+    font-weight: 700;
+}
+.hbc-meal-description i,
+.hbc-meal-description em {
+    font-style: italic;
+}
+.hbc-meal-description u {
+    text-decoration: underline;
+}

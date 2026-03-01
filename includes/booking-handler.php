@@ -385,17 +385,18 @@ function hbc_save_book_in_form_config($booking_id) {
         return; // At least one valid email is required
     }
 
-    // Collect meal options from JSON payload
+    // Collect meal options from JSON payload (decode first; do not sanitize the JSON string
+    // or HTML in description will be stripped before we can apply hbc_sanitize_meal_description_html)
     $include_meal_menu = (!empty($_POST['include_meal_menu']) && '1' === $_POST['include_meal_menu']) ? 1 : 0;
     $meal_options = array();
     if ($include_meal_menu && !empty($_POST['book_in_meals_json'])) {
-        $raw_meals = json_decode(wp_unslash(sanitize_text_field(wp_unslash($_POST['book_in_meals_json']))), true);
+        $raw_meals = json_decode(wp_unslash($_POST['book_in_meals_json']), true);
         if (is_array($raw_meals)) {
             foreach ($raw_meals as $meal) {
                 if (!empty($meal['name'])) {
                     $meal_options[] = array(
                         'name'        => sanitize_text_field($meal['name']),
-                        'description' => sanitize_text_field(isset($meal['description']) ? $meal['description'] : ''),
+                        'description' => hbc_sanitize_meal_description_html(isset($meal['description']) ? $meal['description'] : ''),
                         'price'       => isset($meal['price']) && is_numeric($meal['price']) ? abs(floatval($meal['price'])) : 0,
                     );
                 }

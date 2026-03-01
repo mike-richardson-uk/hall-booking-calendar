@@ -335,9 +335,13 @@ This project uses automated code linting to maintain code quality and consistenc
 
 #### Run All Linters
 
+Install dependencies first (`npm install` and `composer install`), then:
+
 ```bash
 npm run lint
 ```
+
+This runs JS, CSS, and PHP linters. Without installed dependencies, lint commands will not be available.
 
 #### Run Individual Linters
 
@@ -369,6 +373,14 @@ npm run lint:fix
 ```bash
 composer run lint:fix
 ```
+
+### Testing
+
+No automated test suite is configured yet. To add PHPUnit tests (e.g. for conflict detection, token validation):
+
+1. Add `phpunit/phpunit` and `yoast/phpunit-polyfills` (or similar) as dev dependencies.
+2. Add a `phpunit.xml.dist` in the project root and a `tests/` directory.
+3. Run tests with `./vendor/bin/phpunit` or `composer run test` if configured.
 
 ### Configuration Files
 

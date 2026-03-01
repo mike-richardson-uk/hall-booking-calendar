@@ -347,3 +347,45 @@
     padding: 5px 10px;
     margin-right: 10px;
 }
+
+/* Meal description formatting (contenteditable + toolbar) */
+.hbc-meal-desc-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.hbc-meal-format-toolbar {
+    display: flex;
+    gap: 2px;
+}
+.hbc-meal-format-toolbar .hbc-format-btn {
+    min-width: 28px;
+    padding: 2px 6px;
+    font-weight: 700;
+    font-size: 13px;
+}
+.hbc-meal-format-toolbar .hbc-format-btn[data-cmd="italic"] { font-style: italic; font-weight: normal; }
+.hbc-admin-meal-desc,
+.hbc-meal-desc-input {
+    min-height: 80px;
+    width: 300px;
+    max-width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    background: #fff;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+    outline: none;
+}
+.hbc-admin-meal-desc:focus,
+.hbc-meal-desc-input:focus {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+}
+.hbc-admin-meal-desc[contenteditable]:empty::before,
+.hbc-meal-desc-input[contenteditable]:empty::before {
+    content: attr(data-placeholder);
+    color: #757575;
+}

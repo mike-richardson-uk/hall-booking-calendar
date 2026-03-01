@@ -1395,7 +1395,7 @@ function hbc_display_booking_in_form($booking_id) {
                             <input type="radio" name="bi_meal_choice" value="<?php echo esc_attr($meal['name']); ?>">
                             <span class="hbc-meal-name"><?php echo esc_html($meal['name']); ?></span>
                             <?php if (!empty($meal['description'])) : ?>
-                            <span class="hbc-meal-description"><?php echo esc_html($meal['description']); ?></span>
+                            <span class="hbc-meal-description"><?php echo wp_kses($meal['description'], hbc_allowed_meal_description_tags()); ?></span>
                             <?php endif; ?>
                             <?php if (!empty($meal['price'])) : ?>
                             <span class="hbc-meal-price">&pound;<?php echo esc_html(number_format(floatval($meal['price']), 2)); ?></span>

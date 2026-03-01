@@ -266,7 +266,7 @@ function hbc_admin_subscriptions_page() {
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
 
     // Handle subscription revocation
-    if (isset($_GET['action']) && $_GET['action'] === 'revoke' && isset($_GET['sub_id']) && check_admin_referer('hbc_revoke_sub_' . $_GET['sub_id'])) {
+    if (isset($_GET['action']) && $_GET['action'] === 'revoke' && isset($_GET['sub_id']) && check_admin_referer('hbc_revoke_sub_' . intval($_GET['sub_id']))) {
         $sub_id = intval($_GET['sub_id']);
         $user_id = get_current_user_id();
 
@@ -290,7 +290,7 @@ function hbc_admin_subscriptions_page() {
     }
 
     // Handle new subscription creation
-    if (isset($_POST['hbc_create_subscription']) && check_admin_referer('hbc_create_subscription', 'hbc_sub_nonce')) {
+    if (isset($_POST['hbc_create_subscription']) && current_user_can('manage_options') && check_admin_referer('hbc_create_subscription', 'hbc_sub_nonce')) {
         $user_id = is_user_logged_in() ? get_current_user_id() : null;
         $group_id = !empty($_POST['group_id']) ? intval($_POST['group_id']) : null;
         $room_id = !empty($_POST['room_id']) ? intval($_POST['room_id']) : null;
@@ -392,7 +392,7 @@ function hbc_admin_subscriptions_page() {
                         $is_expired = (time() > $expiry_time) || ($sub->status === 'inactive');
                         $days_until_expiry = ceil(($expiry_time - time()) / DAY_IN_SECONDS);
                     ?>
-                    <tr<?php echo $is_expired ? ' style="opacity: 0.5;"' : ''; ?>>
+                    <tr<?php echo $is_expired ? ' style="' . esc_attr('opacity: 0.5;') . '"' : ''; ?>>
                         <td>
                             <?php if ($is_expired) : ?>
                                 <span style="color: red;">● <?php _e('Expired', 'hall-booking-calendar'); ?></span>

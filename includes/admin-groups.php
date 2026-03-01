@@ -12,15 +12,25 @@ if (!defined('WPINC')) {
  * Handle group operations
  */
 function hbc_handle_group_operations() {
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+
     global $wpdb;
     $groups_table = $wpdb->prefix . 'hbc_groups';
 
+    $allowed_group_statuses = array('active', 'inactive');
+
     // Add group
     if (isset($_POST['hbc_add_group']) && check_admin_referer('hbc_add_group', 'hbc_group_nonce')) {
+        $group_status = sanitize_text_field(wp_unslash($_POST['group_status']));
+        if (!in_array($group_status, $allowed_group_statuses, true)) {
+            $group_status = 'active';
+        }
         $wpdb->insert($groups_table, array(
             'name' => sanitize_text_field(wp_unslash($_POST['group_name'])),
             'description' => sanitize_textarea_field(wp_unslash($_POST['group_description'])),
-            'status' => sanitize_text_field(wp_unslash($_POST['group_status']))
+            'status' => $group_status
         ));
 
         if ($wpdb->insert_id) {
@@ -31,12 +41,16 @@ function hbc_handle_group_operations() {
     // Update group
     if (isset($_POST['hbc_update_group']) && check_admin_referer('hbc_update_group', 'hbc_group_nonce')) {
         $group_id = intval($_POST['group_id']);
+        $group_status = sanitize_text_field(wp_unslash($_POST['group_status']));
+        if (!in_array($group_status, $allowed_group_statuses, true)) {
+            $group_status = 'active';
+        }
         $wpdb->update(
             $groups_table,
             array(
                 'name' => sanitize_text_field(wp_unslash($_POST['group_name'])),
                 'description' => sanitize_textarea_field(wp_unslash($_POST['group_description'])),
-                'status' => sanitize_text_field(wp_unslash($_POST['group_status']))
+                'status' => $group_status
             ),
             array('id' => $group_id)
         );
@@ -45,7 +59,7 @@ function hbc_handle_group_operations() {
     }
 
     // Delete group
-    if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['group_id']) && check_admin_referer('hbc_delete_group_' . $_GET['group_id'])) {
+    if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['group_id']) && check_admin_referer('hbc_delete_group_' . intval($_GET['group_id']))) {
         $group_id = intval($_GET['group_id']);
         $wpdb->delete($groups_table, array('id' => $group_id));
         add_settings_error('hbc_messages', 'hbc_message', __('Group deleted successfully.', 'hall-booking-calendar'), 'updated');

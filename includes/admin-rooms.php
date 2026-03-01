@@ -12,16 +12,26 @@ if (!defined('WPINC')) {
  * Handle room operations
  */
 function hbc_handle_room_operations() {
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+
     global $wpdb;
     $rooms_table = $wpdb->prefix . 'hbc_rooms';
 
+    $allowed_room_statuses = array('active', 'inactive');
+
     // Add room
     if (isset($_POST['hbc_add_room']) && check_admin_referer('hbc_add_room', 'hbc_room_nonce')) {
+        $room_status = sanitize_text_field($_POST['room_status']);
+        if (!in_array($room_status, $allowed_room_statuses, true)) {
+            $room_status = 'active';
+        }
         $wpdb->insert($rooms_table, array(
             'name' => sanitize_text_field($_POST['room_name']),
             'description' => sanitize_textarea_field($_POST['room_description']),
             'capacity' => intval($_POST['room_capacity']),
-            'status' => sanitize_text_field($_POST['room_status'])
+            'status' => $room_status
         ));
 
         if ($wpdb->insert_id) {
@@ -32,13 +42,17 @@ function hbc_handle_room_operations() {
     // Update room
     if (isset($_POST['hbc_update_room']) && check_admin_referer('hbc_update_room', 'hbc_room_nonce')) {
         $room_id = intval($_POST['room_id']);
+        $room_status = sanitize_text_field($_POST['room_status']);
+        if (!in_array($room_status, $allowed_room_statuses, true)) {
+            $room_status = 'active';
+        }
         $wpdb->update(
             $rooms_table,
             array(
                 'name' => sanitize_text_field($_POST['room_name']),
                 'description' => sanitize_textarea_field($_POST['room_description']),
                 'capacity' => intval($_POST['room_capacity']),
-                'status' => sanitize_text_field($_POST['room_status'])
+                'status' => $room_status
             ),
             array('id' => $room_id)
         );
@@ -47,7 +61,7 @@ function hbc_handle_room_operations() {
     }
 
     // Delete room
-    if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['room_id']) && check_admin_referer('hbc_delete_room_' . $_GET['room_id'])) {
+    if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['room_id']) && check_admin_referer('hbc_delete_room_' . intval($_GET['room_id']))) {
         $room_id = intval($_GET['room_id']);
         $wpdb->delete($rooms_table, array('id' => $room_id));
         add_settings_error('hbc_messages', 'hbc_message', __('Room deleted successfully.', 'hall-booking-calendar'), 'updated');

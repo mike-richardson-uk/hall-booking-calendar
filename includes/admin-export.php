@@ -46,9 +46,20 @@ function hbc_handle_csv_export() {
         return;
     }
 
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_from) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_to)) {
+        add_settings_error('hbc_export', 'hbc_export_error', __('Dates must be in YYYY-MM-DD format.', 'hall-booking-calendar'), 'error');
+        return;
+    }
+
     if ($date_from > $date_to) {
         add_settings_error('hbc_export', 'hbc_export_error', __('Start date must be before end date.', 'hall-booking-calendar'), 'error');
         return;
+    }
+
+    // Restrict status filter to allowed values
+    $allowed_export_statuses = array('pending', 'confirmed', 'cancelled');
+    if ($status_filter && !in_array($status_filter, $allowed_export_statuses, true)) {
+        $status_filter = '';
     }
 
     // Build query
@@ -86,8 +97,12 @@ function hbc_handle_csv_export() {
         }
     }
 
-    // Generate CSV
+    // Generate CSV - safe filename for Content-Disposition
     $filename = 'bookings-' . $date_from . '-to-' . $date_to . '.csv';
+    $filename = sanitize_file_name($filename);
+    if (strpos($filename, '..') !== false || $filename === '') {
+        $filename = 'bookings-export.csv';
+    }
 
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="' . $filename . '"');

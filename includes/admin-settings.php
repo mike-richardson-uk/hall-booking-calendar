@@ -154,7 +154,7 @@ function hbc_admin_settings_page() {
                     </td>
                 </tr>
 
-                <tr id="hbc_password_field_row" style="<?php echo $require_password == '1' ? '' : 'display:none;'; ?>">
+                <tr id="hbc_password_field_row" style="<?php echo esc_attr($require_password == '1' ? '' : 'display:none;'); ?>">
                     <th scope="row">
                         <label for="hbc_booking_password"><?php _e('Booking Password', 'hall-booking-calendar'); ?></label>
                     </th>

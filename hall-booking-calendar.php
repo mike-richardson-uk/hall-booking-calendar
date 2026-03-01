@@ -632,6 +632,34 @@ function hbc_load_textdomain() {
 add_action('plugins_loaded', 'hbc_load_textdomain');
 
 /**
+ * Allowed HTML tags for meal option descriptions (simple formatting)
+ *
+ * @since 1.20.0
+ * @return array Allowed tags for wp_kses
+ */
+function hbc_allowed_meal_description_tags() {
+    return array(
+        'b'      => array(),
+        'strong' => array(),
+        'i'      => array(),
+        'em'     => array(),
+        'u'      => array(),
+        'br'     => array(),
+    );
+}
+
+/**
+ * Sanitize meal description HTML for storage (bold, italic, underline, br only)
+ *
+ * @since 1.20.0
+ * @param string $html Raw description from form
+ * @return string Sanitized HTML
+ */
+function hbc_sanitize_meal_description_html($html) {
+    return wp_kses($html, hbc_allowed_meal_description_tags());
+}
+
+/**
  * Check if Elementor is active and register widget
  *
  * @since 1.4.0

@@ -12,6 +12,10 @@ if (!defined('WPINC')) {
  * Handle booking operations
  */
 function hbc_handle_booking_operations() {
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+
     global $wpdb;
     $bookings_table = $wpdb->prefix . 'hbc_bookings';
     $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
@@ -42,6 +46,10 @@ function hbc_handle_booking_operations() {
     if (isset($_POST['hbc_update_booking_status']) && check_admin_referer('hbc_update_booking_status', 'hbc_booking_nonce')) {
         $booking_id = intval($_POST['booking_id']);
         $status = sanitize_text_field($_POST['booking_status']);
+        $allowed_statuses = array('pending', 'confirmed', 'cancelled');
+        if (!in_array($status, $allowed_statuses, true)) {
+            $status = 'pending';
+        }
         $group_id = isset($_POST['booking_group_id']) && $_POST['booking_group_id'] !== '' ? intval($_POST['booking_group_id']) : null;
         $category_id = isset($_POST['booking_category_id']) && $_POST['booking_category_id'] !== '' ? intval($_POST['booking_category_id']) : null;
 
@@ -149,7 +157,7 @@ function hbc_handle_booking_operations() {
     }
 
     // Delete booking
-    if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['booking_id']) && check_admin_referer('hbc_delete_booking_' . $_GET['booking_id'])) {
+    if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['booking_id']) && check_admin_referer('hbc_delete_booking_' . intval($_GET['booking_id']))) {
         $booking_id = intval($_GET['booking_id']);
         $wpdb->delete($bookings_table, array('id' => $booking_id));
         add_settings_error('hbc_messages', 'hbc_message', __('Booking deleted successfully.', 'hall-booking-calendar'), 'updated');
@@ -195,6 +203,10 @@ function hbc_display_bookings_list() {
 
     // Filters
     $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
+    $allowed_statuses = array('pending', 'confirmed', 'cancelled');
+    if ($status_filter && !in_array($status_filter, $allowed_statuses, true)) {
+        $status_filter = '';
+    }
     $group_filter = isset($_GET['group']) ? intval($_GET['group']) : 0;
 
     $categories_table = $wpdb->prefix . 'hbc_categories';
@@ -629,7 +641,7 @@ function hbc_display_booking_details($booking_id) {
                 <?php endif; ?>
             </table>
 
-            <div id="hbc-admin-book-in-options" <?php echo $bi_enabled ? '' : 'style="display:none;"'; ?>>
+            <div id="hbc-admin-book-in-options" <?php echo $bi_enabled ? '' : ' style="' . esc_attr('display:none;') . '"'; ?>>
                 <table class="form-table">
                     <tr>
                         <th scope="row"><?php _e('Send submissions to:', 'hall-booking-calendar'); ?></th>
@@ -642,7 +654,7 @@ function hbc_display_booking_details($booking_id) {
                                 ?>
                                 <div class="hbc-admin-email-entry" style="display:flex;gap:6px;margin-bottom:4px;">
                                     <input type="email" name="book_in_emails[]" class="regular-text" value="<?php echo esc_attr($email); ?>" placeholder="email@example.com">
-                                    <button type="button" class="button hbc-admin-remove-email" <?php echo $first_only ? 'style="display:none;"' : ''; ?>>&times;</button>
+                                    <button type="button" class="button hbc-admin-remove-email" <?php echo $first_only ? ' style="' . esc_attr('display:none;') . '"' : ''; ?>>&times;</button>
                                 </div>
                                 <?php $first_only = false; endforeach; ?>
                             </div>
@@ -659,14 +671,23 @@ function hbc_display_booking_details($booking_id) {
                             </label>
                         </td>
                     </tr>
-                    <tr id="hbc-admin-meal-builder-row" <?php echo $bi_include_meal ? '' : 'style="display:none;"'; ?>>
+                    <tr id="hbc-admin-meal-builder-row" <?php echo $bi_include_meal ? '' : ' style="' . esc_attr('display:none;') . '"'; ?>>
                         <th scope="row"><?php _e('Meal Options:', 'hall-booking-calendar'); ?></th>
                         <td>
                             <div id="hbc-admin-meal-items-list">
-                                <?php foreach ($bi_meals as $meal) : ?>
+                                <?php foreach ($bi_meals as $meal) :
+                                    $meal_desc_safe = isset($meal['description']) ? wp_kses($meal['description'], hbc_allowed_meal_description_tags()) : '';
+                                    ?>
                                 <div class="hbc-admin-meal-item" style="display:flex;gap:6px;margin-bottom:6px;align-items:flex-start;">
                                     <input type="text" class="hbc-admin-meal-name" style="width:160px;" placeholder="<?php esc_attr_e('Meal name', 'hall-booking-calendar'); ?>" value="<?php echo esc_attr($meal['name']); ?>">
-                                    <textarea class="hbc-admin-meal-desc" style="width:300px;" rows="4" placeholder="<?php esc_attr_e('Menu / description (optional)', 'hall-booking-calendar'); ?>"><?php echo esc_textarea(isset($meal['description']) ? $meal['description'] : ''); ?></textarea>
+                                    <div class="hbc-meal-desc-wrap">
+                                        <div class="hbc-meal-format-toolbar">
+                                            <button type="button" class="button button-small hbc-format-btn" data-cmd="bold" title="<?php esc_attr_e('Bold', 'hall-booking-calendar'); ?>">B</button>
+                                            <button type="button" class="button button-small hbc-format-btn" data-cmd="italic" title="<?php esc_attr_e('Italic', 'hall-booking-calendar'); ?>">I</button>
+                                            <button type="button" class="button button-small hbc-format-btn" data-cmd="underline" title="<?php esc_attr_e('Underline', 'hall-booking-calendar'); ?>">U</button>
+                                        </div>
+                                        <div class="hbc-admin-meal-desc" contenteditable="true" data-placeholder="<?php esc_attr_e('Menu / description (optional)', 'hall-booking-calendar'); ?>"><?php echo $meal_desc_safe; ?></div>
+                                    </div>
                                     <input type="number" class="hbc-admin-meal-price small-text" placeholder="<?php esc_attr_e('£ Price', 'hall-booking-calendar'); ?>" min="0" step="0.01" value="<?php echo esc_attr(isset($meal['price']) ? $meal['price'] : ''); ?>">
                                     <button type="button" class="button hbc-admin-remove-meal">&times;</button>
                                 </div>
@@ -834,15 +855,34 @@ function hbc_display_booking_details($booking_id) {
             }
         }
 
-        // Add meal option row
+        // Add meal option row (contenteditable + format toolbar)
         $('#hbc-admin-add-meal-btn').on('click', function() {
+            var placeholder = '<?php echo esc_js(__('Menu / description (optional)', 'hall-booking-calendar')); ?>';
             var row = '<div class="hbc-admin-meal-item" style="display:flex;gap:6px;margin-bottom:6px;align-items:flex-start;">' +
                 '<input type="text" class="hbc-admin-meal-name" style="width:160px;" placeholder="<?php echo esc_js(__('Meal name', 'hall-booking-calendar')); ?>">' +
-                '<textarea class="hbc-admin-meal-desc" style="width:300px;" rows="4" placeholder="<?php echo esc_js(__('Menu / description (optional)', 'hall-booking-calendar')); ?>"></textarea>' +
+                '<div class="hbc-meal-desc-wrap">' +
+                '<div class="hbc-meal-format-toolbar">' +
+                '<button type="button" class="button button-small hbc-format-btn" data-cmd="bold" title="<?php echo esc_js(__('Bold', 'hall-booking-calendar')); ?>">B</button>' +
+                '<button type="button" class="button button-small hbc-format-btn" data-cmd="italic" title="<?php echo esc_js(__('Italic', 'hall-booking-calendar')); ?>">I</button>' +
+                '<button type="button" class="button button-small hbc-format-btn" data-cmd="underline" title="<?php echo esc_js(__('Underline', 'hall-booking-calendar')); ?>">U</button>' +
+                '</div>' +
+                '<div class="hbc-admin-meal-desc" contenteditable="true" data-placeholder="' + placeholder + '"></div>' +
+                '</div>' +
                 '<input type="number" class="hbc-admin-meal-price small-text" placeholder="<?php echo esc_js(__('£ Price', 'hall-booking-calendar')); ?>" min="0" step="0.01">' +
                 '<button type="button" class="button hbc-admin-remove-meal">&times;</button>' +
                 '</div>';
             $('#hbc-admin-meal-items-list').append(row);
+        });
+
+        // Meal format toolbar: apply bold/italic/underline without stealing focus (scoped to meal-desc-wrap)
+        $(document).on('mousedown', '.hbc-meal-desc-wrap .hbc-format-btn', function(e) {
+            e.preventDefault();
+            var cmd = $(this).data('cmd');
+            var editor = $(this).closest('.hbc-meal-desc-wrap').find('.hbc-admin-meal-desc')[0];
+            if (editor) {
+                editor.focus();
+                document.execCommand(cmd, false, null);
+            }
         });
 
         // Remove meal option row
@@ -850,15 +890,18 @@ function hbc_display_booking_details($booking_id) {
             $(this).closest('.hbc-admin-meal-item').remove();
         });
 
-        // Serialize meal rows to JSON hidden field before form submits
+        // Serialize meal rows to JSON hidden field before form submits (contenteditable stores HTML)
         $('#hbc-edit-booking-form').on('submit', function() {
             var meals = [];
             $('#hbc-admin-meal-items-list .hbc-admin-meal-item').each(function() {
                 var name = $(this).find('.hbc-admin-meal-name').val().trim();
                 if (name) {
+                    var descEl = $(this).find('.hbc-admin-meal-desc');
+                    var isContentEditable = descEl.prop('contenteditable');
+                    var desc = (isContentEditable === true || isContentEditable === 'true') ? descEl.html().trim() : (descEl.val() || '').trim();
                     meals.push({
                         name:        name,
-                        description: $(this).find('.hbc-admin-meal-desc').val().trim(),
+                        description: desc,
                         price:       parseFloat($(this).find('.hbc-admin-meal-price').val()) || 0
                     });
                 }

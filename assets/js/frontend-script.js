@@ -228,9 +228,12 @@
                     $('#hbc-meal-items-list .hbc-meal-item-row').each(function() {
                         var mealName = $.trim($(this).find('.hbc-meal-name-input').val());
                         if (mealName) {
+                            var descEl = $(this).find('.hbc-meal-desc-input');
+                            var isContentEditable = descEl.prop('contenteditable');
+                            var desc = (isContentEditable === true || isContentEditable === 'true') ? descEl.html().trim() : (descEl.val() || '');
                             meals.push({
                                 name:        mealName,
-                                description: $.trim($(this).find('.hbc-meal-desc-input').val()),
+                                description: $.trim(desc),
                                 price:       $(this).find('.hbc-meal-price-input').val()
                             });
                         }
@@ -346,18 +349,35 @@
             }
         });
 
-        // Add meal option row
+        // Add meal option row (contenteditable description with Bold/Italic/Underline toolbar)
         $('#hbc-add-meal-btn').on('click', function() {
-            var idx = $('#hbc-meal-items-list .hbc-meal-item-row').length;
             var row = $(
                 '<div class="hbc-meal-item-row" style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;align-items:flex-start;">' +
                 '<input type="text" class="hbc-meal-name-input" placeholder="Meal name *" style="flex:2;min-width:120px;">' +
-                '<textarea class="hbc-meal-desc-input" placeholder="Menu / description (optional)" style="flex:3;min-width:160px;" rows="4"></textarea>' +
+                '<div class="hbc-meal-desc-wrap" style="flex:3;min-width:160px;">' +
+                '<div class="hbc-meal-format-toolbar">' +
+                '<button type="button" class="button button-small hbc-format-btn" data-cmd="bold" title="Bold">B</button>' +
+                '<button type="button" class="button button-small hbc-format-btn" data-cmd="italic" title="Italic">I</button>' +
+                '<button type="button" class="button button-small hbc-format-btn" data-cmd="underline" title="Underline">U</button>' +
+                '</div>' +
+                '<div class="hbc-meal-desc-input" contenteditable="true" data-placeholder="Menu / description (optional)"></div>' +
+                '</div>' +
                 '<input type="number" class="hbc-meal-price-input" placeholder="Price (£)" min="0" step="0.01" style="width:90px;">' +
                 '<button type="button" class="button hbc-remove-meal">&times;</button>' +
                 '</div>'
             );
             $('#hbc-meal-items-list').append(row);
+        });
+
+        // Meal format toolbar (frontend): apply bold/italic/underline without stealing focus
+        $(document).on('mousedown', '.hbc-meal-desc-wrap .hbc-format-btn', function(e) {
+            e.preventDefault();
+            var cmd = $(this).data('cmd');
+            var editor = $(this).closest('.hbc-meal-desc-wrap').find('.hbc-meal-desc-input')[0];
+            if (editor) {
+                editor.focus();
+                document.execCommand(cmd, false, null);
+            }
         });
 
         // Remove meal option row

@@ -14,15 +14,25 @@ if (!defined('WPINC')) {
  * Handle category operations
  */
 function hbc_handle_category_operations() {
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+
     global $wpdb;
     $categories_table = $wpdb->prefix . 'hbc_categories';
 
+    $allowed_category_statuses = array('active', 'inactive');
+
     // Add category
     if (isset($_POST['hbc_add_category']) && check_admin_referer('hbc_add_category', 'hbc_category_nonce')) {
+        $category_status = sanitize_text_field($_POST['category_status']);
+        if (!in_array($category_status, $allowed_category_statuses, true)) {
+            $category_status = 'active';
+        }
         $wpdb->insert($categories_table, array(
             'name' => sanitize_text_field($_POST['category_name']),
             'description' => sanitize_textarea_field($_POST['category_description']),
-            'status' => sanitize_text_field($_POST['category_status'])
+            'status' => $category_status
         ));
 
         if ($wpdb->insert_id) {
@@ -33,12 +43,16 @@ function hbc_handle_category_operations() {
     // Update category
     if (isset($_POST['hbc_update_category']) && check_admin_referer('hbc_update_category', 'hbc_category_nonce')) {
         $category_id = intval($_POST['category_id']);
+        $category_status = sanitize_text_field($_POST['category_status']);
+        if (!in_array($category_status, $allowed_category_statuses, true)) {
+            $category_status = 'active';
+        }
         $wpdb->update(
             $categories_table,
             array(
                 'name' => sanitize_text_field($_POST['category_name']),
                 'description' => sanitize_textarea_field($_POST['category_description']),
-                'status' => sanitize_text_field($_POST['category_status'])
+                'status' => $category_status
             ),
             array('id' => $category_id)
         );
@@ -47,7 +61,7 @@ function hbc_handle_category_operations() {
     }
 
     // Delete category
-    if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['category_id']) && check_admin_referer('hbc_delete_category_' . $_GET['category_id'])) {
+    if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['category_id']) && check_admin_referer('hbc_delete_category_' . intval($_GET['category_id']))) {
         $category_id = intval($_GET['category_id']);
         $wpdb->delete($categories_table, array('id' => $category_id));
         add_settings_error('hbc_messages', 'hbc_message', __('Category deleted successfully.', 'hall-booking-calendar'), 'updated');
