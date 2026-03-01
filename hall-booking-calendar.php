@@ -1414,6 +1414,11 @@ function hbc_event_booking_body_class($classes) {
     $page_id = hbc_find_calendar_page_id();
     if ($page_id && is_page() && (int) get_queried_object_id() === (int) $page_id) {
         $classes[] = 'hbc-event-booking-page';
+        return $classes;
+    }
+    $queried = get_queried_object();
+    if ($queried instanceof WP_Post && $queried->post_name === 'events') {
+        $classes[] = 'hbc-event-booking-page';
     }
     return $classes;
 }
