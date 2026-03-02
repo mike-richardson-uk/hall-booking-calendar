@@ -208,7 +208,11 @@ function hbc_display_calendar($group_filter = 'all', $room_filter = 'all', $layo
 
     // Get bookings for the current month using junction table for multi-room support
     $first_day = date('Y-m-01', strtotime("$current_year-$current_month-01"));
-    $last_day = date('Y-m-t', strtotime("$current_year-$current_month-01"));
+    $last_day  = date('Y-m-t', strtotime("$current_year-$current_month-01"));
+    $today     = date('Y-m-d');
+    if ($first_day < $today) {
+        $first_day = $today;
+    }
     $booking_rooms_table = $wpdb->prefix . 'hbc_booking_rooms';
 
     // Build query with group and room filters
