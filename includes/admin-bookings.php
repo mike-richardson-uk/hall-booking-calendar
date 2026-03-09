@@ -22,16 +22,35 @@ function hbc_handle_booking_operations() {
         $booking_ids = array_filter($booking_ids);
 
         if (!empty($booking_ids)) {
+            // Fetch which of the selected IDs are actually pending — one query.
+            $id_placeholders = implode(',', array_fill(0, count($booking_ids), '%d'));
+            // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+            $pending_ids = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT id FROM $bookings_table WHERE id IN ($id_placeholders) AND status = 'pending'",
+                    $booking_ids
+                )
+            );
+            $pending_ids = array_map('intval', $pending_ids);
+
             $approved_count = 0;
-            foreach ($booking_ids as $bid) {
-                $current_status = $wpdb->get_var($wpdb->prepare("SELECT status FROM $bookings_table WHERE id = %d", $bid));
-                if ($current_status === 'pending') {
-                    $wpdb->update($bookings_table, array('status' => 'confirmed'), array('id' => $bid));
-                    // Send confirmation email to booker
-                    hbc_send_acceptance_notification($bid);
-                    $approved_count++;
-                }
+            if (!empty($pending_ids)) {
+                // Update all pending rows in a single query.
+                $upd_placeholders = implode(',', array_fill(0, count($pending_ids), '%d'));
+                // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+                $wpdb->query(
+                    $wpdb->prepare(
+                        "UPDATE $bookings_table SET status = 'confirmed' WHERE id IN ($upd_placeholders)",
+                        $pending_ids
+                    )
+                );
+                $approved_count = count($pending_ids);
+
+                // Schedule confirmation emails via WP-Cron so they fire outside
+                // this HTTP request — avoids hitting Pantheon's 59 s PHP limit.
+                wp_schedule_single_event(time(), 'hbc_send_bulk_approval_emails', array($pending_ids));
             }
+
             add_settings_error('hbc_messages', 'hbc_message', sprintf(__('%d booking(s) approved successfully.', 'hall-booking-calendar'), $approved_count), 'updated');
         } else {
             add_settings_error('hbc_messages', 'hbc_message', __('No bookings selected for approval.', 'hall-booking-calendar'), 'error');

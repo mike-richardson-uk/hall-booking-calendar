@@ -1128,6 +1128,25 @@ function hbc_send_acceptance_notification($booking_id) {
 }
 
 /**
+ * WP-Cron callback: send acceptance emails for a batch of booking IDs.
+ *
+ * Scheduled by hbc_handle_booking_operations() during bulk approval so that
+ * the synchronous HTTP request returns immediately and the emails are
+ * delivered in a background cron run.
+ *
+ * @param int[] $booking_ids Array of confirmed booking IDs to email.
+ */
+function hbc_send_bulk_approval_emails( $booking_ids ) {
+    if ( empty( $booking_ids ) || ! is_array( $booking_ids ) ) {
+        return;
+    }
+    foreach ( $booking_ids as $booking_id ) {
+        hbc_send_acceptance_notification( (int) $booking_id );
+    }
+}
+add_action( 'hbc_send_bulk_approval_emails', 'hbc_send_bulk_approval_emails' );
+
+/**
  * Inline conflict check AJAX handler
  *
  * Called from the booking form as the user fills in times and rooms, so
